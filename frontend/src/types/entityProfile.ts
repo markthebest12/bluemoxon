@@ -65,6 +65,10 @@ export interface ProfileConnection {
   narrative_trigger: NarrativeTrigger;
   is_key: boolean;
   relationship_story: RelationshipNarrative | null;
+  // AI-discovered connection fields
+  sub_type?: string;
+  confidence?: number;
+  is_ai_discovered?: boolean;
 }
 
 export interface ProfileBook {

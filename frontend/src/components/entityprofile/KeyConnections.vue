@@ -42,9 +42,20 @@ function isExpanded(conn: ProfileConnection): boolean {
           >
             {{ conn.entity.name }}
           </router-link>
-          <span class="key-connections__type">{{ conn.connection_type.replace(/_/g, " ") }}</span>
+          <div class="key-connections__type-group">
+            <span class="key-connections__type">{{ conn.connection_type.replace(/_/g, " ") }}</span>
+            <span v-if="conn.sub_type" class="key-connections__sub-type">{{ conn.sub_type }}</span>
+            <span v-if="conn.is_ai_discovered" class="key-connections__ai-badge">AI</span>
+          </div>
         </div>
-        <p v-if="conn.narrative" class="key-connections__narrative">
+        <p
+          v-if="conn.narrative"
+          class="key-connections__narrative"
+          :class="{
+            'key-connections__narrative--rumored':
+              conn.confidence !== undefined && conn.confidence < 0.3,
+          }"
+        >
           {{ conn.narrative }}
         </p>
         <ul v-if="conn.shared_books.length" class="key-connections__books">
@@ -140,11 +151,48 @@ function isExpanded(conn: ProfileConnection): boolean {
   color: var(--color-text-muted, #8b8579);
 }
 
+.key-connections__type-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-connections__sub-type {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-accent-gold, #b8860b) 15%, transparent);
+  color: var(--color-accent-gold, #b8860b);
+}
+
+.key-connections__ai-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--color-victorian-hunter-700, #254a3d);
+  color: white;
+  letter-spacing: 0.5px;
+}
+
 .key-connections__narrative {
   font-size: 14px;
   line-height: 1.5;
   font-style: italic;
   margin: 8px 0;
+}
+
+.key-connections__narrative--rumored {
+  opacity: 0.8;
+}
+
+.key-connections__narrative--rumored::before {
+  content: "Rumored: ";
+  font-weight: 600;
+  font-style: normal;
 }
 
 .key-connections__books {

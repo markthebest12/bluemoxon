@@ -29,6 +29,26 @@ const CONNECTION_LABELS: Record<ConnectionType, { label: string; description: st
     label: "Same Bindery",
     description: "Books bound at the same bindery",
   },
+  family: {
+    label: "Family",
+    description: "Family relationship (marriage, siblings, etc.)",
+  },
+  friendship: {
+    label: "Friendship",
+    description: "Personal friends and social connections",
+  },
+  influence: {
+    label: "Influence",
+    description: "Mentorship or intellectual influence",
+  },
+  collaboration: {
+    label: "Collaboration",
+    description: "Literary partnership or co-authorship",
+  },
+  scandal: {
+    label: "Scandal",
+    description: "Affairs, feuds, or public controversies",
+  },
 };
 
 interface Props {

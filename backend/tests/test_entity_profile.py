@@ -16,7 +16,11 @@ from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
 from app.schemas.entity_profile import ProfileBook
-from app.services.ai_profile_generator import GeneratorConfig
+from app.services.ai_profile_generator import (
+    GeneratorConfig,
+    _validate_ai_connections,
+    generate_ai_connections,
+)
 from app.services.entity_profile import (
     _build_connections,
     _build_profile_books,
@@ -1731,3 +1735,370 @@ class TestBuildStatsAggregation:
         assert stats.acquisition_by_year == {}
         # condition_distribution should still be populated
         assert stats.condition_distribution == {"FINE": 1, "GOOD": 1}
+
+
+class TestValidateAIConnections:
+    """Tests for _validate_ai_connections() (#1805)."""
+
+    def test_valid_connections_pass_through(self):
+        """Valid connections are returned unchanged."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "family",
+                "sub_type": "MARRIAGE",
+                "confidence": 0.95,
+                "evidence": "Married in 1846",
+            }
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert len(result) == 1
+        assert result[0]["relationship"] == "family"
+        assert result[0]["sub_type"] == "MARRIAGE"
+        assert result[0]["confidence"] == 0.95
+
+    def test_empty_connections_return_empty(self):
+        """Empty input returns empty list."""
+        result = _validate_ai_connections([], "author", 1, set())
+        assert result == []
+
+    def test_self_connection_filtered(self):
+        """Connections from entity to itself are filtered out."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 31,
+                "relationship": "family",
+                "confidence": 0.9,
+            }
+        ]
+        all_ids = {"author:31"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert result == []
+
+    def test_invalid_relationship_type_filtered(self):
+        """Connections with invalid relationship types are filtered."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "enemy",  # Not a valid type
+                "confidence": 0.8,
+            }
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert result == []
+
+    def test_non_collection_entity_filtered(self):
+        """Connections to entities not in the collection are filtered."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 9999,
+                "relationship": "friendship",
+                "confidence": 0.7,
+            }
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert result == []
+
+    def test_duplicate_connections_deduped(self):
+        """Duplicate connections (same pair + relationship) are deduplicated."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "family",
+                "confidence": 0.95,
+                "evidence": "First mention",
+            },
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "family",
+                "confidence": 0.90,
+                "evidence": "Second mention",
+            },
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert len(result) == 1
+
+    def test_bad_json_entries_skipped(self):
+        """Non-dict entries in the list are skipped."""
+        raw = [
+            "not a dict",
+            42,
+            None,
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "friendship",
+                "confidence": 0.7,
+            },
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert len(result) == 1
+
+    def test_confidence_clamped(self):
+        """Confidence values are clamped to 0.0-1.0 range."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "family",
+                "confidence": 2.5,
+            }
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert result[0]["confidence"] == 1.0
+
+    def test_missing_confidence_defaults_to_half(self):
+        """Missing confidence defaults to 0.5."""
+        raw = [
+            {
+                "target_type": "author",
+                "target_id": 227,
+                "relationship": "family",
+            }
+        ]
+        all_ids = {"author:31", "author:227"}
+        result = _validate_ai_connections(raw, "author", 31, all_ids)
+        assert result[0]["confidence"] == 0.5
+
+
+class TestGenerateAIConnections:
+    """Tests for generate_ai_connections() (#1805)."""
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_valid_response_parsed(self, mock_invoke):
+        """Valid AI response is parsed and validated."""
+        mock_invoke.return_value = '{"connections": [{"target_type": "author", "target_id": 227, "relationship": "family", "sub_type": "MARRIAGE", "confidence": 0.95, "evidence": "Married in 1846"}]}'
+        config = GeneratorConfig(model_id="test-model")
+        all_entities = [
+            {"entity_type": "author", "entity_id": 31, "name": "EBB"},
+            {"entity_type": "author", "entity_id": 227, "name": "RB"},
+        ]
+        result = generate_ai_connections("EBB", "author", 31, all_entities, config=config)
+        assert len(result) == 1
+        assert result[0]["relationship"] == "family"
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_empty_all_entities_returns_empty(self, mock_invoke):
+        """Empty all_entities list returns empty without calling AI."""
+        config = GeneratorConfig(model_id="test-model")
+        result = generate_ai_connections("EBB", "author", 31, [], config=config)
+        assert result == []
+        mock_invoke.assert_not_called()
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_ai_failure_returns_empty(self, mock_invoke):
+        """AI invocation failure returns empty list."""
+        mock_invoke.side_effect = RuntimeError("API error")
+        config = GeneratorConfig(model_id="test-model")
+        all_entities = [
+            {"entity_type": "author", "entity_id": 31, "name": "EBB"},
+        ]
+        result = generate_ai_connections("EBB", "author", 31, all_entities, config=config)
+        assert result == []
+
+    @patch("app.services.ai_profile_generator._invoke")
+    def test_malformed_json_returns_empty(self, mock_invoke):
+        """Malformed JSON response returns empty list."""
+        mock_invoke.return_value = "not valid json at all"
+        config = GeneratorConfig(model_id="test-model")
+        all_entities = [
+            {"entity_type": "author", "entity_id": 31, "name": "EBB"},
+        ]
+        result = generate_ai_connections("EBB", "author", 31, all_entities, config=config)
+        assert result == []
+
+
+class TestBuildConnectionsAIMerge:
+    """Tests for AI connection merge in _build_connections (#1803)."""
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.classify_connection", return_value=None)
+    def test_ai_connections_appear_in_build_connections(self, _mock_classify, mock_graph, db):
+        """AI connections from profile are included in _build_connections output."""
+        author1 = Author(name="Elizabeth Barrett Browning", birth_year=1806, death_year=1861)
+        author2 = Author(name="Robert Browning", birth_year=1812, death_year=1889)
+        db.add_all([author1, author2])
+        db.flush()
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author1.id,
+            ai_connections=[
+                {
+                    "source_type": "author",
+                    "source_id": author1.id,
+                    "target_type": "author",
+                    "target_id": author2.id,
+                    "relationship": "family",
+                    "sub_type": "MARRIAGE",
+                    "confidence": 0.95,
+                    "evidence": "Married in 1846",
+                }
+            ],
+        )
+        db.add(profile)
+        db.commit()
+
+        source = _make_graph_node(
+            f"author:{author1.id}", author1.id, "EBB", era="victorian", birth_year=1806
+        )
+        target = _make_graph_node(
+            f"author:{author2.id}", author2.id, "RB", era="victorian", birth_year=1812
+        )
+
+        graph = MagicMock()
+        graph.nodes = [source, target]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        connections = _build_connections(db, "author", author1.id, profile, graph=graph)
+
+        ai_conns = [c for c in connections if c.is_ai_discovered]
+        assert len(ai_conns) == 1
+        assert ai_conns[0].connection_type == "family"
+        assert ai_conns[0].sub_type == "MARRIAGE"
+        assert ai_conns[0].confidence == 0.95
+        assert ai_conns[0].narrative == "Married in 1846"
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.classify_connection", return_value=None)
+    def test_ai_connections_get_key_priority(self, _mock_classify, mock_graph, db):
+        """AI-discovered connections are prioritized for key slots."""
+        author = Author(name="Darwin", birth_year=1809, death_year=1882)
+        db.add(author)
+        db.flush()
+
+        # Create several graph targets
+        targets = []
+        edges = []
+        for i in range(2, 8):
+            t = _make_graph_node(f"publisher:{i}", i, f"Pub {i}", node_type="publisher")
+            targets.append(t)
+            e = _make_graph_edge(f"author:{author.id}", f"publisher:{i}", shared_book_ids=[100 + i])
+            edges.append(e)
+
+        # Also create a target for AI connection
+        ai_target = _make_graph_node("author:99", 99, "AI Friend", era="victorian", birth_year=1820)
+        targets.append(ai_target)
+
+        profile = EntityProfile(
+            entity_type="author",
+            entity_id=author.id,
+            ai_connections=[
+                {
+                    "source_type": "author",
+                    "source_id": author.id,
+                    "target_type": "author",
+                    "target_id": 99,
+                    "relationship": "friendship",
+                    "sub_type": "CLOSE_FRIENDS",
+                    "confidence": 0.8,
+                    "evidence": "Were close friends",
+                }
+            ],
+        )
+        db.add(profile)
+        db.commit()
+
+        source = _make_graph_node(f"author:{author.id}", author.id, "Darwin")
+        graph = MagicMock()
+        graph.nodes = [source] + targets
+        graph.edges = edges
+        mock_graph.return_value = graph
+
+        connections = _build_connections(db, "author", author.id, profile, graph=graph)
+
+        # The AI connection should be marked as key
+        ai_conn = next(c for c in connections if c.is_ai_discovered)
+        assert ai_conn.is_key is True
+
+
+class TestPipelineAIConnections:
+    """Tests for AI connections in generate_and_cache_profile pipeline (#1806)."""
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.generate_bio_and_stories")
+    @patch("app.services.entity_profile.generate_ai_connections")
+    @patch("app.services.entity_profile.classify_connection")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
+    def test_ai_connections_stored_in_profile(
+        self, _mock_model, mock_classify, mock_ai_conn, mock_bio, mock_graph, db
+    ):
+        """generate_and_cache_profile stores AI connections in the profile."""
+        author = Author(name="Browning", birth_year=1812, death_year=1889)
+        db.add(author)
+        db.flush()
+        db.commit()
+
+        mock_bio.return_value = {"biography": "A bio", "personal_stories": []}
+        mock_classify.return_value = None
+        mock_ai_conn.return_value = [
+            {
+                "source_type": "author",
+                "source_id": author.id,
+                "target_type": "author",
+                "target_id": 99,
+                "relationship": "family",
+                "sub_type": "MARRIAGE",
+                "confidence": 0.95,
+                "evidence": "Married EBB",
+            }
+        ]
+
+        source = _make_graph_node(f"author:{author.id}", author.id, "Browning")
+        graph = MagicMock()
+        graph.nodes = [source]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        result = generate_and_cache_profile(db, "author", author.id)
+
+        assert result.ai_connections is not None
+        assert len(result.ai_connections) == 1
+        assert result.ai_connections[0]["relationship"] == "family"
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.generate_bio_and_stories")
+    @patch("app.services.entity_profile.generate_ai_connections")
+    @patch("app.services.entity_profile.classify_connection")
+    @patch(
+        "app.services.entity_profile.GeneratorConfig.resolve",
+        return_value=GeneratorConfig(model_id="claude-3-haiku"),
+    )
+    def test_empty_ai_connections_stored(
+        self, _mock_model, mock_classify, mock_ai_conn, mock_bio, mock_graph, db
+    ):
+        """Empty AI connections are stored as None (not empty list) for efficient filtering."""
+        author = Author(name="Obscure Author")
+        db.add(author)
+        db.flush()
+        db.commit()
+
+        mock_bio.return_value = {"biography": "A bio", "personal_stories": []}
+        mock_classify.return_value = None
+        mock_ai_conn.return_value = []
+
+        source = _make_graph_node(f"author:{author.id}", author.id, "Obscure Author")
+        graph = MagicMock()
+        graph.nodes = [source]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        result = generate_and_cache_profile(db, "author", author.id)
+
+        assert result.ai_connections is None

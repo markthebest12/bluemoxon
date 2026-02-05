@@ -32,6 +32,11 @@ const CONNECTION_LABELS: Record<ConnectionType, string> = {
   publisher: "published by",
   shared_publisher: "shared publisher with",
   binder: "bound by",
+  family: "family of",
+  friendship: "friend of",
+  influence: "influenced by",
+  collaboration: "collaborated with",
+  scandal: "scandal with",
 };
 
 /** Node lookup map for efficient access */

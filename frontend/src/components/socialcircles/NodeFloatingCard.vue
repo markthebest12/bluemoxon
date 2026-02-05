@@ -134,6 +134,11 @@ function getConnectionIcon(type: ConnectionType): string {
     publisher: "📚",
     shared_publisher: "🤝",
     binder: "🪡",
+    family: "👨‍👩‍👧",
+    friendship: "🫂",
+    influence: "🎓",
+    collaboration: "✍️",
+    scandal: "🔥",
   };
   return icons[type] || "→";
 }
