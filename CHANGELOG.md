@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.2.4](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.4) - 2026-02-04
+
+- [`00a1e5f`](https://github.com/markthebest12/bluemoxon/commit/00a1e5fa8479419ee2ea0861655c5b6596730986) fix: sync package-lock.json version with package.json (#1798)
+
 ## [v3.2.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.2.3) - 2026-02-04
 
 - [`fdc028b`](https://github.com/markthebest12/bluemoxon/commit/fdc028b6de0a4297701780751e81c46f76f186d6) fix: use Uplift default commit message to show actual version (#1788)
