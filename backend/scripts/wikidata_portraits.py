@@ -23,8 +23,10 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote, unquote
 
 import requests
@@ -40,7 +42,7 @@ from app.models.binder import Binder
 from app.models.book import Book
 from app.models.publisher import Publisher
 from app.services.aws_clients import get_s3_client
-from scripts.wikidata_scoring import score_candidate
+from scripts.wikidata_scoring import name_similarity, score_candidate
 
 # Wikidata SPARQL endpoint
 WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
@@ -322,22 +324,21 @@ def get_cdn_url(s3_key: str, settings) -> str:
     return f"https://app.bluemoxon.com/book-images/{s3_key}"
 
 
-def process_person_entity(
-    db,
-    entity,
+def _score_person_candidates(
+    entity_name: str,
+    bindings: list[dict],
+    db: Any,
+    entity: Any,
     entity_type: str,
-    threshold: float,
-    dry_run: bool,
-    settings,
-) -> dict:
-    """Process a person entity (author or binder person).
+) -> tuple[float, dict | None, dict]:
+    """Score Wikidata candidates for a person entity (author or binder).
 
-    Queries Wikidata, scores candidates, optionally downloads and uploads portrait.
+    Groups SPARQL bindings by item, then scores each candidate using
+    the full scoring pipeline (name, years, works, occupation).
 
     Returns:
-        Result dict for JSON-lines output.
+        Tuple of (best_score, best_candidate dict or None, extra result fields).
     """
-    entity_name = entity.name
     entity_birth = getattr(entity, "birth_year", None)
     entity_death = getattr(entity, "death_year", None)
 
@@ -347,25 +348,6 @@ def process_person_entity(
         entity_death = getattr(entity, "closed_year", None)
 
     book_titles = get_entity_book_titles(db, entity_type, entity.id)
-
-    result = {
-        "entity_type": entity_type,
-        "entity_id": entity.id,
-        "entity_name": entity_name,
-        "status": "no_match",
-        "score": 0.0,
-        "wikidata_uri": None,
-        "image_uploaded": False,
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
-
-    # Query Wikidata
-    sparql = build_sparql_query_person(entity_name)
-    bindings = query_wikidata(sparql)
-
-    if not bindings:
-        result["status"] = "no_results"
-        return result
 
     # Group and score candidates
     candidates = group_sparql_results(bindings)
@@ -388,6 +370,109 @@ def process_person_entity(
             best_score = score
             best_candidate = candidate
 
+    extra_fields = {}
+    if best_candidate is not None:
+        extra_fields["wikidata_label"] = best_candidate["label"]
+
+    return best_score, best_candidate, extra_fields
+
+
+def _score_org_candidates(
+    entity_name: str,
+    bindings: list[dict],
+    db: Any,
+    entity: Any,
+    entity_type: str,
+) -> tuple[float, dict | None, dict]:
+    """Score Wikidata candidates for an organizational entity (publisher).
+
+    Uses simpler name-based matching with an image availability boost,
+    since organizations don't have birth/death years in the same way.
+
+    Returns:
+        Tuple of (best_score, best_candidate dict or None, extra result fields).
+    """
+    best_candidate = None
+    best_score = 0.0
+
+    for row in bindings:
+        label = row.get("itemLabel", {}).get("value", "")
+        image_url = row.get("image", {}).get("value")
+
+        # Simple name similarity check for organizations
+        ns = name_similarity(entity_name, label)
+        # Boost if has image
+        score = ns * 0.8 + (0.2 if image_url else 0.0)
+
+        if score > best_score:
+            best_score = score
+            best_candidate = {
+                "uri": row.get("item", {}).get("value", ""),
+                "label": label,
+                "image_url": image_url,
+            }
+
+    return best_score, best_candidate, {}
+
+
+def _process_entity(
+    db: Any,
+    entity: Any,
+    entity_type: str,
+    threshold: float,
+    dry_run: bool,
+    settings: Any,
+    build_query: Callable[[str], str],
+    find_best_match: Callable[
+        [str, list[dict], Any, Any, str],
+        tuple[float, dict | None, dict],
+    ],
+) -> dict:
+    """Unified entity processing pipeline.
+
+    Queries Wikidata, delegates candidate scoring to the provided callable,
+    and handles the download/process/upload portrait pipeline.
+
+    Args:
+        db: Database session.
+        entity: Entity ORM object (Author, Publisher, or Binder).
+        entity_type: One of 'author', 'publisher', or 'binder'.
+        threshold: Minimum confidence score for a match.
+        dry_run: If True, score candidates but don't download/upload images.
+        settings: App settings (for S3 bucket, CDN URL).
+        build_query: Callable that takes entity name and returns a SPARQL query.
+        find_best_match: Callable that scores candidates and returns
+            (best_score, best_candidate, extra_result_fields).
+
+    Returns:
+        Result dict for JSON-lines output.
+    """
+    entity_name = entity.name
+
+    result = {
+        "entity_type": entity_type,
+        "entity_id": entity.id,
+        "entity_name": entity_name,
+        "status": "no_match",
+        "score": 0.0,
+        "wikidata_uri": None,
+        "image_uploaded": False,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+    # Query Wikidata
+    sparql = build_query(entity_name)
+    bindings = query_wikidata(sparql)
+
+    if not bindings:
+        result["status"] = "no_results"
+        return result
+
+    # Score candidates via strategy callable
+    best_score, best_candidate, extra_fields = find_best_match(
+        entity_name, bindings, db, entity, entity_type
+    )
+
     result["score"] = round(best_score, 4)
 
     if best_score < threshold or best_candidate is None:
@@ -395,7 +480,7 @@ def process_person_entity(
         return result
 
     result["wikidata_uri"] = best_candidate["uri"]
-    result["wikidata_label"] = best_candidate["label"]
+    result.update(extra_fields)
 
     # Check for portrait image
     if not best_candidate.get("image_url"):
@@ -424,7 +509,6 @@ def process_person_entity(
         cdn_url = get_cdn_url(s3_key, settings)
 
         # Update entity image_url in database if the model has that field
-        # (currently none of the models have image_url, so this is future-proofing)
         if hasattr(entity, "image_url"):
             entity.image_url = cdn_url
             db.commit()
@@ -438,6 +522,33 @@ def process_person_entity(
         result["status"] = "upload_failed"
 
     return result
+
+
+def process_person_entity(
+    db,
+    entity,
+    entity_type: str,
+    threshold: float,
+    dry_run: bool,
+    settings,
+) -> dict:
+    """Process a person entity (author or binder person).
+
+    Queries Wikidata, scores candidates, optionally downloads and uploads portrait.
+
+    Returns:
+        Result dict for JSON-lines output.
+    """
+    return _process_entity(
+        db=db,
+        entity=entity,
+        entity_type=entity_type,
+        threshold=threshold,
+        dry_run=dry_run,
+        settings=settings,
+        build_query=build_sparql_query_person,
+        find_best_match=_score_person_candidates,
+    )
 
 
 def process_publisher_entity(
@@ -454,95 +565,16 @@ def process_publisher_entity(
     Returns:
         Result dict for JSON-lines output.
     """
-    result = {
-        "entity_type": "publisher",
-        "entity_id": entity.id,
-        "entity_name": entity.name,
-        "status": "no_match",
-        "score": 0.0,
-        "wikidata_uri": None,
-        "image_uploaded": False,
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
-
-    # Query Wikidata for organizational entities
-    sparql = build_sparql_query_org(entity.name)
-    bindings = query_wikidata(sparql)
-
-    if not bindings:
-        result["status"] = "no_results"
-        return result
-
-    # For publishers, we do a simpler name-based match
-    # since organizations don't have birth/death years in the same way
-    best_candidate = None
-    best_score = 0.0
-
-    for row in bindings:
-        label = row.get("itemLabel", {}).get("value", "")
-        image_url = row.get("image", {}).get("value")
-
-        # Simple name similarity check for organizations
-        from scripts.wikidata_scoring import name_similarity
-
-        ns = name_similarity(entity.name, label)
-        # Boost if has image
-        score = ns * 0.8 + (0.2 if image_url else 0.0)
-
-        if score > best_score:
-            best_score = score
-            best_candidate = {
-                "uri": row.get("item", {}).get("value", ""),
-                "label": label,
-                "image_url": image_url,
-            }
-
-    result["score"] = round(best_score, 4)
-
-    if best_score < threshold or best_candidate is None:
-        result["status"] = "below_threshold"
-        return result
-
-    result["wikidata_uri"] = best_candidate["uri"]
-
-    if not best_candidate.get("image_url"):
-        result["status"] = "no_portrait"
-        return result
-
-    if dry_run:
-        result["status"] = "dry_run_match"
-        result["image_url_source"] = best_candidate["image_url"]
-        return result
-
-    # Download and process portrait
-    image_bytes = download_portrait(best_candidate["image_url"])
-    if not image_bytes:
-        result["status"] = "download_failed"
-        return result
-
-    processed = process_portrait(image_bytes)
-    if not processed:
-        result["status"] = "processing_failed"
-        return result
-
-    # Upload to S3
-    try:
-        s3_key = upload_to_s3(processed, "publisher", entity.id, settings)
-        cdn_url = get_cdn_url(s3_key, settings)
-
-        if hasattr(entity, "image_url"):
-            entity.image_url = cdn_url
-            db.commit()
-
-        result["status"] = "uploaded"
-        result["image_uploaded"] = True
-        result["s3_key"] = s3_key
-        result["cdn_url"] = cdn_url
-    except Exception:
-        logger.exception("S3 upload failed for publisher/%s", entity.id)
-        result["status"] = "upload_failed"
-
-    return result
+    return _process_entity(
+        db=db,
+        entity=entity,
+        entity_type="publisher",
+        threshold=threshold,
+        dry_run=dry_run,
+        settings=settings,
+        build_query=build_sparql_query_org,
+        find_best_match=_score_org_candidates,
+    )
 
 
 def main():
