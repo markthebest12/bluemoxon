@@ -766,55 +766,60 @@ MIGRATION_2843F260F764_SQL = [
     END $$""",
     "CREATE INDEX IF NOT EXISTS ix_ai_connections_source ON ai_connections (source_type, source_id)",
     "CREATE INDEX IF NOT EXISTS ix_ai_connections_target ON ai_connections (target_type, target_id)",
-    # Data migration: copy existing JSON into the new table
+    # Data migration: copy existing JSON into the new table.
+    # Uses DISTINCT ON to deduplicate A→B / B→A pairs that resolve to the
+    # same canonical key, keeping the row with the highest confidence.
     """INSERT INTO ai_connections (
         source_type, source_id, target_type, target_id,
         relationship, sub_type, confidence, evidence
     )
-    SELECT
-        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
-             THEN ep.entity_type
-             ELSE c.target_type
-        END,
-        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
-             THEN ep.entity_id
-             ELSE c.target_id
-        END,
-        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
-             THEN c.target_type
-             ELSE ep.entity_type
-        END,
-        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
-             THEN c.target_id
-             ELSE ep.entity_id
-        END,
-        c.relationship,
-        c.sub_type,
-        COALESCE(c.confidence, 0.5),
-        c.evidence
-    FROM entity_profiles ep,
-         jsonb_to_recordset(ep.ai_connections::jsonb) AS c(
-             target_type text,
-             target_id integer,
-             relationship text,
-             sub_type text,
-             confidence float,
-             evidence text
-         )
-    WHERE ep.ai_connections IS NOT NULL
-      AND c.relationship IS NOT NULL
-      AND c.target_type IS NOT NULL
-      AND c.target_id IS NOT NULL
+    SELECT DISTINCT ON (source_type, source_id, target_type, target_id, relationship)
+        source_type, source_id, target_type, target_id,
+        relationship, sub_type, confidence, evidence
+    FROM (
+        SELECT
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN ep.entity_type
+                 ELSE c.target_type
+            END AS source_type,
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN ep.entity_id
+                 ELSE c.target_id
+            END AS source_id,
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN c.target_type
+                 ELSE ep.entity_type
+            END AS target_type,
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN c.target_id
+                 ELSE ep.entity_id
+            END AS target_id,
+            c.relationship,
+            c.sub_type,
+            COALESCE(c.confidence, 0.5) AS confidence,
+            c.evidence
+        FROM entity_profiles ep,
+             jsonb_to_recordset(ep.ai_connections::jsonb) AS c(
+                 target_type text,
+                 target_id integer,
+                 relationship text,
+                 sub_type text,
+                 confidence float,
+                 evidence text
+             )
+        WHERE ep.ai_connections IS NOT NULL
+          AND c.relationship IS NOT NULL
+          AND c.target_type IS NOT NULL
+          AND c.target_id IS NOT NULL
+    ) AS raw
+    ORDER BY source_type, source_id, target_type, target_id, relationship,
+             confidence DESC
     ON CONFLICT (source_type, source_id, target_type, target_id, relationship)
-    DO UPDATE SET
-        confidence = GREATEST(ai_connections.confidence, EXCLUDED.confidence),
-        evidence = COALESCE(EXCLUDED.evidence, ai_connections.evidence),
-        sub_type = COALESCE(EXCLUDED.sub_type, ai_connections.sub_type),
-        updated_at = now()""",
+    DO NOTHING""",
 ]
 
 MIGRATIONS: list[MigrationDef] = [
