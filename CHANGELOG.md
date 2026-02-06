@@ -5,6 +5,21 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.0) - 2026-02-06
+
+- [`c385a03`](https://github.com/markthebest12/bluemoxon/commit/c385a03a4bc0deb3779137aea5d04d03de640328) docs: BMX 3.0 documentation sweep + marketing announcement (#1862, #1863)
+- [`8eaf3b0`](https://github.com/markthebest12/bluemoxon/commit/8eaf3b0e39bd458ae333209aa98f9e5147615501) feat: restrict social circles to qualifying books + book summary (#1866, #1867)
+- [`72d3c1c`](https://github.com/markthebest12/bluemoxon/commit/72d3c1c7fcb5e4f4e81b800d9c57924402781b23) feat: async entity enrichment via Bedrock for new entities (#1864)
+- [`3dc4815`](https://github.com/markthebest12/bluemoxon/commit/3dc481598e43e5798d40e3e4c02f08d65ac91a74) feat: unify model registry with public labels endpoint (#1856, #1855)
+- [`7e9af82`](https://github.com/markthebest12/bluemoxon/commit/7e9af82155dc383eb245e7362612a64d99ac9452) feat: analytics tracking for entity profile views (#1621)
+- [`c385a03`](https://github.com/markthebest12/bluemoxon/commit/c385a03a4bc0deb3779137aea5d04d03de640328) docs: BMX 3.0 documentation sweep + marketing announcement (#1862, #1863)
+- [`8eaf3b0`](https://github.com/markthebest12/bluemoxon/commit/8eaf3b0e39bd458ae333209aa98f9e5147615501) feat: restrict social circles to qualifying books + book summary (#1866, #1867)
+- [`72d3c1c`](https://github.com/markthebest12/bluemoxon/commit/72d3c1c7fcb5e4f4e81b800d9c57924402781b23) feat: async entity enrichment via Bedrock for new entities (#1864)
+- [`3dc4815`](https://github.com/markthebest12/bluemoxon/commit/3dc481598e43e5798d40e3e4c02f08d65ac91a74) feat: unify model registry with public labels endpoint (#1856, #1855)
+- [`7e9af82`](https://github.com/markthebest12/bluemoxon/commit/7e9af82155dc383eb245e7362612a64d99ac9452) feat: analytics tracking for entity profile views (#1621)
+- [`12cb687`](https://github.com/markthebest12/bluemoxon/commit/12cb687c9b4d8d282fa0037053b29609e3ccdf22) fix: sidebar focus trap + timeline label clipping (#1857, #1872)
+- [`784527a`](https://github.com/markthebest12/bluemoxon/commit/784527a0539fe53f04567e59f1d3af1c681dee8c) refactor: portrait sync pipeline + consolidate CLI into service (#1851, #1869)
+
 ## [v3.4.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.4.1) - 2026-02-06
 
 - [`57a63db`](https://github.com/markthebest12/bluemoxon/commit/57a63db939055a39ae66377ec31b2c4bc1549e6b) fix: v3.4.0 Wave 6 — model labels, checkboxes, sidebar, timeline, connection colors (#1859)
