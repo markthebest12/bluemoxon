@@ -74,36 +74,36 @@ def upgrade() -> None:
         SELECT
             -- Canonical ordering: lower node string first
             CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
+                      <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
                  THEN ep.entity_type
-                 ELSE conn->>'target_type'
+                 ELSE (conn::jsonb)->>'target_type'
             END AS source_type,
             CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
+                      <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
                  THEN ep.entity_id
-                 ELSE CAST(conn->>'target_id' AS INTEGER)
+                 ELSE CAST((conn::jsonb)->>'target_id' AS INTEGER)
             END AS source_id,
             CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
-                 THEN conn->>'target_type'
+                      <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
+                 THEN (conn::jsonb)->>'target_type'
                  ELSE ep.entity_type
             END AS target_type,
             CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
-                 THEN CAST(conn->>'target_id' AS INTEGER)
+                      <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
+                 THEN CAST((conn::jsonb)->>'target_id' AS INTEGER)
                  ELSE ep.entity_id
             END AS target_id,
-            conn->>'relationship',
-            conn->>'sub_type',
-            COALESCE(CAST(conn->>'confidence' AS FLOAT), 0.5),
-            conn->>'evidence'
+            (conn::jsonb)->>'relationship',
+            (conn::jsonb)->>'sub_type',
+            COALESCE(CAST((conn::jsonb)->>'confidence' AS FLOAT), 0.5),
+            (conn::jsonb)->>'evidence'
         FROM entity_profiles ep,
              jsonb_array_elements(ep.ai_connections::jsonb) AS conn
         WHERE ep.ai_connections IS NOT NULL
           AND jsonb_array_length(ep.ai_connections::jsonb) > 0
-          AND conn->>'relationship' IS NOT NULL
-          AND conn->>'target_type' IS NOT NULL
-          AND conn->>'target_id' IS NOT NULL
+          AND (conn::jsonb)->>'relationship' IS NOT NULL
+          AND (conn::jsonb)->>'target_type' IS NOT NULL
+          AND (conn::jsonb)->>'target_id' IS NOT NULL
         ON CONFLICT (source_type, source_id, target_type, target_id, relationship)
         DO UPDATE SET
             confidence = GREATEST(ai_connections.confidence, EXCLUDED.confidence),
