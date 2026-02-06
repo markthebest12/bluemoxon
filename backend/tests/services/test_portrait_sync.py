@@ -1091,6 +1091,18 @@ class TestExtractParentheticalAlias:
 
         assert extract_parenthetical_alias("Some Name (née something)") is None
 
+    def test_skips_fl_date(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("Riviere (fl. 1840)") is None
+
+    def test_skips_trade_terms(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("Smith & Sons (printers)") is None
+        assert extract_parenthetical_alias("John Murray (bookseller)") is None
+        assert extract_parenthetical_alias("Zaehnsdorf (binder)") is None
+
 
 class TestPrepareNameVariants:
     """Tests for prepare_name_variants()."""
@@ -1149,6 +1161,14 @@ class TestPrepareNameVariants:
 
         variants = prepare_name_variants("Macmillan Publishers", "publisher")
         assert variants == ["Macmillan Publishers"]
+
+    def test_binder_strips_parenthetical_only(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Zaehnsdorf (binder)", "binder")
+        assert "Zaehnsdorf (binder)" in variants
+        assert "Zaehnsdorf" in variants
+        assert len(variants) == 2
 
 
 class TestEnhancedSparqlBuilders:
