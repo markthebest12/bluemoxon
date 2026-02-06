@@ -105,7 +105,7 @@ locals {
   bedrock_model_ids = [
     "anthropic.claude-3-5-haiku-20241022-v1:0",
     "anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "anthropic.claude-opus-4-5-20251101-v1:0",
+    "anthropic.claude-opus-4-6-v1",
   ]
 
   # Profile worker enabled - defaults to enable_lambda if not explicitly set

@@ -77,7 +77,7 @@ function isExpanded(conn: ProfileConnection): boolean {
           </li>
         </ul>
         <div class="key-connections__meta">
-          <span
+          <span v-if="conn.shared_book_count > 0 || !conn.is_ai_discovered"
             >{{ conn.shared_book_count }}
             {{ conn.shared_book_count === 1 ? "shared book" : "shared books" }}</span
           >

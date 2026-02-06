@@ -50,7 +50,7 @@ class TestBedrockClient:
         from app.services.bedrock import get_model_id
 
         assert get_model_id("sonnet") == "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-        assert get_model_id("opus") == "us.anthropic.claude-opus-4-5-20251101-v1:0"
+        assert get_model_id("opus") == "us.anthropic.claude-opus-4-6-v1"
         assert get_model_id("invalid") == "us.anthropic.claude-sonnet-4-5-20250929-v1:0"  # Default
 
 
