@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.3.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.1) - 2026-02-05
+
+- [`29e8705`](https://github.com/markthebest12/bluemoxon/commit/29e8705ce0b988d61012d762ed7aef67a3829e1d) fix: v3.3.1 AI connection bugfixes + Opus 4.6 (#1837)
+
 ## [v3.3.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.0) - 2026-02-05
 
 - [`faf351e`](https://github.com/markthebest12/bluemoxon/commit/faf351ea7b9713d8d91abb2deda2c382a7574f99) feat: AI-discovered personal connections (#1803) (#1811)
