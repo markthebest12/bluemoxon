@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts.wikidata_scoring import (
+from app.utils.wikidata_scoring import (
     name_similarity,
     occupation_match,
     score_candidate,
