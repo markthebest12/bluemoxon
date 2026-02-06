@@ -10,7 +10,6 @@ from PIL import Image, ImageOps
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.api.v1.images import get_cloudfront_cdn_url
 from app.auth import require_admin, require_editor, require_viewer
 from app.config import get_settings
 from app.db import get_db
@@ -23,6 +22,7 @@ from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.aws_clients import get_s3_client
 from app.services.entity_profile import get_entity_profile
 from app.services.sqs import send_profile_generation_jobs
+from app.utils.cdn import get_cloudfront_cdn_url
 
 logger = logging.getLogger(__name__)
 

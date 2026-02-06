@@ -1,5 +1,6 @@
 """SQLAlchemy models."""
 
+from app.models.ai_connection import AIConnection
 from app.models.analysis import BookAnalysis
 from app.models.analysis_job import AnalysisJob
 from app.models.api_key import APIKey
@@ -22,6 +23,7 @@ from app.models.publisher_alias import PublisherAlias
 from app.models.user import User
 
 __all__ = [
+    "AIConnection",
     "AnalysisJob",
     "AppConfig",
     "APIKey",

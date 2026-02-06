@@ -410,4 +410,55 @@ describe("EdgeSidebar", () => {
     const links = wrapper.findAll(".edge-sidebar__profile-link");
     expect(links).toHaveLength(2);
   });
+
+  it("displays evidence narrative with quotes for AI edges (#1824)", async () => {
+    const aiEdge: ApiEdge = {
+      ...mockEdge,
+      type: "family",
+      evidence: "Dickens and Catherine Hogarth married in 1836",
+    };
+
+    const wrapper = mount(EdgeSidebar, {
+      props: { edge: aiEdge, nodes: mockNodes, isOpen: true },
+      global: defaultGlobal,
+    });
+
+    await flushPromises();
+
+    const narrative = wrapper.find(".edge-sidebar__narrative");
+    expect(narrative.exists()).toBe(true);
+    const evidence = wrapper.find(".edge-sidebar__evidence");
+    expect(evidence.text()).toContain('"Dickens and Catherine Hogarth');
+    expect(evidence.classes()).not.toContain("edge-sidebar__evidence--plain");
+  });
+
+  it("displays evidence without quotes for book-based edges (#1824)", async () => {
+    const bookEdge: ApiEdge = {
+      ...mockEdge,
+      type: "publisher",
+      evidence: "Published 3 work(s)",
+    };
+
+    const wrapper = mount(EdgeSidebar, {
+      props: { edge: bookEdge, nodes: mockNodes, isOpen: true },
+      global: defaultGlobal,
+    });
+
+    await flushPromises();
+
+    const evidence = wrapper.find(".edge-sidebar__evidence");
+    expect(evidence.text()).toBe("Published 3 work(s)");
+    expect(evidence.classes()).toContain("edge-sidebar__evidence--plain");
+  });
+
+  it("hides narrative section when no evidence", async () => {
+    const wrapper = mount(EdgeSidebar, {
+      props: { edge: mockEdge, nodes: mockNodes, isOpen: true },
+      global: defaultGlobal,
+    });
+
+    await flushPromises();
+
+    expect(wrapper.find(".edge-sidebar__narrative").exists()).toBe(false);
+  });
 });

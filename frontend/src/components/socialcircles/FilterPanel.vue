@@ -167,7 +167,11 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
       <!-- Node Types -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Node Types</h3>
-        <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showAuthors')">
+        <label
+          class="filter-panel__checkbox"
+          data-testid="filter-authors"
+          @click.prevent="toggleNodeType('showAuthors')"
+        >
           <input type="checkbox" :checked="props.filterState.showAuthors" />
           <span class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--author" />
           <span>Authors</span>
@@ -178,7 +182,11 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
             node-type="author"
           />
         </label>
-        <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showPublishers')">
+        <label
+          class="filter-panel__checkbox"
+          data-testid="filter-publishers"
+          @click.prevent="toggleNodeType('showPublishers')"
+        >
           <input type="checkbox" :checked="props.filterState.showPublishers" />
           <span
             class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--publisher"
@@ -191,7 +199,11 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
             node-type="publisher"
           />
         </label>
-        <label class="filter-panel__checkbox" @click.prevent="toggleNodeType('showBinders')">
+        <label
+          class="filter-panel__checkbox"
+          data-testid="filter-binders"
+          @click.prevent="toggleNodeType('showBinders')"
+        >
           <input type="checkbox" :checked="props.filterState.showBinders" />
           <span class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--binder" />
           <span>Binders</span>
@@ -211,6 +223,7 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
           v-for="ct in allConnectionTypes"
           :key="ct"
           class="filter-panel__checkbox"
+          :data-testid="`filter-${ct}`"
           @click.prevent="toggleConnectionType(ct)"
         >
           <input type="checkbox" :checked="isConnectionTypeActive(ct)" />
@@ -229,6 +242,7 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
           v-for="era in displayEras"
           :key="era"
           class="filter-panel__checkbox"
+          :data-testid="`filter-era-${era}`"
           @click.prevent="toggleEra(era)"
         >
           <input type="checkbox" :checked="isEraActive(era)" />
@@ -240,7 +254,11 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
       <!-- Tier Filter -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Tier</h3>
-        <label class="filter-panel__checkbox" @click.prevent="toggleTier1Only">
+        <label
+          class="filter-panel__checkbox"
+          data-testid="filter-tier1"
+          @click.prevent="toggleTier1Only"
+        >
           <input type="checkbox" :checked="props.filterState.tier1Only" />
           <span>Tier 1 Only</span>
         </label>

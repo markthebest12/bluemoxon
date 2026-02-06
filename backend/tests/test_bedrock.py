@@ -3,6 +3,11 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+from botocore.exceptions import ClientError
+
+from app.services.bedrock import bedrock_retry
+
 
 class TestPromptLoader:
     """Tests for prompt loading from S3."""
@@ -268,3 +273,54 @@ class TestExtractStructuredData:
 
         result = extract_structured_data("Some analysis text")
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# bedrock_retry decorator tests
+# ---------------------------------------------------------------------------
+
+
+def _make_client_error(code: str) -> ClientError:
+    return ClientError({"Error": {"Code": code, "Message": "test"}}, "invoke_model")
+
+
+def test_bedrock_retry_retries_throttling():
+    """Retry decorator retries on ThrottlingException."""
+    call_count = 0
+
+    @bedrock_retry(max_retries=2, base_delay=0.01)
+    def flaky():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 3:
+            raise _make_client_error("ThrottlingException")
+        return "success"
+
+    assert flaky() == "success"
+    assert call_count == 3
+
+
+def test_bedrock_retry_raises_non_retryable():
+    """Retry decorator raises immediately on non-retryable errors."""
+    call_count = 0
+
+    @bedrock_retry(max_retries=3, base_delay=0.01)
+    def always_fails():
+        nonlocal call_count
+        call_count += 1
+        raise _make_client_error("ValidationException")
+
+    with pytest.raises(ClientError):
+        always_fails()
+    assert call_count == 1
+
+
+def test_bedrock_retry_exhausts_retries():
+    """Retry decorator raises after exhausting retries."""
+
+    @bedrock_retry(max_retries=2, base_delay=0.01)
+    def always_throttles():
+        raise _make_client_error("ThrottlingException")
+
+    with pytest.raises(ClientError):
+        always_throttles()

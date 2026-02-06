@@ -738,6 +738,79 @@ MIGRATION_E9A5101C8557_SQL = [
     "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS ai_connections JSONB",
 ]
 
+# Migration SQL for 2843f260f764_add_ai_connections_table
+# Creates canonical relational table for AI-discovered personal connections (#1813)
+MIGRATION_2843F260F764_SQL = [
+    """CREATE TABLE IF NOT EXISTS ai_connections (
+        id SERIAL PRIMARY KEY,
+        source_type VARCHAR(20) NOT NULL,
+        source_id INTEGER NOT NULL,
+        target_type VARCHAR(20) NOT NULL,
+        target_id INTEGER NOT NULL,
+        relationship VARCHAR(20) NOT NULL,
+        sub_type VARCHAR(50),
+        confidence FLOAT NOT NULL DEFAULT 0.5,
+        evidence TEXT,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )""",
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'uq_ai_connection'
+        ) THEN
+            ALTER TABLE ai_connections
+            ADD CONSTRAINT uq_ai_connection
+            UNIQUE (source_type, source_id, target_type, target_id, relationship);
+        END IF;
+    END $$""",
+    "CREATE INDEX IF NOT EXISTS ix_ai_connections_source ON ai_connections (source_type, source_id)",
+    "CREATE INDEX IF NOT EXISTS ix_ai_connections_target ON ai_connections (target_type, target_id)",
+    # Data migration: copy existing JSON into the new table
+    """INSERT INTO ai_connections (
+        source_type, source_id, target_type, target_id,
+        relationship, sub_type, confidence, evidence
+    )
+    SELECT
+        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                  <= (conn->>'target_type' || ':' || conn->>'target_id')
+             THEN ep.entity_type
+             ELSE conn->>'target_type'
+        END,
+        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                  <= (conn->>'target_type' || ':' || conn->>'target_id')
+             THEN ep.entity_id
+             ELSE CAST(conn->>'target_id' AS INTEGER)
+        END,
+        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                  <= (conn->>'target_type' || ':' || conn->>'target_id')
+             THEN conn->>'target_type'
+             ELSE ep.entity_type
+        END,
+        CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                  <= (conn->>'target_type' || ':' || conn->>'target_id')
+             THEN CAST(conn->>'target_id' AS INTEGER)
+             ELSE ep.entity_id
+        END,
+        conn->>'relationship',
+        conn->>'sub_type',
+        COALESCE(CAST(conn->>'confidence' AS FLOAT), 0.5),
+        conn->>'evidence'
+    FROM entity_profiles ep,
+         jsonb_array_elements(ep.ai_connections) AS conn
+    WHERE ep.ai_connections IS NOT NULL
+      AND jsonb_array_length(ep.ai_connections) > 0
+      AND conn->>'relationship' IS NOT NULL
+      AND conn->>'target_type' IS NOT NULL
+      AND conn->>'target_id' IS NOT NULL
+    ON CONFLICT (source_type, source_id, target_type, target_id, relationship)
+    DO UPDATE SET
+        confidence = GREATEST(ai_connections.confidence, EXCLUDED.confidence),
+        evidence = COALESCE(EXCLUDED.evidence, ai_connections.evidence),
+        sub_type = COALESCE(EXCLUDED.sub_type, ai_connections.sub_type),
+        updated_at = now()""",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -1014,5 +1087,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "e9a5101c8557",
         "name": "add_ai_connections_column",
         "sql_statements": MIGRATION_E9A5101C8557_SQL,
+    },
+    {
+        "id": "2843f260f764",
+        "name": "add_ai_connections_table",
+        "sql_statements": MIGRATION_2843F260F764_SQL,
     },
 ]
