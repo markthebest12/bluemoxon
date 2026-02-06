@@ -411,11 +411,7 @@ function formatPacificTime(isoString: string): string {
                       class="select text-sm w-32 pr-8 bg-[var(--color-surface-primary)] text-[var(--color-text-primary)]"
                       :disabled="generating"
                     >
-                      <option
-                        v-for="opt in modelOptions"
-                        :key="opt.value"
-                        :value="opt.value"
-                      >
+                      <option v-for="opt in modelOptions" :key="opt.value" :value="opt.value">
                         {{ opt.label }}
                       </option>
                     </select>
