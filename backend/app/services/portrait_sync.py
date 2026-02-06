@@ -12,6 +12,7 @@ Adapted from scripts/wikidata_portraits.py for app context (httpx, app S3/CDN).
 import io
 import logging
 import math
+import re
 import time
 from urllib.parse import quote, unquote
 
@@ -24,6 +25,7 @@ from app.models.author import Author
 from app.models.binder import Binder
 from app.models.book import Book
 from app.models.publisher import Publisher
+from app.services.author_normalization import normalize_author_name
 from app.services.aws_clients import get_s3_client
 from app.utils.cdn import get_cloudfront_cdn_url
 from app.utils.wikidata_scoring import name_similarity, score_candidate
@@ -132,14 +134,104 @@ def _escape_sparql_string(value: str) -> str:
     )
 
 
-def build_sparql_query_person(entity_name: str) -> str:
-    """Build SPARQL query for a human entity (author, binder person)."""
-    escaped_name = _escape_sparql_string(entity_name)
+# Parenthetical markers that indicate a description, not a person alias
+_DESCRIPTIVE_PARENS = re.compile(r"\b(?:of |est\.|translated|editor|compiler|ed\b)", re.IGNORECASE)
+
+
+def extract_parenthetical_alias(name: str) -> str | None:
+    """Extract a person name from parentheses in an entity name.
+
+    Returns the parenthetical content if it looks like a person name
+    (2+ words, first word capitalized), otherwise None.
+
+    Examples:
+        "George Eliot (Mary Ann Evans)" → "Mary Ann Evans"
+        "Macmillan (est. 1843)"        → None
+        "John Murray (of London)"      → None
+    """
+    match = re.search(r"\(([^)]+)\)", name)
+    if not match:
+        return None
+    inner = match.group(1).strip()
+    if _DESCRIPTIVE_PARENS.search(inner):
+        return None
+    words = inner.split()
+    if len(words) >= 2 and words[0][0].isupper():
+        return inner
+    return None
+
+
+def _normalize_initial_spacing(name: str) -> str:
+    """Insert space after period between capitals.
+
+    "W.S. Gilbert" → "W. S. Gilbert"
+    """
+    return re.sub(r"(?<=[A-Z])\.(?=[A-Z])", ". ", name)
+
+
+def _strip_parenthetical(name: str) -> str:
+    """Remove parenthetical content and clean up whitespace."""
+    return re.sub(r"\s*\([^)]*\)", "", name).strip()
+
+
+def prepare_name_variants(entity_name: str, entity_type: str) -> list[str]:
+    """Build a list of name variants for SPARQL search.
+
+    Always starts with the original name. For authors, applies normalization
+    (honorific/suffix stripping, diacritics), parenthetical alias extraction,
+    and initial spacing fixes. For publishers/binders, strips parentheticals only.
+
+    Returns 1–4 unique variants.
+    """
+    variants: list[str] = [entity_name]
+
+    stripped = _strip_parenthetical(entity_name)
+    if stripped and stripped != entity_name:
+        variants.append(stripped)
+
+    if entity_type == "author":
+        normalized = normalize_author_name(entity_name)
+        if normalized and normalized not in variants:
+            variants.append(normalized)
+
+        alias = extract_parenthetical_alias(entity_name)
+        if alias and alias not in variants:
+            variants.append(alias)
+
+        spaced = _normalize_initial_spacing(stripped or entity_name)
+        if spaced not in variants:
+            variants.append(spaced)
+
+    # Deduplicate preserving order, cap at 4
+    seen: set[str] = set()
+    unique: list[str] = []
+    for v in variants:
+        if v not in seen:
+            seen.add(v)
+            unique.append(v)
+        if len(unique) == 4:
+            break
+
+    return unique
+
+
+def build_sparql_query_person(name_variants: str | list[str]) -> str:
+    """Build SPARQL query for a human entity (author, binder person).
+
+    Accepts a single name or list of name variants. Uses VALUES clause
+    and searches both rdfs:label and skos:altLabel.
+    """
+    if isinstance(name_variants, str):
+        name_variants = [name_variants]
+    values = " ".join(f'"{_escape_sparql_string(n)}"@en' for n in name_variants)
     return f"""
 SELECT ?item ?itemLabel ?itemDescription ?birth ?death
        ?image ?occupation ?occupationLabel ?work ?workLabel
 WHERE {{
-  ?item rdfs:label "{escaped_name}"@en .
+  VALUES ?searchName {{ {values} }}
+  {{ ?item rdfs:label ?searchName . }}
+  UNION
+  {{ ?item skos:altLabel ?searchName . }}
   ?item wdt:P31 wd:Q5 .
   OPTIONAL {{ ?item wdt:P569 ?birth . }}
   OPTIONAL {{ ?item wdt:P570 ?death . }}
@@ -160,13 +252,22 @@ LIMIT 10
 """
 
 
-def build_sparql_query_org(entity_name: str) -> str:
-    """Build SPARQL query for an organizational entity (publisher, binder firm)."""
-    escaped_name = _escape_sparql_string(entity_name)
+def build_sparql_query_org(name_variants: str | list[str]) -> str:
+    """Build SPARQL query for an organizational entity (publisher, binder firm).
+
+    Accepts a single name or list of name variants. Uses VALUES clause
+    and searches both rdfs:label and skos:altLabel.
+    """
+    if isinstance(name_variants, str):
+        name_variants = [name_variants]
+    values = " ".join(f'"{_escape_sparql_string(n)}"@en' for n in name_variants)
     return f"""
 SELECT ?item ?itemLabel ?itemDescription ?image ?inception
 WHERE {{
-  ?item rdfs:label "{escaped_name}"@en .
+  VALUES ?searchName {{ {values} }}
+  {{ ?item rdfs:label ?searchName . }}
+  UNION
+  {{ ?item skos:altLabel ?searchName . }}
   {{ ?item wdt:P31 wd:Q2085381 . }}
   UNION
   {{ ?item wdt:P31 wd:Q7275 . }}
@@ -756,7 +857,8 @@ def _process_person_entity(
 
     result = _make_result(entity_type, entity.id, entity_name, "no_results")
 
-    sparql = build_sparql_query_person(entity_name)
+    name_variants = prepare_name_variants(entity_name, entity_type)
+    sparql = build_sparql_query_person(name_variants)
     bindings = query_wikidata(sparql)
 
     if not bindings:
@@ -817,7 +919,8 @@ def _process_org_entity(
     }
     result = _make_result(entity_type, entity.id, entity.name, "no_results")
 
-    sparql = build_sparql_query_org(entity.name)
+    name_variants = prepare_name_variants(entity.name, entity_type)
+    sparql = build_sparql_query_org(name_variants)
     bindings = query_wikidata(sparql)
 
     if not bindings:
