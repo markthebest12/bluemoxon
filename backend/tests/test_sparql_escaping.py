@@ -1,6 +1,6 @@
-"""Tests for SPARQL string escaping in wikidata_portraits module."""
+"""Tests for SPARQL string escaping."""
 
-from scripts.wikidata_portraits import (
+from app.services.portrait_sync import (
     _escape_sparql_string,
     build_sparql_query_org,
     build_sparql_query_person,

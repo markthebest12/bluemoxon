@@ -38,16 +38,25 @@ MAX_BOOK_IDS_PER_NODE = 10
 # Could be moved to settings if configurability is needed.
 DEFAULT_DATE_RANGE = (1800, 1900)
 
-# Reasonable year bounds for clamping outliers in date range calculation.
-# Authors with birth/death years outside this range are likely data errors.
+# Reasonable year bounds for filtering out data errors in date range calculation.
+# Step 1: discard birth/death years outside [1700, 2025] as bad data.
 REASONABLE_MIN_YEAR = 1700
-# Static upper bound — intentionally not dynamic. This Victorian-era collection
-# has no living subjects, so a fixed ceiling avoids unnecessary complexity.
 REASONABLE_MAX_YEAR = 2025
+
+# Collection-era bounds — final clamp after filtering. Timeline should not extend
+# beyond the collection's scope. Matches ERA_RANGES post_1910 in frontend.
+# Note: COLLECTION_MIN_YEAR == REASONABLE_MIN_YEAR today, but they serve different
+# purposes (data quality filter vs. timeline presentation range).
+COLLECTION_MIN_YEAR = 1700
+COLLECTION_MAX_YEAR = 1950
 
 
 def _compute_date_range(years: list[int]) -> tuple[int, int]:
-    """Compute date range from years, filtering outliers outside reasonable bounds."""
+    """Compute date range from years, filtering outliers outside reasonable bounds.
+
+    After filtering unreasonable years, clamps the result to the collection era
+    (1700-1950) so the timeline never extends beyond the collection's scope.
+    """
     if not years:
         return DEFAULT_DATE_RANGE
 
@@ -55,7 +64,10 @@ def _compute_date_range(years: list[int]) -> tuple[int, int]:
     if not reasonable:
         return DEFAULT_DATE_RANGE
 
-    return (min(reasonable), max(reasonable))
+    return (
+        max(min(reasonable), COLLECTION_MIN_YEAR),
+        min(max(reasonable), COLLECTION_MAX_YEAR),
+    )
 
 
 def get_era_from_year(year: int | None) -> Era:
