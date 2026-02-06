@@ -7,7 +7,7 @@ import logging
 import os
 import random
 import time
-from functools import lru_cache
+from functools import lru_cache, wraps
 
 import boto3
 import httpx
@@ -30,6 +30,56 @@ RETRYABLE_ERROR_CODES = frozenset(
         "ServiceUnavailableException",
     }
 )
+
+
+def bedrock_retry(max_retries: int = 3, base_delay: float = 5.0):
+    """Decorator that retries a function on transient Bedrock errors.
+
+    Implements exponential backoff with jitter for errors whose code is
+    in ``RETRYABLE_ERROR_CODES``.  Non-retryable ``ClientError`` exceptions
+    are re-raised immediately.
+
+    Args:
+        max_retries: Maximum number of retry attempts.
+        base_delay: Base delay in seconds for exponential backoff.
+    """
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            last_error: ClientError | None = None
+            for attempt in range(max_retries + 1):
+                try:
+                    if attempt > 0:
+                        delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
+                        logger.info(
+                            "Bedrock retry attempt %d/%d after %.1fs delay",
+                            attempt,
+                            max_retries,
+                            delay,
+                        )
+                        time.sleep(delay)
+                    return fn(*args, **kwargs)
+                except ClientError as e:
+                    error_code = e.response.get("Error", {}).get("Code", "Unknown")
+                    if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
+                        logger.warning(
+                            "Bedrock %s (attempt %d/%d): %s",
+                            error_code,
+                            attempt + 1,
+                            max_retries + 1,
+                            e,
+                        )
+                        last_error = e
+                        continue
+                    raise
+            # All retries exhausted (shouldn't normally reach here)
+            raise last_error  # type: ignore[misc]
+
+        return wrapper
+
+    return decorator
+
 
 # Claude's maximum image size limit (base64 encoded) is 5MB
 # Base64 adds ~33% overhead, so raw limit is ~3.75MB
@@ -451,53 +501,27 @@ def invoke_bedrock(
         }
     )
 
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            if attempt > 0:
-                # Exponential backoff with jitter: base * 2^attempt + random(0-1)
-                delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
-                logger.info(
-                    f"Bedrock retry attempt {attempt}/{max_retries} after {delay:.1f}s delay"
-                )
-                time.sleep(delay)
+    @bedrock_retry(max_retries=max_retries, base_delay=base_delay)
+    def _call():
+        logger.info(f"Invoking Bedrock model {model_id}")
 
-            logger.info(f"Invoking Bedrock model {model_id}")
+        response = client.invoke_model(
+            modelId=model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
 
-            response = client.invoke_model(
-                modelId=model_id,
-                body=body,
-                contentType="application/json",
-                accept="application/json",
-            )
+        response_body = json.loads(response["body"].read())
+        stop_reason = response_body.get("stop_reason", "unknown")
+        result_text = response_body["content"][0]["text"]
 
-            response_body = json.loads(response["body"].read())
-            stop_reason = response_body.get("stop_reason", "unknown")
-            result_text = response_body["content"][0]["text"]
+        logger.info(f"Bedrock returned {len(result_text)} chars, stop_reason={stop_reason}")
+        if stop_reason == "max_tokens":
+            logger.warning("Output truncated - hit max_tokens limit")
+        return result_text
 
-            logger.info(f"Bedrock returned {len(result_text)} chars, stop_reason={stop_reason}")
-            if stop_reason == "max_tokens":
-                logger.warning("Output truncated - hit max_tokens limit")
-            return result_text
-
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
-                logger.warning(
-                    "Bedrock %s (attempt %d/%d): %s",
-                    error_code,
-                    attempt + 1,
-                    max_retries + 1,
-                    e,
-                )
-                last_error = e
-                continue
-            else:
-                # Non-retryable error or retries exhausted, re-raise
-                raise
-
-    # All retries exhausted (shouldn't reach here, but just in case)
-    raise last_error
+    return _call()
 
 
 # ============================================================================
@@ -592,63 +616,39 @@ def extract_structured_data(
         }
     )
 
-    last_error = None
-    for attempt in range(max_retries + 1):
-        try:
-            if attempt > 0:
-                # Exponential backoff with jitter: base * 2^attempt + random(0-1)
-                delay = base_delay * (2**attempt) + random.uniform(0, 1)  # noqa: S311
-                logger.info(f"Retry attempt {attempt}/{max_retries} after {delay:.1f}s delay")
-                time.sleep(delay)
+    @bedrock_retry(max_retries=max_retries, base_delay=base_delay)
+    def _call():
+        logger.info("Invoking Bedrock for structured data extraction")
 
-            logger.info("Invoking Bedrock for structured data extraction")
+        response = client.invoke_model(
+            modelId=model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
 
-            response = client.invoke_model(
-                modelId=model_id,
-                body=body,
-                contentType="application/json",
-                accept="application/json",
-            )
+        response_body = json.loads(response["body"].read())
+        result_text = response_body["content"][0]["text"].strip()
 
-            response_body = json.loads(response["body"].read())
-            result_text = response_body["content"][0]["text"].strip()
+        # Parse JSON from response (handle potential markdown code blocks)
+        json_text = result_text
+        if "```json" in json_text:
+            json_text = json_text.split("```json")[1].split("```")[0]
+        elif "```" in json_text:
+            json_text = json_text.split("```")[1].split("```")[0]
 
-            # Parse JSON from response (handle potential markdown code blocks)
-            json_text = result_text
-            if "```json" in json_text:
-                json_text = json_text.split("```json")[1].split("```")[0]
-            elif "```" in json_text:
-                json_text = json_text.split("```")[1].split("```")[0]
+        extracted = json.loads(json_text.strip())
+        logger.info(f"Extracted structured data: {list(extracted.keys())}")
+        return extracted
 
-            extracted = json.loads(json_text.strip())
-            logger.info(f"Extracted structured data: {list(extracted.keys())}")
-            return extracted
-
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            if error_code in RETRYABLE_ERROR_CODES and attempt < max_retries:
-                logger.warning(
-                    "Bedrock %s (attempt %d/%d): %s",
-                    error_code,
-                    attempt + 1,
-                    max_retries + 1,
-                    e,
-                )
-                last_error = e
-                continue
-            else:
-                logger.error("Bedrock ClientError: %s", e)
-                return None
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse extraction JSON: {e}")
-            return None
-
-        except Exception as e:
-            # For unexpected errors, don't retry
-            logger.error(f"Extraction failed: {e}")
-            return None
-
-    # All retries exhausted
-    logger.error(f"Extraction failed after {max_retries + 1} attempts: {last_error}")
-    return None
+    try:
+        return _call()
+    except ClientError as e:
+        logger.error("Bedrock ClientError: %s", e)
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse extraction JSON: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Extraction failed: {e}")
+        return None

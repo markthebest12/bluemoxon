@@ -18,10 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.v1.images import (
     LOCAL_IMAGES_PATH,
-    S3_IMAGES_PREFIX,
     generate_thumbnail,
-    get_cloudfront_url,
-    get_thumbnail_key,
 )
 from app.auth import require_admin, require_editor, require_viewer
 from app.cache import get_redis
@@ -87,6 +84,7 @@ from app.services.social_circles_cache import invalidate_cache as invalidate_soc
 from app.services.sqs import send_analysis_job, send_eval_runbook_job
 from app.services.tracking import process_tracking
 from app.services.tracking_poller import refresh_single_book_tracking
+from app.utils.cdn import S3_IMAGES_PREFIX, get_cloudfront_url
 from app.utils.date_parser import compute_era, parse_publication_date
 from app.utils.edition_parser import is_first_edition_text
 from app.utils.errors import (
@@ -95,6 +93,7 @@ from app.utils.errors import (
     ValidationError,
     log_and_raise,
 )
+from app.utils.image_utils import get_thumbnail_key
 from app.utils.markdown_parser import parse_analysis_markdown, strip_structured_data
 
 logger = logging.getLogger(__name__)

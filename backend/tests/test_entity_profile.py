@@ -25,7 +25,6 @@ from app.services.entity_profile import (
     _build_connections,
     _build_profile_books,
     _build_stats,
-    _check_staleness,
     _get_entity_books,
     generate_and_cache_profile,
     is_profile_stale,
@@ -166,7 +165,7 @@ class TestProfileBookImageUrl:
 
     # Patch at definition site: _image_url uses a lazy import, so the name
     # is re-resolved each call — must patch at source, not consumer.
-    @patch("app.api.v1.images.get_cloudfront_url")
+    @patch("app.utils.cdn.get_cloudfront_url")
     @patch("app.services.entity_profile.get_settings")
     def test_build_profile_books_uses_cloudfront_in_lambda(self, mock_settings, mock_cf_url, db):
         """_build_profile_books uses CloudFront URL when running in Lambda."""
@@ -392,7 +391,7 @@ class TestEntityProfileEndpoint:
         assert data["books"][0]["title"] == "Owned Book"
 
     def test_profile_without_ai_content(self, profile_client, db):
-        """Profile works without cached AI content."""
+        """Profile works without cached AI content; is_stale=True when no profile exists."""
         author = Author(name="Obscure Author")
         db.add(author)
         db.commit()
@@ -402,7 +401,7 @@ class TestEntityProfileEndpoint:
 
         assert data["profile"]["bio_summary"] is None
         assert data["profile"]["personal_stories"] == []
-        assert data["profile"]["is_stale"] is False
+        assert data["profile"]["is_stale"] is True
 
     def test_stats_calculation(self, profile_client, db):
         """Stats are correctly calculated from books."""
@@ -655,7 +654,7 @@ class TestRegenerateEndpoint:
 
 
 class TestEntityFKMap:
-    """Tests for _get_entity_books and _check_staleness behaviour."""
+    """Tests for _get_entity_books behaviour."""
 
     def test_get_entity_books_unknown_type_returns_empty(self, db):
         """_get_entity_books returns [] for unknown entity type."""
@@ -699,8 +698,8 @@ class TestEntityFKMap:
         assert len(result) == 1
         assert result[0].title == "Owned Book"
 
-    def test_check_staleness_unknown_type_returns_false(self, db):
-        """_check_staleness returns False for unknown entity type."""
+    def test_staleness_unknown_type_returns_false(self, db):
+        """is_profile_stale returns False for unknown entity type with existing profile."""
         profile = EntityProfile(
             entity_type="unknown",
             entity_id=1,
@@ -709,11 +708,11 @@ class TestEntityFKMap:
         db.add(profile)
         db.commit()
 
-        result = _check_staleness(db, profile, "unknown", 1)
+        result = is_profile_stale(db, "unknown", 1)
         assert result is False
 
-    def test_check_staleness_returns_true_when_book_updated_after_profile(self, db):
-        """_check_staleness returns True when a book was updated after generated_at."""
+    def test_staleness_returns_true_when_book_updated_after_profile(self, db):
+        """is_profile_stale returns True when a book was updated after generated_at."""
         author = Author(name="Stale Author")
         db.add(author)
         db.flush()
@@ -733,13 +732,12 @@ class TestEntityFKMap:
 
         db.query(Book).filter(Book.id == book.id).update({"updated_at": datetime.now(UTC)})
         db.commit()
-        db.refresh(profile)
 
-        result = _check_staleness(db, profile, "author", author.id)
+        result = is_profile_stale(db, "author", author.id)
         assert result is True
 
-    def test_check_staleness_returns_false_when_profile_is_fresh(self, db):
-        """_check_staleness returns False when generated_at is after book updates."""
+    def test_staleness_returns_false_when_profile_is_fresh(self, db):
+        """is_profile_stale returns False when generated_at is after book updates."""
         author = Author(name="Fresh Author")
         db.add(author)
         db.flush()
@@ -757,7 +755,7 @@ class TestEntityFKMap:
         db.add(profile)
         db.commit()
 
-        result = _check_staleness(db, profile, "author", author.id)
+        result = is_profile_stale(db, "author", author.id)
         assert result is False
 
 

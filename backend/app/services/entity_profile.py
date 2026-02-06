@@ -160,7 +160,7 @@ def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookIm
 def _image_url(book_id: int, image: BookImage, *, is_lambda: bool) -> str:
     """Build image URL for a BookImage, using CloudFront in Lambda or relative URL locally."""
     if is_lambda:
-        from app.api.v1.images import get_cloudfront_url
+        from app.utils.cdn import get_cloudfront_url
 
         return get_cloudfront_url(image.s3_key)
     return f"/api/v1/books/{book_id}/images/{image.id}/file"
@@ -219,35 +219,12 @@ def _build_stats(books: list[Book]) -> ProfileStats:
     )
 
 
-def _check_staleness(
-    db: Session,
-    profile: EntityProfile | None,
-    entity_type: str,
-    entity_id: int,
-) -> bool:
-    """Check if profile is stale by comparing against book updates."""
-    if not profile or not profile.generated_at:
-        return False
-
-    fk_column = _ENTITY_FK_MAP.get(entity_type)
-    if fk_column is None:
-        return False
-
-    filters = [Book.status.in_(OWNED_STATUSES), fk_column == entity_id]
-    latest_update = db.query(func.max(Book.updated_at)).filter(*filters).scalar()
-    if latest_update and latest_update > profile.generated_at:
-        return True
-    return False
-
-
 def is_profile_stale(db: Session, entity_type: str, entity_id: int) -> bool:
     """Check if entity needs profile (re)generation.
 
     Returns True if:
       - No profile exists for this entity
       - Profile exists but books have been updated since generation
-
-    Public API for profile_worker and any future staleness checks.
     """
     profile = (
         db.query(EntityProfile)
@@ -260,7 +237,16 @@ def is_profile_stale(db: Session, entity_type: str, entity_id: int) -> bool:
     if not profile or not profile.generated_at:
         return True
 
-    return _check_staleness(db, profile, entity_type, entity_id)
+    fk_column = _ENTITY_FK_MAP.get(entity_type)
+    if fk_column is None:
+        return False
+
+    latest_update = (
+        db.query(func.max(Book.updated_at))
+        .filter(Book.status.in_(OWNED_STATUSES), fk_column == entity_id)
+        .scalar()
+    )
+    return bool(latest_update and latest_update > profile.generated_at)
 
 
 def _era_str(node) -> str | None:
@@ -580,7 +566,7 @@ def get_entity_profile(
         .first()
     )
 
-    is_stale = _check_staleness(db, cached, entity_type, entity_id)
+    is_stale = is_profile_stale(db, entity_type, entity_id)
 
     profile_data = ProfileData(
         bio_summary=cached.bio_summary if cached else None,
