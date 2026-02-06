@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -124,7 +124,23 @@ def _store_ai_connections(db: Session, connections: list[dict]) -> int:
     if not rows:
         return 0
 
-    dialect = db.bind.dialect.name if db.bind else ""
+    # Deduplicate by canonical key, keeping highest-confidence entry.
+    # Without this, PG ON CONFLICT fails when the same key appears twice
+    # in a single INSERT statement.
+    seen: dict[tuple, dict] = {}
+    for row in rows:
+        key = (
+            row["source_type"],
+            row["source_id"],
+            row["target_type"],
+            row["target_id"],
+            row["relationship"],
+        )
+        if key not in seen or row["confidence"] > seen[key]["confidence"]:
+            seen[key] = row
+    rows = list(seen.values())
+
+    dialect = db.get_bind().dialect.name
     if dialect == "postgresql":
         count = _batch_upsert_pg(db, rows)
     else:
@@ -136,7 +152,11 @@ def _store_ai_connections(db: Session, connections: list[dict]) -> int:
 
 
 def _batch_upsert_pg(db: Session, rows: list[dict]) -> int:
-    """PostgreSQL fast path: single INSERT … ON CONFLICT DO UPDATE."""
+    """PostgreSQL fast path: single INSERT … ON CONFLICT DO UPDATE.
+
+    Only updates evidence/sub_type when the incoming confidence is higher,
+    matching the semantics of ``_upsert_fallback``.
+    """
     from sqlalchemy.dialects.postgresql import insert
 
     stmt = insert(AIConnection).values(rows)
@@ -147,8 +167,20 @@ def _batch_upsert_pg(db: Session, rows: list[dict]) -> int:
                 stmt.excluded.confidence,
                 func.coalesce(AIConnection.confidence, 0.0),
             ),
-            "evidence": stmt.excluded.evidence,
-            "sub_type": stmt.excluded.sub_type,
+            "evidence": case(
+                (
+                    stmt.excluded.confidence > func.coalesce(AIConnection.confidence, 0.0),
+                    stmt.excluded.evidence,
+                ),
+                else_=AIConnection.evidence,
+            ),
+            "sub_type": case(
+                (
+                    stmt.excluded.confidence > func.coalesce(AIConnection.confidence, 0.0),
+                    stmt.excluded.sub_type,
+                ),
+                else_=AIConnection.sub_type,
+            ),
         },
     )
     result = db.execute(stmt)
@@ -263,6 +295,7 @@ def _node_to_profile_entity(node: SocialCircleNode) -> ProfileEntity:
         closed_year=node.closed_year,
         era=_era_str(node),
         tier=node.tier,
+        # isinstance guard: test mocks pass MagicMock for image_url
         image_url=node.image_url if isinstance(node.image_url, str) else None,
     )
 

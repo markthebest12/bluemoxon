@@ -735,7 +735,7 @@ MIGRATION_Z4567890KLMN_SQL = [
 ]
 
 MIGRATION_E9A5101C8557_SQL = [
-    "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS ai_connections JSONB",
+    "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS ai_connections JSON",
 ]
 
 # Migration SQL for 2843f260f764_add_ai_connections_table
