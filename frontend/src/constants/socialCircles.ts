@@ -15,12 +15,15 @@ import type {
 // Historical Timeline Events
 // =============================================================================
 
-/** Default historical events displayed on the timeline */
+/** Historical events displayed on the timeline (covers full collection era, not just Victorian) */
 export const VICTORIAN_EVENTS = [
   { year: 1837, label: "Victoria's Coronation", type: "political" },
   { year: 1851, label: "Great Exhibition", type: "cultural" },
   { year: 1859, label: "Origin of Species", type: "literary" },
+  { year: 1865, label: "Alice in Wonderland", type: "literary" },
+  { year: 1891, label: "Kelmscott Press", type: "cultural" },
   { year: 1901, label: "Victoria Dies", type: "political" },
+  { year: 1914, label: "World War I", type: "political" },
 ] as const satisfies readonly HistoricalEvent[];
 
 // =============================================================================
@@ -75,12 +78,13 @@ export const EDGE_COLORS: Record<ConnectionType, string> = {
   publisher: "#4ade80", // green
   shared_publisher: "#4ade80", // green
   binder: "#a78bfa", // purple
-  // AI-discovered connections
-  family: "#60a5fa", // blue (Personal)
-  friendship: "#60a5fa", // blue (Personal)
-  influence: "#60a5fa", // blue
-  collaboration: "#60a5fa", // blue (Personal)
+  // Personal connections (warm tones)
+  family: "#60a5fa", // blue
+  friendship: "#38bdf8", // sky blue
   scandal: "#f87171", // red
+  // Professional connections (warm earth tones)
+  collaboration: "#fb923c", // orange
+  influence: "#fbbf24", // amber
 };
 
 // =============================================================================
@@ -126,12 +130,13 @@ export const EDGE_STYLES: Record<ConnectionType, { lineStyle: string; opacity: n
   publisher: { lineStyle: "solid", opacity: 0.8 },
   shared_publisher: { lineStyle: "solid", opacity: 0.6 },
   binder: { lineStyle: "dashed", opacity: 0.5 },
-  // AI-discovered connections
+  // Personal connections
   family: { lineStyle: "solid", opacity: 0.8 },
   friendship: { lineStyle: "solid", opacity: 0.7 },
+  scandal: { lineStyle: "dashed", opacity: 0.8 },
+  // Professional connections
   influence: { lineStyle: "dotted", opacity: 0.7 },
   collaboration: { lineStyle: "solid", opacity: 0.7 },
-  scandal: { lineStyle: "dashed", opacity: 0.8 },
 };
 
 /** Calculate edge width from strength */

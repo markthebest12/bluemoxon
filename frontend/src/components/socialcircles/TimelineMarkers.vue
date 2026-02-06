@@ -196,7 +196,7 @@ function handleKeydown(e: KeyboardEvent, id: string) {
 <style scoped>
 .timeline-markers {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
   height: 32px;
