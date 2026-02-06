@@ -10,9 +10,7 @@ const bgColor = computed(() => getConditionColor(props.condition));
 const label = computed(() => formatConditionGrade(props.condition));
 
 /** Use white text on dark backgrounds (luminance < 0.18 threshold per WCAG). */
-const textColor = computed(() =>
-  getLuminance(bgColor.value) < 0.18 ? "#ffffff" : "#1a1a1a"
-);
+const textColor = computed(() => (getLuminance(bgColor.value) < 0.18 ? "#ffffff" : "#1a1a1a"));
 </script>
 
 <template>
