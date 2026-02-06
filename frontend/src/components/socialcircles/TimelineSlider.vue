@@ -188,6 +188,8 @@ function handlePlay() {
   display: flex;
   align-items: center;
   gap: 1rem;
+  /* Reserve space for TimelineMarkers year labels positioned below the slider */
+  padding-bottom: 24px;
 }
 
 .timeline-slider__input-wrapper {
