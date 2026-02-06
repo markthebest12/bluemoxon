@@ -1468,6 +1468,10 @@ class TestGenerateAllAsync:
         """POST /generate-all returns job_id and enqueues messages."""
         author = Author(name="Batch Author")
         db.add(author)
+        db.flush()
+        # Entity must have at least one qualifying book to be included (#1866)
+        book = Book(title="Batch Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
         db.commit()
 
         response = admin_client.post("/api/v1/entity/profiles/generate-all")
@@ -1615,6 +1619,10 @@ class TestCancelJob:
         db.add(job)
         author = Author(name="Cancel Test Author")
         db.add(author)
+        db.flush()
+        # Entity must have at least one qualifying book to be included (#1866)
+        book = Book(title="Cancel Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
         db.commit()
 
         # Cancel the stale job
@@ -2204,6 +2212,11 @@ class TestScandalConnectionsAppear:
         author2 = Author(name="Lord Alfred Douglas", birth_year=1870, death_year=1945)
         db.add_all([author1, author2])
         db.flush()
+
+        # Both entities need qualifying books for the DB fallback to include them (#1866)
+        book1 = Book(title="The Importance of Being Earnest", author_id=author1.id, status="ON_HAND")
+        book2 = Book(title="Bosie's Poems", author_id=author2.id, status="ON_HAND")
+        db.add_all([book1, book2])
 
         profile = EntityProfile(entity_type="author", entity_id=author1.id)
         db.add(profile)

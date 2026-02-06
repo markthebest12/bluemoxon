@@ -20,7 +20,10 @@ from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.aws_clients import get_s3_client
-from app.services.entity_profile import get_entity_profile
+from app.services.entity_profile import (
+    _get_all_collection_entities,
+    get_entity_profile,
+)
 from app.services.sqs import send_profile_generation_jobs
 from app.utils.cdn import get_cloudfront_cdn_url
 
@@ -59,11 +62,10 @@ def generate_all_profiles(
             "status": existing.status,
         }
 
-    # Collect all entities
-    entities = []
-    for entity_type, model in [("author", Author), ("publisher", Publisher), ("binder", Binder)]:
-        for entity in db.query(model).all():
-            entities.append((entity_type, entity.id))
+    # Collect only entities that have at least one qualifying (owned) book.
+    # This prevents generating profiles for entities tied only to EVALUATING/REMOVED books (#1866).
+    collection_entities = _get_all_collection_entities(db)
+    entities = [(e["entity_type"], e["entity_id"]) for e in collection_entities]
 
     if not entities:
         return {"job_id": None, "total_entities": 0, "status": "empty"}

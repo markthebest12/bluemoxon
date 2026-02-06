@@ -654,9 +654,13 @@ def _build_connections(
             if target_node:
                 entity_data = _node_to_profile_entity(target_node)
             else:
-                # Graph miss — resolve from DB so the connection still appears
+                # Graph miss — resolve from DB so the connection still appears.
+                # Only include if the target entity has qualifying books (#1866).
                 db_entity = _get_entity(db, other_type, other_id)
                 if not db_entity:
+                    continue
+                target_books = _get_entity_books(db, other_type, other_id)
+                if not target_books:
                     continue
                 entity_data = _build_profile_entity(db_entity, other_type)
 

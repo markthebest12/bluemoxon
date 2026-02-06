@@ -389,3 +389,84 @@ def build_social_circles_graph(
         edges=list(edges.values()),
         meta=meta,
     )
+
+
+def get_book_social_circles_summary(
+    db: Session,
+    book_id: int,
+) -> dict | None:
+    """Build a summary of social circles connections relevant to a specific book.
+
+    Returns a lightweight summary for display on the book detail page (#1867):
+    - Entity node IDs involved (author, publisher, binder)
+    - Total connection count across those entities
+    - Key connection highlights (top 3 by strength)
+
+    Returns None if the book is not in a qualifying status.
+    """
+    from app.models.book import Book
+
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book or book.status not in [s.value for s in OWNED_STATUSES]:
+        return None
+
+    # Identify entity node IDs for this book
+    entity_node_ids: list[str] = []
+    if book.author_id:
+        entity_node_ids.append(f"author:{book.author_id}")
+    if book.publisher_id:
+        entity_node_ids.append(f"publisher:{book.publisher_id}")
+    if book.binder_id:
+        entity_node_ids.append(f"binder:{book.binder_id}")
+
+    if not entity_node_ids:
+        return {"entity_count": 0, "connection_count": 0, "highlights": []}
+
+    # Use cached graph to avoid rebuilding
+    from app.services.social_circles_cache import get_or_build_graph
+
+    graph = get_or_build_graph(db)
+
+    # Find all edges touching this book's entities
+    entity_set = set(entity_node_ids)
+    relevant_edges = [e for e in graph.edges if e.source in entity_set or e.target in entity_set]
+
+    # Build highlights from top edges by strength
+    highlights: list[dict] = []
+    node_map = {n.id: n for n in graph.nodes}
+    seen_pairs: set[str] = set()
+    for edge in sorted(relevant_edges, key=lambda e: e.strength, reverse=True):
+        if len(highlights) >= 3:
+            break
+        pair_key = f"{edge.source}:{edge.target}"
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
+
+        source_node = node_map.get(edge.source)
+        target_node = node_map.get(edge.target)
+        if source_node and target_node:
+            highlights.append(
+                {
+                    "source_name": source_node.name,
+                    "source_type": source_node.type.value,
+                    "target_name": target_node.name,
+                    "target_type": target_node.type.value,
+                    "connection_type": edge.type.value,
+                    "strength": edge.strength,
+                    "evidence": edge.evidence,
+                }
+            )
+
+    # Collect all unique connected entity IDs for the link filter
+    connected_entity_ids: list[str] = []
+    for nid in entity_node_ids:
+        if nid in node_map:
+            connected_entity_ids.append(nid)
+
+    return {
+        "entity_count": len([nid for nid in entity_node_ids if nid in node_map]),
+        "connection_count": len(relevant_edges),
+        "highlights": highlights,
+        "entity_node_ids": entity_node_ids,
+    }
