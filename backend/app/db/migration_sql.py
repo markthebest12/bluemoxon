@@ -773,36 +773,42 @@ MIGRATION_2843F260F764_SQL = [
     )
     SELECT
         CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
+                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
              THEN ep.entity_type
-             ELSE (conn::jsonb)->>'target_type'
+             ELSE c.target_type
         END,
         CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
+                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
              THEN ep.entity_id
-             ELSE CAST((conn::jsonb)->>'target_id' AS INTEGER)
+             ELSE c.target_id
         END,
         CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
-             THEN (conn::jsonb)->>'target_type'
+                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+             THEN c.target_type
              ELSE ep.entity_type
         END,
         CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                  <= ((conn::jsonb)->>'target_type' || ':' || (conn::jsonb)->>'target_id')
-             THEN CAST((conn::jsonb)->>'target_id' AS INTEGER)
+                  <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+             THEN c.target_id
              ELSE ep.entity_id
         END,
-        (conn::jsonb)->>'relationship',
-        (conn::jsonb)->>'sub_type',
-        COALESCE(CAST((conn::jsonb)->>'confidence' AS FLOAT), 0.5),
-        (conn::jsonb)->>'evidence'
+        c.relationship,
+        c.sub_type,
+        COALESCE(c.confidence, 0.5),
+        c.evidence
     FROM entity_profiles ep,
-         jsonb_array_elements(ep.ai_connections::jsonb) AS conn
+         jsonb_to_recordset(ep.ai_connections::jsonb) AS c(
+             target_type text,
+             target_id integer,
+             relationship text,
+             sub_type text,
+             confidence float,
+             evidence text
+         )
     WHERE ep.ai_connections IS NOT NULL
-      AND jsonb_array_length(ep.ai_connections::jsonb) > 0
-      AND (conn::jsonb)->>'relationship' IS NOT NULL
-      AND (conn::jsonb)->>'target_type' IS NOT NULL
-      AND (conn::jsonb)->>'target_id' IS NOT NULL
+      AND c.relationship IS NOT NULL
+      AND c.target_type IS NOT NULL
+      AND c.target_id IS NOT NULL
     ON CONFLICT (source_type, source_id, target_type, target_id, relationship)
     DO UPDATE SET
         confidence = GREATEST(ai_connections.confidence, EXCLUDED.confidence),
