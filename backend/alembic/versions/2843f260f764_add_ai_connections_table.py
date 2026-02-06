@@ -98,9 +98,9 @@ def upgrade() -> None:
             COALESCE(CAST(conn->>'confidence' AS FLOAT), 0.5),
             conn->>'evidence'
         FROM entity_profiles ep,
-             json_array_elements(ep.ai_connections) AS conn
+             jsonb_array_elements(ep.ai_connections::jsonb) AS conn
         WHERE ep.ai_connections IS NOT NULL
-          AND json_array_length(ep.ai_connections) > 0
+          AND jsonb_array_length(ep.ai_connections::jsonb) > 0
           AND conn->>'relationship' IS NOT NULL
           AND conn->>'target_type' IS NOT NULL
           AND conn->>'target_id' IS NOT NULL
