@@ -72,8 +72,8 @@ Read-only display of configured AI models and their purposes.
 | Model | Typical Usage |
 |-------|---------------|
 | **Sonnet 4.5** | Primary book analysis |
-| **Opus 4.5** | Complex reasoning tasks |
-| **Haiku** | Fast extraction tasks |
+| **Opus 4.6** | Complex reasoning tasks |
+| **Haiku 3.5** | Fast extraction tasks |
 
 ---
 

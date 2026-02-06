@@ -130,6 +130,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BMX_ALLOWED_EDITOR_EMAILS", "ALLOWED_EDITOR_EMAILS"),
     )
 
+    # Google Knowledge Graph API
+    google_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BMX_GOOGLE_API_KEY", "GOOGLE_API_KEY"),
+    )
+
     # Maintenance mode
     maintenance_mode: str = Field(
         default="false",

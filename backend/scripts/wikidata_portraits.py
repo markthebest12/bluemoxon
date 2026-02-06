@@ -7,11 +7,35 @@ Batch script that:
 4. Downloads portrait images from Wikimedia Commons for high-confidence matches
 5. Resizes and uploads to S3 as entity profile portraits
 
-Usage:
+Prerequisites:
+    - Direct database access (connects via DATABASE_URL / BMX_DATABASE_URL)
+    - AWS credentials for S3 uploads (BMX_S3_BUCKET or environment defaults)
+    - The --env flag sets BMX_ENVIRONMENT but does NOT configure remote DB access;
+      you need either a local database, an SSH tunnel, or to run from an EC2 instance
+      that can reach the RDS endpoint.
+
+Usage (from an environment with DB access):
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --dry-run
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --threshold 0.8
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --entity-type author
     cd backend && poetry run python -m scripts.wikidata_portraits --env staging --entity-type author --entity-id 31 --entity-id 227
+
+Fallback providers (for entities unmatched by Wikidata):
+    cd backend && poetry run python -m scripts.wikidata_portraits --env staging --enable-fallbacks
+    cd backend && poetry run python -m scripts.wikidata_portraits --env staging --skip-nls --skip-google
+
+Alternative — Admin API endpoint (no DB access required, but limited to 10 entities/request):
+    bmx-api POST '/admin/maintenance/portrait-sync?dry_run=true&entity_type=author&entity_ids=1'
+    bmx-api POST '/admin/maintenance/portrait-sync?dry_run=false&entity_type=author&entity_ids=1,2,3'
+    bmx-api POST '/admin/maintenance/portrait-sync?entity_type=publisher&entity_ids=1,2,3,4,5'
+
+Output:
+    JSON lines to stdout (one per entity), summary to stderr.
+    Pipe to jq for filtering: ... | jq 'select(.status == "uploaded")'
+
+Rate limiting:
+    1.5s between Wikidata requests (WIKIDATA_REQUEST_INTERVAL).
+    Full batch (140 authors + 91 publishers + 22 binders) takes ~6-7 minutes.
 """
 
 # ruff: noqa: T201
@@ -40,7 +64,14 @@ from app.models.binder import Binder
 from app.models.book import Book
 from app.models.publisher import Publisher
 from app.services.aws_clients import get_s3_client
-from scripts.wikidata_scoring import score_candidate
+from app.services.portrait_sync import (
+    build_sparql_query_org,
+    build_sparql_query_person,
+    extract_filename_from_commons_url,
+    group_sparql_results,
+    prepare_name_variants,
+)
+from app.utils.wikidata_scoring import score_candidate
 
 # Wikidata SPARQL endpoint
 WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
@@ -62,69 +93,6 @@ WIKIDATA_REQUEST_INTERVAL = 1.5
 USER_AGENT = "BlueMoxonBot/1.0 (https://bluemoxon.com; contact@bluemoxon.com)"
 
 logger = logging.getLogger(__name__)
-
-
-def _escape_sparql_string(value: str) -> str:
-    """Escape a value for use in a SPARQL string literal (double-quoted).
-
-    Handles backslashes, double quotes, newlines, carriage returns, and tabs
-    per the SPARQL 1.1 grammar for STRING_LITERAL2 (double-quoted strings).
-    """
-    return (
-        value.replace("\\", "\\\\")  # Backslash first
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
-
-
-def build_sparql_query_person(entity_name: str) -> str:
-    """Build SPARQL query for a human entity (author, binder person)."""
-    escaped_name = _escape_sparql_string(entity_name)
-    return f"""
-SELECT ?item ?itemLabel ?itemDescription ?birth ?death
-       ?image ?occupation ?occupationLabel ?work ?workLabel
-WHERE {{
-  ?item rdfs:label "{escaped_name}"@en .
-  ?item wdt:P31 wd:Q5 .
-  OPTIONAL {{ ?item wdt:P569 ?birth . }}
-  OPTIONAL {{ ?item wdt:P570 ?death . }}
-  OPTIONAL {{ ?item wdt:P18 ?image . }}
-  OPTIONAL {{
-    ?item wdt:P106 ?occupation .
-    ?occupation rdfs:label ?occupationLabel .
-    FILTER(LANG(?occupationLabel) = "en")
-  }}
-  OPTIONAL {{
-    ?item wdt:P800 ?work .
-    ?work rdfs:label ?workLabel .
-    FILTER(LANG(?workLabel) = "en")
-  }}
-  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" . }}
-}}
-LIMIT 10
-"""
-
-
-def build_sparql_query_org(entity_name: str) -> str:
-    """Build SPARQL query for an organizational entity (publisher)."""
-    escaped_name = _escape_sparql_string(entity_name)
-    return f"""
-SELECT ?item ?itemLabel ?itemDescription ?image ?inception
-WHERE {{
-  ?item rdfs:label "{escaped_name}"@en .
-  {{ ?item wdt:P31 wd:Q2085381 . }}
-  UNION
-  {{ ?item wdt:P31 wd:Q7275 . }}
-  UNION
-  {{ ?item wdt:P31 wd:Q4830453 . }}
-  OPTIONAL {{ ?item wdt:P18 ?image . }}
-  OPTIONAL {{ ?item wdt:P571 ?inception . }}
-  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" . }}
-}}
-LIMIT 10
-"""
 
 
 def query_wikidata(sparql: str) -> list[dict]:
@@ -149,70 +117,6 @@ def query_wikidata(sparql: str) -> list[dict]:
     except requests.RequestException:
         logger.exception("Wikidata SPARQL query failed")
         return []
-
-
-def parse_year_from_datetime(dt_str: str | None) -> int | None:
-    """Extract year from Wikidata datetime string (e.g. '1812-02-07T00:00:00Z')."""
-    if not dt_str:
-        return None
-    try:
-        return int(dt_str[:4])
-    except (ValueError, IndexError):
-        return None
-
-
-def extract_filename_from_commons_url(url: str) -> str:
-    """Extract filename from Wikimedia Commons URL.
-
-    Example: 'http://commons.wikimedia.org/wiki/Special:FilePath/Charles_Dickens_-_Project_Gutenberg_eText_13103.jpg'
-    -> 'Charles_Dickens_-_Project_Gutenberg_eText_13103.jpg'
-    """
-    if "Special:FilePath/" in url:
-        return url.split("Special:FilePath/")[-1]
-    # Fallback: last path segment
-    return url.rsplit("/", 1)[-1]
-
-
-def group_sparql_results(bindings: list[dict]) -> dict[str, dict]:
-    """Group SPARQL result bindings by Wikidata item URI.
-
-    Wikidata returns one row per (item, occupation, work) combination,
-    so we need to collapse them into one record per item.
-
-    Returns dict keyed by item URI with aggregated fields.
-    """
-    grouped: dict[str, dict] = {}
-    for row in bindings:
-        item_uri = row.get("item", {}).get("value", "")
-        if not item_uri:
-            continue
-
-        if item_uri not in grouped:
-            grouped[item_uri] = {
-                "uri": item_uri,
-                "label": row.get("itemLabel", {}).get("value", ""),
-                "description": row.get("itemDescription", {}).get("value", ""),
-                "birth": parse_year_from_datetime(row.get("birth", {}).get("value")),
-                "death": parse_year_from_datetime(row.get("death", {}).get("value")),
-                "image_url": row.get("image", {}).get("value"),
-                "occupations": set(),
-                "works": set(),
-            }
-
-        occ_label = row.get("occupationLabel", {}).get("value")
-        if occ_label:
-            grouped[item_uri]["occupations"].add(occ_label)
-
-        work_label = row.get("workLabel", {}).get("value")
-        if work_label:
-            grouped[item_uri]["works"].add(work_label)
-
-    # Convert sets to lists for downstream use
-    for item in grouped.values():
-        item["occupations"] = list(item["occupations"])
-        item["works"] = list(item["works"])
-
-    return grouped
 
 
 def download_portrait(image_url: str) -> bytes | None:
@@ -360,7 +264,8 @@ def process_person_entity(
     }
 
     # Query Wikidata
-    sparql = build_sparql_query_person(entity_name)
+    name_variants = prepare_name_variants(entity_name, entity_type)
+    sparql = build_sparql_query_person(name_variants)
     bindings = query_wikidata(sparql)
 
     if not bindings:
@@ -466,36 +371,28 @@ def process_publisher_entity(
     }
 
     # Query Wikidata for organizational entities
-    sparql = build_sparql_query_org(entity.name)
+    name_variants = prepare_name_variants(entity.name, "publisher")
+    sparql = build_sparql_query_org(name_variants)
     bindings = query_wikidata(sparql)
 
     if not bindings:
         result["status"] = "no_results"
         return result
 
-    # For publishers, we do a simpler name-based match
-    # since organizations don't have birth/death years in the same way
+    # Group results and score candidates
+    from app.utils.wikidata_scoring import name_similarity
+
+    grouped = group_sparql_results(bindings)
     best_candidate = None
     best_score = 0.0
 
-    for row in bindings:
-        label = row.get("itemLabel", {}).get("value", "")
-        image_url = row.get("image", {}).get("value")
-
-        # Simple name similarity check for organizations
-        from scripts.wikidata_scoring import name_similarity
-
-        ns = name_similarity(entity.name, label)
-        # Boost if has image
-        score = ns * 0.8 + (0.2 if image_url else 0.0)
+    for _uri, candidate in grouped.items():
+        ns = max(name_similarity(v, candidate["label"]) for v in name_variants)
+        score = ns * 0.8 + (0.2 if candidate.get("image_url") else 0.0)
 
         if score > best_score:
             best_score = score
-            best_candidate = {
-                "uri": row.get("item", {}).get("value", ""),
-                "label": label,
-                "image_url": image_url,
-            }
+            best_candidate = candidate
 
     result["score"] = round(best_score, 4)
 
@@ -504,6 +401,7 @@ def process_publisher_entity(
         return result
 
     result["wikidata_uri"] = best_candidate["uri"]
+    result["wikidata_label"] = best_candidate["label"]
 
     if not best_candidate.get("image_url"):
         result["status"] = "no_portrait"
@@ -584,9 +482,24 @@ def main():
         help="Enable debug logging",
     )
     parser.add_argument(
+        "--enable-fallbacks",
+        action="store_true",
+        help="Enable all fallback providers (Commons SDC, Google KG, NLS) for unmatched entities",
+    )
+    parser.add_argument(
         "--skip-nls",
         action="store_true",
         help="Skip NLS historical map fallback for unmatched publishers/binders",
+    )
+    parser.add_argument(
+        "--skip-commons",
+        action="store_true",
+        help="Skip Wikimedia Commons SDC fallback",
+    )
+    parser.add_argument(
+        "--skip-google",
+        action="store_true",
+        help="Skip Google Knowledge Graph fallback",
     )
 
     args = parser.parse_args()
@@ -656,35 +569,51 @@ def main():
                     print(json.dumps(result))
                     time.sleep(WIKIDATA_REQUEST_INTERVAL)
 
-            # NLS map fallback for unmatched publishers/binders
-            if not args.skip_nls and etype in ("publisher", "binder"):
-                unmatched_statuses = {"no_results", "below_threshold", "no_portrait"}
+            # Fallback providers for unmatched entities
+            enable_any_fallback = args.enable_fallbacks or (
+                not args.skip_nls and etype in ("publisher", "binder")
+            )
+            if enable_any_fallback:
+                from app.services.portrait_sync import (
+                    FALLBACK_TRIGGER_STATUSES,
+                    _try_fallback_providers,
+                )
+
+                enable_commons = args.enable_fallbacks and not args.skip_commons
+                enable_google = args.enable_fallbacks and not args.skip_google
+                enable_nls = not args.skip_nls
+
                 unmatched = [
                     r
                     for r in results
-                    if r["entity_type"] == etype and r["status"] in unmatched_statuses
+                    if r["entity_type"] == etype and r["status"] in FALLBACK_TRIGGER_STATUSES
                 ]
                 if unmatched:
                     logger.info(
-                        "Running NLS map fallback for %d unmatched %ss",
+                        "Running fallback providers for %d unmatched %ss",
                         len(unmatched),
                         etype,
                     )
-                    from scripts.nls_map_fallback import process_nls_fallback
-
-                    # Build lookup of unmatched entity IDs
                     unmatched_ids = {r["entity_id"] for r in unmatched}
+                    model_cls = {"author": Author, "publisher": Publisher, "binder": Binder}[etype]
+                    fb_entities = db.query(model_cls).filter(model_cls.id.in_(unmatched_ids)).all()
+                    entity_to_result = {r["entity_id"]: r for r in unmatched}
 
-                    # Re-query entities for unmatched IDs
-                    model_cls = Publisher if etype == "publisher" else Binder
-                    nls_entities = db.query(model_cls).filter(model_cls.id.in_(unmatched_ids)).all()
-
-                    for nls_entity in nls_entities:
-                        nls_result = process_nls_fallback(
-                            db, nls_entity, etype, args.dry_run, settings
+                    for fb_entity in fb_entities:
+                        original_result = entity_to_result[fb_entity.id]
+                        fb_result = _try_fallback_providers(
+                            db,
+                            fb_entity,
+                            etype,
+                            original_result,
+                            args.dry_run,
+                            enable_commons=enable_commons,
+                            enable_google=enable_google,
+                            enable_nls=enable_nls,
                         )
-                        results.append(nls_result)
-                        print(json.dumps(nls_result))
+                        if fb_result.get("image_source"):
+                            results.append(fb_result)
+                            print(json.dumps(fb_result))
 
         # Summary to stderr
         total = len(results)
