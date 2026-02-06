@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.1) - 2026-02-06
+
+- [`a8fea3d`](https://github.com/markthebest12/bluemoxon/commit/a8fea3d89e21adb9ced5863571572dd95d6bafca) fix: restore useModelLabels composable lost in merge conflict (#1883)
+
 ## [v3.5.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.0) - 2026-02-06
 
 - [`c385a03`](https://github.com/markthebest12/bluemoxon/commit/c385a03a4bc0deb3779137aea5d04d03de640328) docs: BMX 3.0 documentation sweep + marketing announcement (#1862, #1863)
