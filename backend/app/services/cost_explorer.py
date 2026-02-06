@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import boto3
 from botocore.exceptions import ClientError
 
-from app.services.bedrock import MODEL_DISPLAY_NAMES, MODEL_USAGE
+from app.services.bedrock import MODEL_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -19,37 +19,21 @@ logger = logging.getLogger(__name__)
 _cost_cache: dict[str, Any] = {}
 CACHE_TTL_SECONDS = 3600  # 1 hour
 
-# Map AWS service names to our model names.
-# Current models — derive from MODEL_DISPLAY_NAMES so model bumps auto-propagate.
-# Legacy models — static, won't change.
-# Note: AWS billing may list "Claude 3 Haiku" or "Claude 3.5 Haiku" depending on
-# when the model was provisioned; include both variants so costs are always captured.
-AWS_SERVICE_TO_MODEL = {
-    # Current models — derive billing names from single source of truth.
-    # Pattern: "Claude <DisplayName> (Amazon Bedrock Edition)"
-    # Works for Opus/Sonnet; Haiku uses legacy "Claude 3.5 Haiku" naming in AWS billing.
-    **{
-        f"Claude {display} (Amazon Bedrock Edition)": display
-        for key, display in MODEL_DISPLAY_NAMES.items()
-        if key != "haiku"  # Haiku billing name doesn't follow this pattern
-    },
-    # Haiku — AWS bills as "Claude 3.5 Haiku", not "Claude Haiku 3.5"
-    "Claude 3.5 Haiku (Amazon Bedrock Edition)": MODEL_DISPLAY_NAMES.get("haiku", "Haiku 3.5"),
-    # Legacy models — static (no longer in MODEL_IDS, billing names won't change)
-    "Claude Opus 4.5 (Amazon Bedrock Edition)": "Opus 4.5",
-    "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
-    "Claude 3.5 Sonnet (Amazon Bedrock Edition)": "Sonnet 3.5",
-    "Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)": "Sonnet 3.5 v2",
+# ---------------------------------------------------------------------------
+# Derived from MODEL_REGISTRY — no manual model-name definitions here
+# ---------------------------------------------------------------------------
+
+# Map AWS billing service names → our display name (e.g. "Claude Opus 4.6 (…)" → "Opus 4.6")
+AWS_SERVICE_TO_MODEL: dict[str, str] = {
+    billing_name: entry.display_name
+    for entry in MODEL_REGISTRY
+    for billing_name in entry.aws_billing_names
 }
 
-# Build from MODEL_DISPLAY_NAMES so model bumps auto-propagate
-MODEL_USAGE_DESCRIPTIONS = {
-    display: MODEL_USAGE.get(key, "Analysis") for key, display in MODEL_DISPLAY_NAMES.items()
+# Map display name → usage description (e.g. "Opus 4.6" → "Napoleon analysis (default)")
+MODEL_USAGE_DESCRIPTIONS: dict[str, str] = {
+    entry.display_name: entry.usage for entry in MODEL_REGISTRY
 }
-# Legacy models (no longer in MODEL_IDS) — static, won't change
-MODEL_USAGE_DESCRIPTIONS["Opus 4.5"] = "Legacy analysis"
-MODEL_USAGE_DESCRIPTIONS["Sonnet 3.5"] = "Legacy analysis"
-MODEL_USAGE_DESCRIPTIONS["Sonnet 3.5 v2"] = "Legacy analysis"
 
 # Other AWS services to track
 OTHER_SERVICES = [
