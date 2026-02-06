@@ -152,7 +152,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showAuthors: true }) },
       });
 
-      await wrapper.find('[data-testid="filter-authors"]').trigger("click");
+      await wrapper.find('[data-testid="filter-authors"] input[type="checkbox"]').trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["showAuthors", false]);
@@ -163,7 +163,9 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showPublishers: true }) },
       });
 
-      await wrapper.find('[data-testid="filter-publishers"]').trigger("click");
+      await wrapper
+        .find('[data-testid="filter-publishers"] input[type="checkbox"]')
+        .trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["showPublishers", false]);
@@ -174,7 +176,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showBinders: true }) },
       });
 
-      await wrapper.find('[data-testid="filter-binders"]').trigger("click");
+      await wrapper.find('[data-testid="filter-binders"] input[type="checkbox"]').trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["showBinders", false]);
@@ -271,7 +273,9 @@ describe("FilterPanel", () => {
         },
       });
 
-      await wrapper.find('[data-testid="filter-shared_publisher"]').trigger("click");
+      await wrapper
+        .find('[data-testid="filter-shared_publisher"] input[type="checkbox"]')
+        .trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual([
@@ -289,7 +293,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      await wrapper.find('[data-testid="filter-binder"]').trigger("click");
+      await wrapper.find('[data-testid="filter-binder"] input[type="checkbox"]').trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual([
@@ -418,7 +422,9 @@ describe("FilterPanel", () => {
         },
       });
 
-      await wrapper.find('[data-testid="filter-era-romantic"]').trigger("click");
+      await wrapper
+        .find('[data-testid="filter-era-romantic"] input[type="checkbox"]')
+        .trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["eras", ["victorian", "romantic"]]);
@@ -433,7 +439,9 @@ describe("FilterPanel", () => {
         },
       });
 
-      await wrapper.find('[data-testid="filter-era-victorian"]').trigger("click");
+      await wrapper
+        .find('[data-testid="filter-era-victorian"] input[type="checkbox"]')
+        .trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["eras", ["romantic"]]);
@@ -506,7 +514,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      await wrapper.find('[data-testid="filter-tier1"]').trigger("click");
+      await wrapper.find('[data-testid="filter-tier1"] input[type="checkbox"]').trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["tier1Only", true]);
@@ -660,15 +668,13 @@ describe("FilterPanel", () => {
   });
 
   describe("checkbox behavior", () => {
-    it("prevents default on label click to use custom toggle", async () => {
+    it("emits update:filter when checkbox input change event fires", async () => {
       wrapper = mount(FilterPanel, {
         props: { filterState: createDefaultFilterState() },
       });
 
-      const mockEvent = { preventDefault: vi.fn() };
-
-      // The component uses @click.prevent, so we verify the emit happens
-      await wrapper.find('[data-testid="filter-authors"]').trigger("click", mockEvent);
+      // The component uses @change on checkbox inputs to toggle filters
+      await wrapper.find('[data-testid="filter-authors"] input[type="checkbox"]').trigger("change");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
     });

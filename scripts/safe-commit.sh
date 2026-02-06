@@ -81,7 +81,7 @@ git add -A
 echo "Committing..."
 git commit -m "$commit_msg
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 echo ""
 echo -e "${GREEN}Committed successfully!${NC}"

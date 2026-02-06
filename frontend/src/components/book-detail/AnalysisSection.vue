@@ -15,24 +15,18 @@ const props = defineProps<{
 
 const booksStore = useBooksStore();
 
-// Model labels from the public API (single source of truth)
-const { labels } = useModelLabels();
-
 // Internal state
 const analysisVisible = ref(false);
 const evalRunbookVisible = ref(false);
 const startingAnalysis = ref(false);
 const selectedModel = ref<AnalysisModel>(DEFAULT_ANALYSIS_MODEL);
 
-// Model options for the dropdown — derived from the registry labels
-const modelOptions = computed(() => {
-  // Only show models that can run analysis (opus, sonnet)
-  const analysisKeys: AnalysisModel[] = ["opus", "sonnet"];
-  return analysisKeys.map((key) => ({
-    value: key,
-    label: labels.value[key] || key.charAt(0).toUpperCase() + key.slice(1),
-  }));
-});
+// Model labels from shared composable (single API call, module-level cache)
+const { modelLabels } = useModelLabels();
+
+const modelOptions = computed(() =>
+  Object.entries(modelLabels.value).map(([value, label]) => ({ value, label }))
+);
 
 // Analysis polling setup
 // Note: useJobPolling auto-cleans up via onUnmounted in the composable

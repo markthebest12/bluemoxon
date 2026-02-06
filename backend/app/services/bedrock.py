@@ -182,6 +182,14 @@ MODEL_IDS: dict[str, str] = _build_model_ids()
 MODEL_USAGE: dict[str, str] = _build_model_usage()
 MODEL_DISPLAY_NAMES: dict[str, str] = _build_display_names()
 
+# Human-readable display names derived from model IDs.
+# Single source of truth — frontend reads these via /admin/model-config.
+MODEL_DISPLAY_NAMES = {
+    "sonnet": "Sonnet 4.5",
+    "opus": "Opus 4.6",
+    "haiku": "Haiku 3.5",
+}
+
 # Prompt cache with TTL
 _prompt_cache: dict = {"prompt": None, "timestamp": 0}
 PROMPT_CACHE_TTL = 300  # 5 minutes
