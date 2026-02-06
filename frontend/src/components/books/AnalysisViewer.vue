@@ -22,7 +22,16 @@ const emit = defineEmits<{
 
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
-const { formatModelId } = useModelLabels();
+const { formatModelId, labels } = useModelLabels();
+
+// Model options for the regenerate dropdown — derived from registry labels
+const modelOptions = computed(() => {
+  const analysisKeys: AnalysisModel[] = ["opus", "sonnet"];
+  return analysisKeys.map((key) => ({
+    value: key,
+    label: labels.value[key] || key.charAt(0).toUpperCase() + key.slice(1),
+  }));
+});
 
 // Analysis generation polling (async generation with status updates)
 const analysisPoller = useJobPolling("analysis", {
@@ -402,8 +411,13 @@ function formatPacificTime(isoString: string): string {
                       class="select text-sm w-32 pr-8 bg-[var(--color-surface-primary)] text-[var(--color-text-primary)]"
                       :disabled="generating"
                     >
-                      <option value="sonnet">Sonnet 4.5</option>
-                      <option value="opus">Opus 4.5</option>
+                      <option
+                        v-for="opt in modelOptions"
+                        :key="opt.value"
+                        :value="opt.value"
+                      >
+                        {{ opt.label }}
+                      </option>
                     </select>
                     <button
                       :disabled="generating"
