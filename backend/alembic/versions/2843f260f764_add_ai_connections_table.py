@@ -63,53 +63,61 @@ def upgrade() -> None:
     )
 
     # Data migration: copy existing JSON ai_connections into the new table.
-    # Uses canonical ordering (lower node ID string first) and ON CONFLICT
-    # to handle duplicates from A→B and B→A stored in separate profiles.
+    # Uses DISTINCT ON to deduplicate A→B / B→A pairs that resolve to the
+    # same canonical key, keeping the row with the highest confidence.
     op.execute(
         """
         INSERT INTO ai_connections (
             source_type, source_id, target_type, target_id,
             relationship, sub_type, confidence, evidence
         )
-        SELECT
-            -- Canonical ordering: lower node string first
-            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
-                 THEN ep.entity_type
-                 ELSE conn->>'target_type'
-            END AS source_type,
-            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
-                 THEN ep.entity_id
-                 ELSE CAST(conn->>'target_id' AS INTEGER)
-            END AS source_id,
-            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
-                 THEN conn->>'target_type'
-                 ELSE ep.entity_type
-            END AS target_type,
-            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
-                      <= (conn->>'target_type' || ':' || conn->>'target_id')
-                 THEN CAST(conn->>'target_id' AS INTEGER)
-                 ELSE ep.entity_id
-            END AS target_id,
-            conn->>'relationship',
-            conn->>'sub_type',
-            COALESCE(CAST(conn->>'confidence' AS FLOAT), 0.5),
-            conn->>'evidence'
-        FROM entity_profiles ep,
-             jsonb_array_elements(ep.ai_connections::jsonb) AS conn
-        WHERE ep.ai_connections IS NOT NULL
-          AND jsonb_array_length(ep.ai_connections::jsonb) > 0
-          AND conn->>'relationship' IS NOT NULL
-          AND conn->>'target_type' IS NOT NULL
-          AND conn->>'target_id' IS NOT NULL
+        SELECT DISTINCT ON (source_type, source_id, target_type, target_id, relationship)
+            source_type, source_id, target_type, target_id,
+            relationship, sub_type, confidence, evidence
+        FROM (
+            SELECT
+                CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                          <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                     THEN ep.entity_type
+                     ELSE c.target_type
+                END AS source_type,
+                CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                          <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                     THEN ep.entity_id
+                     ELSE c.target_id
+                END AS source_id,
+                CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                          <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                     THEN c.target_type
+                     ELSE ep.entity_type
+                END AS target_type,
+                CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                          <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                     THEN c.target_id
+                     ELSE ep.entity_id
+                END AS target_id,
+                c.relationship,
+                c.sub_type,
+                COALESCE(c.confidence, 0.5) AS confidence,
+                c.evidence
+            FROM entity_profiles ep,
+                 jsonb_to_recordset(ep.ai_connections::jsonb) AS c(
+                     target_type text,
+                     target_id integer,
+                     relationship text,
+                     sub_type text,
+                     confidence float,
+                     evidence text
+                 )
+            WHERE ep.ai_connections IS NOT NULL
+              AND c.relationship IS NOT NULL
+              AND c.target_type IS NOT NULL
+              AND c.target_id IS NOT NULL
+        ) AS raw
+        ORDER BY source_type, source_id, target_type, target_id, relationship,
+                 confidence DESC
         ON CONFLICT (source_type, source_id, target_type, target_id, relationship)
-        DO UPDATE SET
-            confidence = GREATEST(ai_connections.confidence, EXCLUDED.confidence),
-            evidence = COALESCE(EXCLUDED.evidence, ai_connections.evidence),
-            sub_type = COALESCE(EXCLUDED.sub_type, ai_connections.sub_type),
-            updated_at = now()
+        DO NOTHING
         """
     )
 
