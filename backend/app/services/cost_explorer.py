@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import boto3
 from botocore.exceptions import ClientError
 
-from app.services.bedrock import MODEL_USAGE
+from app.services.bedrock import MODEL_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -19,27 +19,20 @@ logger = logging.getLogger(__name__)
 _cost_cache: dict[str, Any] = {}
 CACHE_TTL_SECONDS = 3600  # 1 hour
 
-# Map AWS service names to our model names
-# Note: AWS billing may list "Claude 3 Haiku" or "Claude 3.5 Haiku" depending on
-# when the model was provisioned; include both variants so costs are always captured.
-AWS_SERVICE_TO_MODEL = {
-    "Claude Sonnet 4.5 (Amazon Bedrock Edition)": "Sonnet 4.5",
-    "Claude Opus 4.5 (Amazon Bedrock Edition)": "Opus 4.5",
-    "Claude Opus 4.6 (Amazon Bedrock Edition)": "Opus 4.6",
-    "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
-    "Claude 3.5 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
-    "Claude 3.5 Sonnet (Amazon Bedrock Edition)": "Sonnet 3.5",
-    "Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)": "Sonnet 3.5 v2",
+# ---------------------------------------------------------------------------
+# Derived from MODEL_REGISTRY — no manual model-name definitions here
+# ---------------------------------------------------------------------------
+
+# Map AWS billing service names → our display name (e.g. "Claude Opus 4.6 (…)" → "Opus 4.6")
+AWS_SERVICE_TO_MODEL: dict[str, str] = {
+    billing_name: entry.display_name
+    for entry in MODEL_REGISTRY
+    for billing_name in entry.aws_billing_names
 }
 
-# Model name to usage description mapping
-MODEL_USAGE_DESCRIPTIONS = {
-    "Sonnet 4.5": MODEL_USAGE.get("sonnet", "Primary analysis"),
-    "Opus 4.5": MODEL_USAGE.get("opus", "High quality analysis"),
-    "Opus 4.6": MODEL_USAGE.get("opus", "High quality analysis"),
-    "Haiku 3.5": MODEL_USAGE.get("haiku", "Fast extraction"),
-    "Sonnet 3.5": "Legacy analysis",
-    "Sonnet 3.5 v2": "Legacy analysis",
+# Map display name → usage description (e.g. "Opus 4.6" → "Napoleon analysis (default)")
+MODEL_USAGE_DESCRIPTIONS: dict[str, str] = {
+    entry.display_name: entry.usage for entry in MODEL_REGISTRY
 }
 
 # Other AWS services to track

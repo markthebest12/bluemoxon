@@ -18,6 +18,16 @@ vi.mock("@/composables/useJobPolling", () => ({
   useJobPolling: (...args: unknown[]) => mockUseJobPolling(...args),
 }));
 
+vi.mock("@/composables/useModelLabels", () => ({
+  useModelLabels: () => ({
+    labels: ref({ opus: "Opus 4.6", sonnet: "Sonnet 4.5", haiku: "Haiku 3.5" }),
+    loaded: ref(true),
+    loading: ref(false),
+    error: ref(null),
+    formatModelId: (id: string) => id,
+  }),
+}));
+
 // Stub child components
 const stubs = {
   AnalysisViewer: true,

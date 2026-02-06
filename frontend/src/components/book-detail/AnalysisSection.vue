@@ -2,6 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { useBooksStore, type Book } from "@/stores/books";
 import { useJobPolling } from "@/composables/useJobPolling";
+import { useModelLabels } from "@/composables/useModelLabels";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import AnalysisViewer from "@/components/books/AnalysisViewer.vue";
 import EvalRunbookModal from "@/components/books/EvalRunbookModal.vue";
@@ -14,17 +15,24 @@ const props = defineProps<{
 
 const booksStore = useBooksStore();
 
+// Model labels from the public API (single source of truth)
+const { labels } = useModelLabels();
+
 // Internal state
 const analysisVisible = ref(false);
 const evalRunbookVisible = ref(false);
 const startingAnalysis = ref(false);
 const selectedModel = ref<AnalysisModel>(DEFAULT_ANALYSIS_MODEL);
 
-// Model options for the dropdown
-const modelOptions = [
-  { value: "opus", label: "Opus 4.5" },
-  { value: "sonnet", label: "Sonnet 4.5" },
-];
+// Model options for the dropdown — derived from the registry labels
+const modelOptions = computed(() => {
+  // Only show models that can run analysis (opus, sonnet)
+  const analysisKeys: AnalysisModel[] = ["opus", "sonnet"];
+  return analysisKeys.map((key) => ({
+    value: key,
+    label: labels.value[key] || key.charAt(0).toUpperCase() + key.slice(1),
+  }));
+});
 
 // Analysis polling setup
 // Note: useJobPolling auto-cleans up via onUnmounted in the composable

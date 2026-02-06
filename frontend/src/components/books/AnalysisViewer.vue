@@ -6,6 +6,7 @@ import { api } from "@/services/api";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { useJobPolling } from "@/composables/useJobPolling";
+import { useModelLabels } from "@/composables/useModelLabels";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
@@ -21,6 +22,7 @@ const emit = defineEmits<{
 
 const booksStore = useBooksStore();
 const authStore = useAuthStore();
+const { formatModelId } = useModelLabels();
 
 // Analysis generation polling (async generation with status updates)
 const analysisPoller = useJobPolling("analysis", {
@@ -299,40 +301,7 @@ function formatPacificTime(isoString: string): string {
   return `${formatted} Pacific`;
 }
 
-function formatModelId(modelId: string): string {
-  // Convert model IDs like:
-  // "us.anthropic.claude-sonnet-4-5-20250929-v1:0" → "Claude Sonnet 4.5"
-  // "us.anthropic.claude-opus-4-5-20251101-v1:0" → "Claude Opus 4.5"
-  // "claude-3-5-sonnet-20241022" → "Claude 3.5 Sonnet"
-
-  // Pattern: model-X or model-X-Y (where X and Y are single digits, before date)
-  const versionPattern = /-(opus|sonnet|haiku)-(\d+)(?:-(\d+))?-\d{8}/i;
-  const match = modelId.match(versionPattern);
-
-  if (match) {
-    const [, model, major, minor] = match;
-    const modelName = model.charAt(0).toUpperCase() + model.slice(1).toLowerCase();
-    const version = minor ? `${major}.${minor}` : major;
-    return `Claude ${modelName} ${version}`;
-  }
-
-  // Legacy format: claude-3-5-sonnet-date
-  const legacyPattern = /claude-(\d+)-(\d+)-(opus|sonnet|haiku)/i;
-  const legacyMatch = modelId.match(legacyPattern);
-
-  if (legacyMatch) {
-    const [, major, minor, model] = legacyMatch;
-    const modelName = model.charAt(0).toUpperCase() + model.slice(1).toLowerCase();
-    return `Claude ${major}.${minor} ${modelName}`;
-  }
-
-  // Simple fallback for unknown formats
-  if (modelId.includes("opus")) return "Claude Opus";
-  if (modelId.includes("sonnet")) return "Claude Sonnet";
-  if (modelId.includes("haiku")) return "Claude Haiku";
-
-  return modelId.split(".").pop() || modelId;
-}
+// formatModelId is provided by useModelLabels composable (single source of truth)
 </script>
 
 <template>
