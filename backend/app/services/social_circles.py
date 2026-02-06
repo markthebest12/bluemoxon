@@ -314,8 +314,13 @@ def build_social_circles_graph(
                 )
 
     # Merge AI-discovered edges from canonical table (#1813)
-    ai_rows = db.query(AIConnection).all()
-    for row in ai_rows:
+    # Filter to entity types present in the graph to avoid loading the entire table.
+    node_types = {k.split(":")[0] for k in nodes}
+    ai_query = db.query(AIConnection).filter(
+        AIConnection.source_type.in_(node_types),
+        AIConnection.target_type.in_(node_types),
+    )
+    for row in ai_query:
         source_node_id = f"{row.source_type}:{row.source_id}"
         target_node_id = f"{row.target_type}:{row.target_id}"
 
@@ -323,7 +328,11 @@ def build_social_circles_graph(
         if source_node_id not in nodes or target_node_id not in nodes:
             continue
 
-        conn_type = ConnectionType(row.relationship)
+        try:
+            conn_type = ConnectionType(row.relationship)
+        except ValueError:
+            logger.warning("Skipping AI connection with invalid relationship %r", row.relationship)
+            continue
         strength = max(2, min(int(row.confidence * 10), 10))
         edge_id = f"e:{source_node_id}:{target_node_id}:{row.relationship}"
 

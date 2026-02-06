@@ -115,7 +115,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop ai_connections table."""
+    """Drop ai_connections table.
+
+    NOTE: This is a one-way data migration. Connections created after upgrade
+    are stored only in the table, not in entity_profiles.ai_connections JSON.
+    Rolling back will lose post-migration AI connection data.
+    """
     op.drop_index("ix_ai_connections_target", table_name="ai_connections")
     op.drop_index("ix_ai_connections_source", table_name="ai_connections")
     op.drop_table("ai_connections")

@@ -102,7 +102,7 @@ def _store_ai_connections(db: Session, connections: list[dict]) -> int:
             src_type, tgt_type = tgt_type, src_type
             src_id, tgt_id = tgt_id, src_id
 
-        confidence = conn.get("confidence", 0.5)
+        confidence = max(0.0, min(float(conn.get("confidence", 0.5)), 1.0))
 
         existing = (
             db.query(AIConnection)
@@ -289,21 +289,30 @@ def _build_stats(books: list[Book]) -> ProfileStats:
     )
 
 
-def is_profile_stale(db: Session, entity_type: str, entity_id: int) -> bool:
+def is_profile_stale(
+    db: Session,
+    entity_type: str,
+    entity_id: int,
+    *,
+    profile: EntityProfile | None = None,
+) -> bool:
     """Check if entity needs profile (re)generation.
 
     Returns True if:
       - No profile exists for this entity
       - Profile exists but books have been updated since generation
+
+    Pass an already-fetched *profile* to avoid a duplicate query.
     """
-    profile = (
-        db.query(EntityProfile)
-        .filter(
-            EntityProfile.entity_type == entity_type,
-            EntityProfile.entity_id == entity_id,
+    if profile is None:
+        profile = (
+            db.query(EntityProfile)
+            .filter(
+                EntityProfile.entity_type == entity_type,
+                EntityProfile.entity_id == entity_id,
+            )
+            .first()
         )
-        .first()
-    )
     if not profile or not profile.generated_at:
         return True
 
@@ -654,7 +663,7 @@ def get_entity_profile(
         .first()
     )
 
-    is_stale = is_profile_stale(db, entity_type, entity_id)
+    is_stale = is_profile_stale(db, entity_type, entity_id, profile=cached)
 
     profile_data = ProfileData(
         bio_summary=cached.bio_summary if cached else None,
