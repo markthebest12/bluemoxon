@@ -6,7 +6,7 @@
  * All tracking is non-blocking to prevent UI disruptions.
  */
 
-import type { ApiNode, ApiEdge, LayoutMode } from "@/types/socialCircles";
+import type { ApiNode, ApiEdge, LayoutMode, NodeType, Tier } from "@/types/socialCircles";
 
 // =============================================================================
 // Types
@@ -172,6 +172,81 @@ function _createAnalytics() {
     });
   }
 
+  // ===========================================================================
+  // Entity Profile events
+  // ===========================================================================
+
+  /**
+   * Track when an entity profile page is viewed.
+   */
+  function trackProfileViewed(type: NodeType, id: number, tier: Tier): void {
+    trackEvent({
+      event: "profile_viewed",
+      properties: {
+        entityType: type,
+        entityId: id,
+        tier,
+      },
+    });
+  }
+
+  /**
+   * Track when a connection entity link is clicked from the profile.
+   */
+  function trackConnectionClicked(
+    connectionType: string,
+    entityId: number,
+    entityName: string
+  ): void {
+    trackEvent({
+      event: "connection_clicked",
+      properties: {
+        connectionType,
+        entityId,
+        entityName,
+      },
+    });
+  }
+
+  /**
+   * Track when a gossip/story panel is expanded.
+   */
+  function trackGossipExpanded(entityId: number, entityName: string): void {
+    trackEvent({
+      event: "gossip_expanded",
+      properties: {
+        entityId,
+        entityName,
+      },
+    });
+  }
+
+  /**
+   * Track when a book is clicked from the entity profile.
+   */
+  function trackBookClicked(bookId: number, bookTitle: string): void {
+    trackEvent({
+      event: "book_clicked",
+      properties: {
+        bookId,
+        bookTitle,
+      },
+    });
+  }
+
+  /**
+   * Track when a profile regeneration is triggered.
+   */
+  function trackProfileRegenerated(type: NodeType, id: number): void {
+    trackEvent({
+      event: "profile_regenerated",
+      properties: {
+        entityType: type,
+        entityId: id,
+      },
+    });
+  }
+
   return {
     trackEvent,
     trackNodeSelect,
@@ -182,5 +257,10 @@ function _createAnalytics() {
     trackLayoutChange,
     trackSearch,
     trackExport,
+    trackProfileViewed,
+    trackConnectionClicked,
+    trackGossipExpanded,
+    trackBookClicked,
+    trackProfileRegenerated,
   };
 }

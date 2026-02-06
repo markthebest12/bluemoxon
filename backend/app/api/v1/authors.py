@@ -18,6 +18,7 @@ from app.schemas.reference import (
 )
 from app.services.entity_matching import invalidate_entity_cache
 from app.services.entity_validation import validate_entity_creation
+from app.services.sqs import send_entity_enrichment_job
 
 router = APIRouter()
 
@@ -127,6 +128,9 @@ def create_author(
     db.commit()
     db.refresh(author)
     invalidate_entity_cache("author")
+
+    # Fire-and-forget: enqueue async enrichment via Bedrock (never blocks creation)
+    send_entity_enrichment_job("author", author.id, author.name)
 
     return AuthorResponse(
         id=author.id,

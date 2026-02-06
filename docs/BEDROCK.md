@@ -6,14 +6,27 @@ BlueMoxon uses AWS Bedrock to generate Napoleon framework analyses for antiquari
 
 ## Model Configuration
 
-**Current Models (as of 2025-12-12):**
+**Current Models (as of 2026-02-06):**
 
 | Name | Model ID | Use Case |
 |------|----------|----------|
-| Sonnet | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | Fast analysis (~20-30s) |
-| Opus | `us.anthropic.claude-opus-4-5-20251101-v1:0` | High-quality analysis (~40-60s) |
+| Sonnet | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | Eval runbooks, FMV lookup, listing extraction, Napoleon analysis (optional) |
+| Opus | `us.anthropic.claude-opus-4-6-v1` | Napoleon analysis (default) |
+| Haiku | `anthropic.claude-3-5-haiku-20241022-v1:0` | Entity profiles, order extraction |
 
 Models are configured in `backend/app/services/bedrock.py`.
+
+### Model Registry (BMX 3.0)
+
+Model assignments are configurable per workflow via the admin dashboard. The `app_config` table stores overrides with the format `model.<flow_name>`. If no override exists, the hardcoded default is used.
+
+| Flow Key | Default Model | Description |
+|----------|---------------|-------------|
+| `model.napoleon_analysis` | opus | Full book analysis using the Napoleon framework |
+| `model.entity_profiles` | haiku | AI-generated biographical profiles |
+| `model.order_extraction` | haiku | Structured data extraction from order emails |
+
+See [API Reference](API_REFERENCE.md#model-configuration-api) for the admin endpoints, and [Admin Dashboard](ADMIN_DASHBOARD.md#models-tab) for the UI.
 
 ## AWS CLI Examples
 
@@ -23,7 +36,7 @@ Models are configured in `backend/app/services/bedrock.py`.
 # Create test payload
 echo '{"anthropic_version":"bedrock-2023-05-31","max_tokens":500,"messages":[{"role":"user","content":"What is 2+2?"}]}' > .tmp/test.json
 
-# Invoke Claude Sonnet
+# Invoke Claude 4.5 Sonnet
 aws bedrock-runtime invoke-model \
   --model-id "us.anthropic.claude-sonnet-4-5-20250929-v1:0" \
   --body file://.tmp/test.json \
@@ -190,9 +203,31 @@ curl -X POST "https://api.bluemoxon.com/api/v1/books/123/analysis/generate" \
   -H "Content-Type: application/json"
 ```
 
+## Entity Profile Generation (BMX 3.0)
+
+Entity profiles are AI-generated biographical content for authors, publishers, and binders. The generation pipeline uses Haiku by default (configurable via model registry) and produces:
+
+- **Bio summary** -- biographical overview
+- **Personal stories** -- key life events with year, significance, and tone
+- **Connection narratives** -- one-sentence summaries of relationships
+- **Relationship stories** -- extended narratives for significant connections
+- **AI-discovered connections** -- personal connections (family, friendship, influence, collaboration, scandal) between entities in the collection
+
+**Pipeline:**
+
+1. Admin triggers batch generation via `POST /entity/profiles/generate-all`
+2. API creates a `profile_generation_jobs` record and enqueues SQS messages (one per entity)
+3. Profile worker Lambda processes each message:
+   - Calls Bedrock to generate bio and stories
+   - Calls Bedrock to discover AI connections with other entities
+   - Stores results in `entity_profiles` and `ai_connections` tables
+4. Admin monitors progress via `GET /entity/profiles/generate-all/status/{job_id}`
+
+**Cost:** ~$0.40 for full 264-entity batch using Haiku.
+
 ## Performance Benchmarks
 
-| Scenario | Claude Sonnet | Claude Opus |
+| Scenario | Claude 4.5 Sonnet | Claude Opus 4.6 |
 |----------|------------------|-----------------|
 | Text only (no images) | ~5-10s | ~15-20s |
 | 1 image (~100KB) | ~15-20s | ~30-40s |
@@ -203,7 +238,7 @@ curl -X POST "https://api.bluemoxon.com/api/v1/books/123/analysis/generate" \
 
 ### Timeout Issues
 
-If Claude requests hang indefinitely:
+If Claude 4.5 requests hang indefinitely:
 
 1. **Check Marketplace approval** - New models require AWS Marketplace approval
 2. **Wait 24-48 hours** - Provisioning may take time after approval
@@ -234,12 +269,17 @@ If Claude requests hang indefinitely:
 ### Response Token Limits
 
 - Default `max_tokens`: 16000 (sufficient for Napoleon framework)
-- Claude output limit: ~8000 tokens typical
+- Claude 4.5 output limit: ~8000 tokens typical
 - If truncated, increase `max_tokens` or simplify prompt
 
 ## Related Files
 
-- `backend/app/services/bedrock.py` - Bedrock client and invocation logic
+- `backend/app/services/bedrock.py` - Bedrock client, model IDs, and invocation logic
+- `backend/app/services/ai_profile_generator.py` - Entity profile and AI connection generation
+- `backend/app/services/entity_profile.py` - Profile retrieval and caching
+- `backend/app/services/app_config.py` - Model registry configuration
 - `backend/app/api/v1/books.py` - Analysis generation endpoint
+- `backend/app/api/v1/entity_profile.py` - Entity profile endpoints
+- `backend/app/api/v1/admin.py` - Model configuration endpoints
 - `s3://bluemoxon-images/prompts/napoleon-framework/v3.md` - Napoleon Framework system prompt
 - `backend/prompts/napoleon-framework/v3.md` - Source file (deploy to S3 after changes)

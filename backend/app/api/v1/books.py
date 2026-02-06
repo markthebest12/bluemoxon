@@ -80,6 +80,7 @@ from app.services.scoring import (
     recalculate_discount_pct,
     recalculate_roi_pct,
 )
+from app.services.social_circles import get_book_social_circles_summary
 from app.services.social_circles_cache import invalidate_cache as invalidate_social_circles_cache
 from app.services.sqs import send_analysis_job, send_eval_runbook_job
 from app.services.tracking import process_tracking
@@ -2373,3 +2374,38 @@ def get_eval_runbook_job_status(
             db.commit()
 
     return EvalRunbookJobResponse.from_orm_model(job)
+
+
+@router.get(
+    "/{book_id}/social-circles-summary",
+    summary="Get social circles summary for a book",
+    description=(
+        "Returns a lightweight summary of social circles connections "
+        "for display on the book detail page (#1867)."
+    ),
+)
+def book_social_circles_summary(
+    book_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(require_viewer),
+):
+    """Get social circles summary for a specific book.
+
+    Returns entity count, connection count, and top highlights.
+    Only works for books in qualifying statuses (IN_TRANSIT, ON_HAND).
+    """
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    summary = get_book_social_circles_summary(db, book_id)
+    if summary is None:
+        # Book exists but is not in a qualifying status
+        return {
+            "entity_count": 0,
+            "connection_count": 0,
+            "highlights": [],
+            "entity_node_ids": [],
+        }
+
+    return summary

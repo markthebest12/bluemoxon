@@ -142,6 +142,80 @@ API keys for programmatic access (admin-created).
 | last_used_at | TIMESTAMP | Last API request |
 | created_at | TIMESTAMP | Record creation |
 
+### entity_profiles
+
+AI-generated biographical profiles for authors, publishers, and binders (BMX 3.0).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| entity_type | VARCHAR(20) | author, publisher, binder |
+| entity_id | INTEGER | ID of the entity |
+| bio_summary | TEXT | AI-generated biographical overview |
+| personal_stories | JSONB | Array of biographical facts with year, significance, tone |
+| connection_narratives | JSONB | One-sentence connection summaries |
+| relationship_stories | JSONB | Extended narratives for significant connections |
+| ai_connections | JSONB | Snapshot of AI-discovered connections at generation time |
+| model_version | VARCHAR(100) | Bedrock model ID used for generation |
+| generated_at | TIMESTAMP | When profile was last generated |
+| created_at | TIMESTAMP | Record creation |
+| updated_at | TIMESTAMP | Last update |
+
+**Unique constraint:** `(entity_type, entity_id)` -- one profile per entity.
+
+### ai_connections
+
+Canonical storage for AI-discovered personal connections between entities (BMX 3.0).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| source_type | VARCHAR(20) | author, publisher, binder |
+| source_id | INTEGER | ID of source entity (always lower) |
+| target_type | VARCHAR(20) | author, publisher, binder |
+| target_id | INTEGER | ID of target entity (always higher) |
+| relationship | VARCHAR(20) | family, friendship, influence, collaboration, scandal |
+| sub_type | VARCHAR(50) | Specific sub-type (e.g., marriage, mentorship, rivalry) |
+| confidence | FLOAT | Confidence score (0.0-1.0) |
+| evidence | TEXT | Supporting evidence text |
+| created_at | TIMESTAMP | Record creation |
+| updated_at | TIMESTAMP | Last update |
+
+**Unique constraint:** `(source_type, source_id, target_type, target_id, relationship)` -- one connection per pair per type.
+
+**Canonical ordering:** Source entity always has the lower ID to prevent duplicate A-B / B-A entries. Upsert uses highest-confidence-wins strategy.
+
+### profile_generation_jobs
+
+Tracks batch entity profile generation jobs (BMX 3.0).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | VARCHAR(36) | Primary key (UUID) |
+| status | VARCHAR(20) | pending, in_progress, completed, failed, cancelled |
+| owner_id | INTEGER | FK to users.id |
+| total_entities | INTEGER | Total entities to process |
+| succeeded | INTEGER | Successfully generated count |
+| failed | INTEGER | Failed generation count |
+| error_log | TEXT | Error details if failed |
+| created_at | TIMESTAMP | Job creation |
+| updated_at | TIMESTAMP | Last update |
+| completed_at | TIMESTAMP | Job completion |
+
+### app_config
+
+Application configuration key-value store with caching (BMX 3.0).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| key | VARCHAR(100) | Configuration key (primary key, e.g., model.entity_profiles) |
+| value | VARCHAR(500) | Configuration value |
+| description | VARCHAR(500) | Human-readable description of the config entry |
+| updated_at | TIMESTAMP | Last update |
+| updated_by | VARCHAR(100) | Who last changed this value |
+
+**Used for:** AI model assignments per workflow, cached with 5-minute TTL.
+
 ## Indexes
 
 ```sql
@@ -156,6 +230,17 @@ CREATE INDEX books_status_idx ON books(status);
 CREATE INDEX books_author_idx ON books(author_id);
 CREATE INDEX books_publisher_idx ON books(publisher_id);
 CREATE INDEX books_binder_idx ON books(binder_id);
+
+-- Entity profiles (BMX 3.0)
+CREATE UNIQUE INDEX entity_profiles_entity_idx ON entity_profiles(entity_type, entity_id);
+
+-- AI connections (BMX 3.0)
+CREATE UNIQUE INDEX ai_connections_pair_idx ON ai_connections(source_type, source_id, target_type, target_id, relationship);
+CREATE INDEX ai_connections_source_idx ON ai_connections(source_type, source_id);
+CREATE INDEX ai_connections_target_idx ON ai_connections(target_type, target_id);
+
+-- App config (BMX 3.0)
+CREATE UNIQUE INDEX app_config_key_idx ON app_config(key);
 ```
 
 ## Full-Text Search

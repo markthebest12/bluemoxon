@@ -43,7 +43,7 @@ BlueMoxon is a serverless book collection management application deployed on AWS
         │                             │                            │
         │                   ┌─────────▼─────────┐          ┌───────▼───────┐
         │                   │  Secrets Manager   │          │   Bedrock     │
-        │                   │  (DB Credentials)  │          │  (Claude)     │
+        │                   │  (DB Credentials)  │          │ (Claude 4.5)  │
         │                   └───────────────────┘          │ Napoleon AI   │
         │                                                  └───────────────┘
         │                   ┌───────────────────┐
@@ -69,7 +69,7 @@ Both environments are deployed via Terraform with isolated resources (separate C
 | Compute | AWS Lambda + Layers | Cost-effective for low traffic, layers for shared dependencies |
 | Database | Aurora Serverless v2 | PostgreSQL for full-text search, scales to zero |
 | Auth | Cognito + MFA | Managed auth, built-in 2FA, admin invite only |
-| AI Analysis | AWS Bedrock (Claude) | Napoleon Framework valuations via managed Claude models |
+| AI Analysis | AWS Bedrock (Opus/Sonnet/Haiku) | Napoleon valuations, entity profiles, order extraction |
 | Async Jobs | SQS + Worker Lambda | Decoupled analysis generation, retry handling |
 | Frontend | Vue 3 + Vite + Tailwind v4 | User preference, modern tooling, CSS-first configuration |
 | Backend | FastAPI | Fast, modern Python, auto-generated docs |
@@ -178,6 +178,7 @@ flowchart TB
 |----------|---------|---------|--------|---------|
 | **API** | FastAPI REST endpoints | API Gateway | 512 MB | 30s |
 | **Eval Worker** | Napoleon analysis generation | SQS | 1024 MB | 10 min |
+| **Profile Worker** | Entity profile generation (BMX 3.0) | SQS | 1024 MB | 10 min |
 | **Cleanup** | Database maintenance, orphan cleanup | EventBridge (daily) | 256 MB | 5 min |
 | **DB Sync** | Copy prod data to staging | Manual | 512 MB | 15 min |
 
@@ -248,6 +249,7 @@ flowchart LR
 |-------|---------|------------|-------------|
 | `analysis-jobs` | Napoleon analysis generation | 5 min | 3 |
 | `eval-runbook-jobs` | Evaluation runbook generation | 5 min | 3 |
+| `profile-generation` | Entity profile generation (BMX 3.0) | 5 min | 3 |
 
 ### Job States
 
@@ -267,6 +269,7 @@ stateDiagram-v2
 flowchart TB
     subgraph Client["Browser"]
         Vue["Vue 3 SPA<br/>Pinia + Vue Router"]
+        Cytoscape["Cytoscape.js<br/>Social Circles Graph"]
     end
 
     subgraph CDN["AWS CloudFront"]
@@ -282,6 +285,13 @@ flowchart TB
         Lambda["Lambda Function<br/>(FastAPI + Mangum)"]
     end
 
+    subgraph Async["Async Processing"]
+        SQS_Analysis["SQS<br/>(Analysis Queue)"]
+        SQS_Profile["SQS<br/>(Profile Queue)"]
+        Worker["Eval Worker Lambda"]
+        ProfileWorker["Profile Worker Lambda"]
+    end
+
     subgraph Auth["Authentication"]
         Cognito["Cognito User Pool"]
     end
@@ -292,10 +302,11 @@ flowchart TB
     end
 
     subgraph AI["AI Analysis"]
-        Bedrock["AWS Bedrock<br/>(Claude)"]
+        Bedrock["AWS Bedrock<br/>(Claude Opus/Sonnet/Haiku)"]
     end
 
     Vue -->|HTTPS| CF
+    Cytoscape -->|Graph Data| CF
     CF -->|Static| S3F
     CF -->|/api/*| APIGW
     APIGW --> Lambda
@@ -303,6 +314,14 @@ flowchart TB
     Lambda --> S3I
     Lambda --> Cognito
     Lambda -->|Napoleon Framework| Bedrock
+    Lambda -->|Queue Analysis| SQS_Analysis
+    Lambda -->|Queue Profile| SQS_Profile
+    SQS_Analysis --> Worker
+    SQS_Profile --> ProfileWorker
+    Worker --> Bedrock
+    ProfileWorker --> Bedrock
+    Worker --> Aurora
+    ProfileWorker --> Aurora
     Vue -->|Auth| Cognito
 ```
 
@@ -455,6 +474,12 @@ erDiagram
     BOOKS }o--|| AUTHORS : written_by
     BOOKS }o--|| PUBLISHERS : published_by
     BOOKS }o--o| BINDERS : bound_by
+    AUTHORS ||--o{ ENTITY_PROFILES : has_profile
+    PUBLISHERS ||--o{ ENTITY_PROFILES : has_profile
+    BINDERS ||--o{ ENTITY_PROFILES : has_profile
+    AUTHORS ||--o{ AI_CONNECTIONS : source_or_target
+    PUBLISHERS ||--o{ AI_CONNECTIONS : source_or_target
+    BINDERS ||--o{ AI_CONNECTIONS : source_or_target
 
     BOOKS {
         int id PK
@@ -483,6 +508,7 @@ erDiagram
         string tier
         boolean preferred
         int priority_score
+        string image_url
     }
 
     PUBLISHERS {
@@ -490,6 +516,7 @@ erDiagram
         string name
         string tier
         boolean preferred
+        string image_url
     }
 
     BINDERS {
@@ -498,6 +525,7 @@ erDiagram
         string tier
         boolean preferred
         string full_name
+        string image_url
     }
 
     IMAGES {
@@ -526,6 +554,51 @@ erDiagram
         string error_message
         timestamp created_at
         timestamp completed_at
+    }
+
+    ENTITY_PROFILES {
+        int id PK
+        string entity_type
+        int entity_id
+        text bio_summary
+        json personal_stories
+        json connection_narratives
+        json relationship_stories
+        json ai_connections
+        string model_version
+        timestamp generated_at
+    }
+
+    AI_CONNECTIONS {
+        int id PK
+        string source_type
+        int source_id
+        string target_type
+        int target_id
+        string relationship
+        string sub_type
+        float confidence
+        text evidence
+    }
+
+    PROFILE_GENERATION_JOBS {
+        string id PK
+        string status
+        int owner_id FK
+        int total_entities
+        int succeeded
+        int failed
+        text error_log
+        timestamp created_at
+        timestamp completed_at
+    }
+
+    APP_CONFIG {
+        string key PK
+        string value
+        string description
+        timestamp updated_at
+        string updated_by
     }
 ```
 
@@ -636,4 +709,4 @@ These Mermaid diagrams render in:
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 2026*

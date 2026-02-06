@@ -38,6 +38,13 @@ X-API-Key: <api_key>
 | `GET /stats/*` | Viewer |
 | `GET /export/*` | Viewer |
 | `POST/PUT/PATCH/DELETE /books/*` | Editor |
+| `GET /social-circles/*` | Viewer |
+| `GET /entity/*/profile` | Viewer |
+| `POST /entity/*/regenerate` | Editor |
+| `PUT /entity/*/portrait` | Admin |
+| `POST /entity/profiles/generate-all` | Admin |
+| `GET /admin/model-config` | Admin |
+| `PUT /admin/model-config/*` | Admin |
 | `GET /admin/config` | Admin |
 | `GET /admin/system-info` | Admin |
 | `GET /admin/costs` | Admin |
@@ -416,8 +423,9 @@ Response:
 
 Book analyses are detailed markdown documents providing professional valuations,
 historical context, and collection significance for each book. Analyses are
-generated using **AWS Bedrock (Claude)** with the **Napoleon Framework** prompt,
-which produces comprehensive valuations following a standardized format.
+generated using **AWS Bedrock** (Opus, Sonnet, or Haiku via the configurable model registry)
+with the **Napoleon Framework** prompt, which produces comprehensive valuations following
+a standardized format.
 
 The Napoleon Framework prompt is stored in S3 (`s3://bluemoxon-images/prompts/napoleon-framework/v3.md`)
 and loaded with 5-minute caching. See [BEDROCK.md](BEDROCK.md) for details.
@@ -1942,7 +1950,7 @@ Response:
   "period_end": "2025-12-23",
   "bedrock_models": [
     {"model_name": "Sonnet 4.5", "usage": "Primary analysis model", "mtd_cost": 52.53},
-    {"model_name": "Opus 4.6", "usage": "Complex reasoning tasks", "mtd_cost": 1.43},
+    {"model_name": "Opus 4.5", "usage": "Complex reasoning tasks", "mtd_cost": 1.43},
     {"model_name": "Claude 3.5 Sonnet v2", "usage": "Legacy analysis", "mtd_cost": 0.94},
     {"model_name": "Claude 3.5 Sonnet", "usage": "Legacy analysis", "mtd_cost": 0.69},
     {"model_name": "Claude 3 Haiku", "usage": "Fast extraction tasks", "mtd_cost": 0.15}
@@ -2113,6 +2121,421 @@ For programmatic access (scripts, integrations), use API key in header:
 curl -H "X-API-Key: your-api-key-here" \
   "https://api.bluemoxon.com/api/v1/books"
 ```
+
+---
+
+## Social Circles API
+
+### Get Social Circles Graph
+
+```text
+GET /social-circles/
+```
+
+Returns a network graph of connections between authors, publishers, and binders based on the book collection. Connections include both data-derived relationships (publisher, shared_publisher, binder) and AI-discovered personal connections (family, friendship, influence, collaboration, scandal).
+
+Query Parameters:
+
+- `include_binders` (bool, default: true) - Include binder nodes and edges
+- `min_book_count` (int, default: 1, max: 100) - Minimum books for an entity to be included
+- `max_books` (int, default: 5000, range: 100-10000) - Maximum books to process
+- `era` (string[], optional) - Filter by era: `pre_romantic`, `romantic`, `victorian`, `edwardian`, `post_1910`
+
+Example:
+
+```bash
+curl "https://api.bluemoxon.com/api/v1/social-circles/?era=victorian&min_book_count=2" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "author:5",
+      "type": "author",
+      "label": "Charles Dickens",
+      "era": "victorian",
+      "book_count": 12,
+      "image_url": "https://images.bluemoxon.com/entities/author/5/portrait.jpg"
+    },
+    {
+      "id": "publisher:3",
+      "type": "publisher",
+      "label": "Chapman & Hall",
+      "tier": "TIER_1",
+      "book_count": 8
+    }
+  ],
+  "edges": [
+    {
+      "source": "author:5",
+      "target": "publisher:3",
+      "type": "publisher",
+      "book_count": 8
+    },
+    {
+      "source": "author:5",
+      "target": "author:12",
+      "type": "friendship",
+      "confidence": 0.95,
+      "evidence": "Close friends and literary collaborators"
+    }
+  ],
+  "stats": {
+    "total_nodes": 45,
+    "total_edges": 120,
+    "build_time_ms": 85.3
+  }
+}
+```
+
+**Node types:** `author`, `publisher`, `binder`
+
+**Edge types (data-derived):** `publisher`, `shared_publisher`, `binder`
+
+**Edge types (AI-discovered):** `family`, `friendship`, `influence`, `collaboration`, `scandal`
+
+---
+
+### Social Circles Health Check
+
+```text
+GET /social-circles/health
+```
+
+Validates data integrity and query performance for the social circles feature.
+
+Response:
+
+```json
+{
+  "status": "healthy",
+  "latency_ms": 85.3,
+  "checks": {
+    "node_counts": {
+      "status": "healthy",
+      "authors": 42,
+      "publishers": 15,
+      "binders": 8
+    },
+    "edge_counts": {
+      "status": "healthy",
+      "publisher": 65,
+      "shared_publisher": 45,
+      "binder": 10
+    },
+    "query_performance": {
+      "status": "healthy",
+      "build_time_ms": 85.3,
+      "threshold_ms": 500
+    }
+  }
+}
+```
+
+Status values: `healthy` (data present, under 500ms), `degraded` (data present, over 500ms), `unhealthy` (no data or error).
+
+---
+
+## Entity Profile API
+
+### Get Entity Profile
+
+```text
+GET /entity/{entity_type}/{entity_id}/profile
+```
+
+Returns the full profile for an entity including AI-generated bio, personal stories, connection narratives, books, and stats.
+
+Path Parameters:
+
+- `entity_type` (string) - `author`, `publisher`, or `binder`
+- `entity_id` (int) - Entity database ID
+
+Example:
+
+```bash
+curl "https://api.bluemoxon.com/api/v1/entity/author/5/profile" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+
+```json
+{
+  "entity_type": "author",
+  "entity_id": 5,
+  "name": "Charles Dickens",
+  "image_url": "https://images.bluemoxon.com/entities/author/5/portrait.jpg",
+  "bio_summary": "Charles John Huffam Dickens (1812-1870) was the most popular English novelist...",
+  "personal_stories": [
+    {
+      "year": 1836,
+      "text": "Published The Pickwick Papers, catapulting him to literary fame.",
+      "significance": "career_milestone",
+      "tone": "triumph"
+    }
+  ],
+  "connection_narratives": {
+    "publisher:3": "Chapman & Hall published the majority of Dickens' novels..."
+  },
+  "relationship_stories": {
+    "author:12": "Dickens and Wilkie Collins shared a deep friendship..."
+  },
+  "connections": [
+    {
+      "entity_type": "publisher",
+      "entity_id": 3,
+      "name": "Chapman & Hall",
+      "relationship": "publisher",
+      "book_count": 8,
+      "confidence": null
+    }
+  ],
+  "books": [
+    {"id": 101, "title": "A Tale of Two Cities", "publication_date": "1859"}
+  ],
+  "stats": {
+    "book_count": 12,
+    "total_value_mid": 4500.00,
+    "era": "victorian"
+  },
+  "generated_at": "2026-02-05T10:30:00Z",
+  "model_version": "anthropic.claude-3-5-haiku-20241022-v1:0"
+}
+```
+
+Returns 404 if entity not found. Returns profile with `null` AI fields if no cached profile exists.
+
+---
+
+### Regenerate Entity Profile
+
+```text
+POST /entity/{entity_type}/{entity_id}/profile/regenerate
+```
+
+**Authentication Required:** Editor or Admin role
+
+Deletes the cached profile and enqueues async regeneration via SQS. Returns 202 Accepted immediately. The caller should poll the GET profile endpoint until the profile reappears.
+
+Example:
+
+```bash
+curl -X POST "https://api.bluemoxon.com/api/v1/entity/author/5/profile/regenerate" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response (202 Accepted):
+
+```json
+{"status": "queued", "message": "Profile regeneration queued"}
+```
+
+---
+
+### Upload Entity Portrait
+
+```text
+PUT /entity/{entity_type}/{entity_id}/portrait
+```
+
+**Authentication Required:** Admin role
+
+Upload or replace the portrait image for an entity. The image is resized to 400x400 JPEG and uploaded to S3 with CloudFront CDN URL.
+
+Form data:
+
+- `file` (required) - Image file (JPEG, PNG, WEBP). Max 10 MB.
+
+Example:
+
+```bash
+curl -X PUT "https://api.bluemoxon.com/api/v1/entity/author/5/portrait" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@dickens-portrait.jpg"
+```
+
+Response:
+
+```json
+{
+  "image_url": "https://images.bluemoxon.com/entities/author/5/portrait.jpg",
+  "s3_key": "entities/author/5/portrait.jpg"
+}
+```
+
+---
+
+### Generate All Entity Profiles (Batch)
+
+```text
+POST /entity/profiles/generate-all
+```
+
+**Authentication Required:** Admin role
+
+Enqueues async profile generation for all entities (authors, publishers, binders) via SQS. Returns a job ID for progress tracking. If an in-progress job already exists, returns that job instead of creating a new one.
+
+Example:
+
+```bash
+curl -X POST "https://api.bluemoxon.com/api/v1/entity/profiles/generate-all" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+
+```json
+{
+  "job_id": 42,
+  "total_entities": 264,
+  "status": "in_progress"
+}
+```
+
+---
+
+### Cancel Profile Generation Job
+
+```text
+POST /entity/profiles/generate-all/{job_id}/cancel
+```
+
+**Authentication Required:** Admin role
+
+Cancel an in-progress or pending profile generation job.
+
+Response:
+
+```json
+{
+  "job_id": "42",
+  "status": "cancelled",
+  "completed_at": "2026-02-05T12:00:00+00:00"
+}
+```
+
+Error Responses:
+
+- 404 Not Found - Job not found
+- 409 Conflict - Job already in terminal state
+
+---
+
+### Get Profile Generation Job Status
+
+```text
+GET /entity/profiles/generate-all/status/{job_id}
+```
+
+**Authentication Required:** Admin role
+
+Get progress of a batch profile generation job.
+
+Response:
+
+```json
+{
+  "job_id": 42,
+  "status": "in_progress",
+  "total_entities": 264,
+  "succeeded": 180,
+  "failed": 2,
+  "created_at": "2026-02-05T10:00:00+00:00",
+  "completed_at": null
+}
+```
+
+Job Statuses: `pending`, `in_progress`, `completed`, `failed`, `cancelled`
+
+---
+
+## Model Configuration API
+
+### Get Model Configuration
+
+```text
+GET /admin/model-config
+```
+
+**Authentication Required:** Admin role
+
+Returns the current AI model assignment for each workflow (flow), along with available models.
+
+Response:
+
+```json
+{
+  "flows": [
+    {
+      "key": "model.napoleon_analysis",
+      "label": "Napoleon Analysis",
+      "description": "Full book analysis using the Napoleon framework",
+      "current_model": "opus",
+      "default_model": "opus",
+      "is_default": true
+    },
+    {
+      "key": "model.entity_profiles",
+      "label": "Entity Profiles",
+      "description": "AI-generated biographical profiles for authors, publishers, and binders",
+      "current_model": "haiku",
+      "default_model": "haiku",
+      "is_default": true
+    },
+    {
+      "key": "model.order_extraction",
+      "label": "Order Extraction",
+      "description": "Extract structured data from order confirmation emails (not yet wired)",
+      "current_model": "haiku",
+      "default_model": "haiku",
+      "is_default": true
+    }
+  ],
+  "available_models": ["sonnet", "opus", "haiku"]
+}
+```
+
+---
+
+### Update Model for Flow
+
+```text
+PUT /admin/model-config/{flow_key}
+```
+
+**Authentication Required:** Admin role
+
+Update the AI model assigned to a specific workflow.
+
+Path Parameters:
+
+- `flow_key` (string) - Flow key, e.g., `model.napoleon_analysis`
+
+Request Body:
+
+```json
+{"model": "sonnet"}
+```
+
+Response:
+
+```json
+{
+  "key": "model.napoleon_analysis",
+  "model": "sonnet",
+  "is_default": false
+}
+```
+
+Error Responses:
+
+- 404 Not Found - Unknown flow key
+- 400 Bad Request - Invalid model name
 
 ---
 

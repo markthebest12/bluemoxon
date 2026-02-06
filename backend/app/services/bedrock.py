@@ -7,6 +7,7 @@ import logging
 import os
 import random
 import time
+from dataclasses import dataclass
 from functools import lru_cache, wraps
 
 import boto3
@@ -89,22 +90,97 @@ CLAUDE_SAFE_RAW_BYTES = 3_500_000  # Leave margin for base64 overhead
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Model ID mapping - use inference profile IDs for Claude models
-# Claude 4.5 Sonnet tested working 2025-12-12 (~23s for Napoleon analysis)
-# GitHub #178 resolved - was provisioning delay after Marketplace approval
-# NOTE: These IDs must match infra/terraform/locals.tf:bedrock_model_ids for IAM access
-MODEL_IDS = {
-    "sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Claude 4.5 Sonnet
-    "opus": "us.anthropic.claude-opus-4-6-v1",  # Claude Opus 4.6
-    "haiku": "anthropic.claude-3-5-haiku-20241022-v1:0",  # Claude 3.5 Haiku
-}
+# ---------------------------------------------------------------------------
+# Model Registry — single source of truth for all model metadata
+# ---------------------------------------------------------------------------
+# When a model is bumped, update *only* the relevant ModelEntry below.
+# All consumers (admin dashboard, cost explorer, frontend labels) derive
+# from this registry automatically.
+# NOTE: model_id values must match infra/terraform/locals.tf:bedrock_model_ids for IAM access
 
-# Model usage descriptions for admin dashboard
-MODEL_USAGE = {
-    "sonnet": "Eval runbooks, FMV lookup, Listing extraction, Napoleon analysis (optional)",
-    "opus": "Napoleon analysis (default)",
-    "haiku": "Entity profiles",
-}
+
+@dataclass(frozen=True)
+class ModelEntry:
+    """Single source of truth for one AI model's metadata."""
+
+    key: str  # Internal key used in config / API ("sonnet", "opus", "haiku")
+    model_id: str | None  # Bedrock model ID; None for legacy/retired models
+    display_name: str  # Human-readable label for UI ("Sonnet 4.5", "Opus 4.6")
+    aws_billing_names: tuple[str, ...]  # AWS Cost Explorer service names
+    usage: str  # What this model is used for
+    active: bool = True  # Whether available for selection in workflows
+
+
+MODEL_REGISTRY: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        key="sonnet",
+        model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        display_name="Sonnet 4.5",
+        aws_billing_names=("Claude Sonnet 4.5 (Amazon Bedrock Edition)",),
+        usage="Eval runbooks, FMV lookup, Listing extraction, Napoleon analysis (optional)",
+    ),
+    ModelEntry(
+        key="opus",
+        model_id="us.anthropic.claude-opus-4-6-v1",
+        display_name="Opus 4.6",
+        aws_billing_names=(
+            "Claude Opus 4.6 (Amazon Bedrock Edition)",
+            "Claude Opus 4.5 (Amazon Bedrock Edition)",
+        ),
+        usage="Napoleon analysis (default)",
+    ),
+    ModelEntry(
+        key="haiku",
+        model_id="anthropic.claude-3-5-haiku-20241022-v1:0",
+        display_name="Haiku 3.5",
+        aws_billing_names=(
+            "Claude 3 Haiku (Amazon Bedrock Edition)",
+            "Claude 3.5 Haiku (Amazon Bedrock Edition)",
+        ),
+        usage="Entity profiles",
+    ),
+    # Legacy models — only appear in cost tracking, not available for selection
+    ModelEntry(
+        key="sonnet_35",
+        model_id=None,
+        display_name="Sonnet 3.5",
+        aws_billing_names=("Claude 3.5 Sonnet (Amazon Bedrock Edition)",),
+        usage="Legacy analysis",
+        active=False,
+    ),
+    ModelEntry(
+        key="sonnet_35v2",
+        model_id=None,
+        display_name="Sonnet 3.5 v2",
+        aws_billing_names=("Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)",),
+        usage="Legacy analysis",
+        active=False,
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Derived lookups — computed once from MODEL_REGISTRY
+# ---------------------------------------------------------------------------
+
+
+def _build_model_ids() -> dict[str, str]:
+    """Build {key: model_id} for active models with a Bedrock model ID."""
+    return {e.key: e.model_id for e in MODEL_REGISTRY if e.active and e.model_id}
+
+
+def _build_model_usage() -> dict[str, str]:
+    """Build {key: usage} for active models."""
+    return {e.key: e.usage for e in MODEL_REGISTRY if e.active}
+
+
+def _build_display_names() -> dict[str, str]:
+    """Build {key: display_name} for active models."""
+    return {e.key: e.display_name for e in MODEL_REGISTRY if e.active}
+
+
+MODEL_IDS: dict[str, str] = _build_model_ids()
+MODEL_USAGE: dict[str, str] = _build_model_usage()
+MODEL_DISPLAY_NAMES: dict[str, str] = _build_display_names()
 
 # Human-readable display names derived from model IDs.
 # Single source of truth — frontend reads these via /admin/model-config.

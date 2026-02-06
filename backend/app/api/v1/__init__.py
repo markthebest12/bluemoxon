@@ -7,6 +7,7 @@ from app.api.v1 import (
     authors,
     binders,
     books,
+    config,
     entity_profile,
     eval_runbook,
     export,
@@ -41,6 +42,7 @@ router.include_router(export.router, prefix="/export", tags=["export"])
 router.include_router(users.router, prefix="/users", tags=["users"])
 router.include_router(notifications.router, prefix="/users/me", tags=["notifications"])
 router.include_router(listings.router, prefix="/listings", tags=["listings"])
+router.include_router(config.router, prefix="/config", tags=["config"])
 router.include_router(admin.router, prefix="/admin", tags=["admin"])
 router.include_router(orders.router, prefix="/orders", tags=["orders"])
 router.include_router(social_circles.router, prefix="/social-circles", tags=["social-circles"])

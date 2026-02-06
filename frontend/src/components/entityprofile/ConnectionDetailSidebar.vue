@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, watch, nextTick, ref } from "vue";
+import { computed, watch, ref, onUnmounted } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 import { bookDetailRoute, entityProfileRoute } from "@/utils/routes";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import ConditionBadge from "./ConditionBadge.vue";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
 import EntityLinkedText from "./EntityLinkedText.vue";
+
+/** Delay focus trap activation until slide-in animation completes (ms) */
+const SLIDE_DURATION = 250;
 
 const props = defineProps<{
   connection: ProfileConnection | null;
@@ -18,14 +22,24 @@ const emit = defineEmits<{
 }>();
 
 const sidebarRef = ref<HTMLElement | null>(null);
+const { activate, deactivate } = useFocusTrap(sidebarRef);
 
-// Focus trap on open
+// Focus trap management with timeout cleanup
+let focusTrapTimeout: ReturnType<typeof setTimeout> | undefined;
+
 watch(
   () => props.isOpen,
-  async (open) => {
-    if (open) {
-      await nextTick();
-      sidebarRef.value?.focus();
+  (isOpen) => {
+    // Always clear any pending timeout first to prevent race conditions
+    if (focusTrapTimeout !== undefined) {
+      clearTimeout(focusTrapTimeout);
+      focusTrapTimeout = undefined;
+    }
+
+    if (isOpen) {
+      focusTrapTimeout = setTimeout(() => activate(), SLIDE_DURATION);
+    } else {
+      deactivate();
     }
   }
 );
@@ -35,6 +49,13 @@ function handleKeydown(e: KeyboardEvent) {
     emit("close");
   }
 }
+
+onUnmounted(() => {
+  if (focusTrapTimeout !== undefined) {
+    clearTimeout(focusTrapTimeout);
+  }
+  deactivate();
+});
 
 const connectionLabel = computed(() => {
   if (!props.connection) return "";
@@ -49,13 +70,24 @@ const strengthDots = computed(() => {
 
 <template>
   <Teleport to="body">
+    <!-- Backdrop: semi-transparent overlay with click-to-dismiss -->
+    <Transition name="backdrop-fade">
+      <div
+        v-if="isOpen && connection"
+        class="connection-sidebar-backdrop"
+        aria-hidden="true"
+        @click="emit('close')"
+      />
+    </Transition>
+
     <Transition name="sidebar-slide">
       <aside
         v-if="isOpen && connection"
         ref="sidebarRef"
         class="connection-sidebar"
         tabindex="-1"
-        role="complementary"
+        role="dialog"
+        aria-modal="true"
         aria-label="Connection details"
         @keydown="handleKeydown"
       >
@@ -156,6 +188,14 @@ const strengthDots = computed(() => {
 </template>
 
 <style scoped>
+/* Backdrop overlay */
+.connection-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 49;
+}
+
 .connection-sidebar {
   position: fixed;
   top: 0;
@@ -235,6 +275,11 @@ const strengthDots = computed(() => {
   color: var(--color-text-secondary, #6b6b6b);
   padding: 0 4px;
   line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .connection-sidebar__close:hover {
@@ -335,7 +380,7 @@ const strengthDots = computed(() => {
   margin-top: 2px;
 }
 
-/* Slide transition */
+/* Sidebar slide transition */
 .sidebar-slide-enter-active,
 .sidebar-slide-leave-active {
   transition: transform 0.25s ease;
@@ -344,5 +389,16 @@ const strengthDots = computed(() => {
 .sidebar-slide-enter-from,
 .sidebar-slide-leave-to {
   transform: translateX(100%);
+}
+
+/* Backdrop fade transition */
+.backdrop-fade-enter-active,
+.backdrop-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.backdrop-fade-enter-from,
+.backdrop-fade-leave-to {
+  opacity: 0;
 }
 </style>
