@@ -8,12 +8,13 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.config import get_settings
 from app.enums import OWNED_STATUSES
+from app.models.ai_connection import AIConnection
 from app.models.author import Author
 from app.models.binder import Binder
 from app.models.book import Book
@@ -31,7 +32,6 @@ from app.schemas.entity_profile import (
     RelationshipNarrative,
 )
 from app.schemas.social_circles import SocialCirclesResponse
-from app.services.ai_connection_parser import parse_ai_connection
 from app.services.ai_profile_generator import (
     GeneratorConfig,
     generate_ai_connections,
@@ -75,6 +75,71 @@ _MAX_PROMPT_CONNECTIONS = 15
 
 # Maximum connections that receive narrative generation to cap Lambda runtime (#1718).
 _MAX_NARRATIVE_CONNECTIONS = 8
+
+
+def _store_ai_connections(db: Session, connections: list[dict]) -> int:
+    """Store validated AI connections to canonical table (upsert).
+
+    Uses canonical ordering (lower node ID string first) to prevent
+    duplicate A→B / B→A storage.  On conflict, keeps the higher-confidence
+    version.  Returns the number of rows written/updated.
+    """
+    count = 0
+    for conn in connections:
+        src_type = conn.get("source_type")
+        src_id = conn.get("source_id")
+        tgt_type = conn.get("target_type")
+        tgt_id = conn.get("target_id")
+        relationship = conn.get("relationship")
+
+        if not all(v is not None for v in (src_type, src_id, tgt_type, tgt_id, relationship)):
+            continue
+
+        # Canonical ordering — lower node ID string first
+        src_key = f"{src_type}:{src_id}"
+        tgt_key = f"{tgt_type}:{tgt_id}"
+        if src_key > tgt_key:
+            src_type, tgt_type = tgt_type, src_type
+            src_id, tgt_id = tgt_id, src_id
+
+        confidence = conn.get("confidence", 0.5)
+
+        existing = (
+            db.query(AIConnection)
+            .filter(
+                AIConnection.source_type == src_type,
+                AIConnection.source_id == src_id,
+                AIConnection.target_type == tgt_type,
+                AIConnection.target_id == tgt_id,
+                AIConnection.relationship == relationship,
+            )
+            .first()
+        )
+
+        if existing:
+            if confidence > existing.confidence:
+                existing.confidence = confidence
+                existing.evidence = conn.get("evidence")
+                existing.sub_type = conn.get("sub_type")
+                count += 1
+        else:
+            db.add(
+                AIConnection(
+                    source_type=src_type,
+                    source_id=src_id,
+                    target_type=tgt_type,
+                    target_id=tgt_id,
+                    relationship=relationship,
+                    sub_type=conn.get("sub_type"),
+                    confidence=confidence,
+                    evidence=conn.get("evidence"),
+                )
+            )
+            count += 1
+
+    if count:
+        db.flush()
+    return count
 
 
 def _get_all_collection_entities(db: Session) -> list[dict]:
@@ -429,8 +494,18 @@ def _build_connections(
             )
         )
 
-    # Merge AI-discovered connections from cached profile (#1803)
-    if profile and profile.ai_connections:
+    # Merge AI-discovered connections from canonical table (#1813)
+    ai_rows = (
+        db.query(AIConnection)
+        .filter(
+            or_(
+                (AIConnection.source_type == entity_type) & (AIConnection.source_id == entity_id),
+                (AIConnection.target_type == entity_type) & (AIConnection.target_id == entity_id),
+            )
+        )
+        .all()
+    )
+    if ai_rows:
         # Build set of existing (target, relationship) pairs to avoid duplicates
         existing_edges = {
             (
@@ -439,15 +514,16 @@ def _build_connections(
             )
             for c in connections
         }
-        for ai_conn in profile.ai_connections:
-            parsed = parse_ai_connection(ai_conn)
-            if parsed is None:
-                continue
+        for row in ai_rows:
+            # Determine which end is the "other" entity
+            if row.source_type == entity_type and row.source_id == entity_id:
+                other_type, other_id = row.target_type, row.target_id
+            else:
+                other_type, other_id = row.source_type, row.source_id
 
-            target_type = ai_conn["target_type"]
-            target_id = ai_conn["target_id"]
-            target_key = f"{target_type}:{target_id}"
-            edge_key = (target_key, parsed.relationship)
+            target_key = f"{other_type}:{other_id}"
+            strength = max(2, min(int(row.confidence * 10), 10))
+            edge_key = (target_key, row.relationship)
 
             # Skip if same target+relationship already exists
             if edge_key in existing_edges:
@@ -459,20 +535,20 @@ def _build_connections(
                         else conn.entity.type
                     )
                     if (
-                        et == target_type
-                        and conn.entity.id == target_id
-                        and conn.connection_type == parsed.relationship
+                        et == other_type
+                        and conn.entity.id == other_id
+                        and conn.connection_type == row.relationship
                     ):
                         conn.is_ai_discovered = True
-                        conn.sub_type = parsed.sub_type
-                        conn.confidence = parsed.confidence
+                        conn.sub_type = row.sub_type
+                        conn.confidence = row.confidence
                         break
                 continue
 
             # Look up target entity — prefer graph nodes (richer metadata),
             # fall back to DB so AI connections aren't silently dropped when
             # the target is missing from the cached graph (#1827).
-            target_node_id = f"{target_type}:{target_id}"
+            target_node_id = f"{other_type}:{other_id}"
             target_node = (
                 next((n for n in graph.nodes if n.id == target_node_id), None)
                 if graph is not None
@@ -498,22 +574,22 @@ def _build_connections(
                 )
             else:
                 # Graph miss — resolve from DB so the connection still appears
-                db_entity = _get_entity(db, target_type, target_id)
+                db_entity = _get_entity(db, other_type, other_id)
                 if not db_entity:
                     continue
-                entity_data = _build_profile_entity(db_entity, target_type)
+                entity_data = _build_profile_entity(db_entity, other_type)
 
             connections.append(
                 ProfileConnection(
                     entity=entity_data,
-                    connection_type=parsed.relationship,
-                    strength=parsed.strength,
+                    connection_type=row.relationship,
+                    strength=strength,
                     shared_book_count=0,
-                    narrative=parsed.evidence,
+                    narrative=row.evidence,
                     is_key=False,
                     is_ai_discovered=True,
-                    sub_type=parsed.sub_type,
-                    confidence=parsed.confidence,
+                    sub_type=row.sub_type,
+                    confidence=row.confidence,
                 )
             )
             existing_edges.add(edge_key)
@@ -668,6 +744,15 @@ def generate_and_cache_profile(
         all_entities=all_entities,
         config=config,
     )
+    # Persist AI connections to canonical table (#1813)
+    if ai_connections:
+        stored = _store_ai_connections(db, ai_connections)
+        logger.info(
+            "profile[%s:%d] stored %d AI connections to table",
+            entity_type,
+            entity_id,
+            stored,
+        )
     logger.info(
         "profile[%s:%d] AI connection discovery took %.1fs",
         entity_type,

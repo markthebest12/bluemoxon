@@ -12,6 +12,7 @@ from app.auth import CurrentUser, require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, BookImage, Publisher
+from app.models.ai_connection import AIConnection
 from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
@@ -1926,7 +1927,7 @@ class TestBuildConnectionsAIMerge:
     @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_ai_connections_appear_in_build_connections(self, _mock_classify, mock_graph, db):
-        """AI connections from profile are included in _build_connections output."""
+        """AI connections from table are included in _build_connections output."""
         author1 = Author(name="Elizabeth Barrett Browning", birth_year=1806, death_year=1861)
         author2 = Author(name="Robert Browning", birth_year=1812, death_year=1889)
         db.add_all([author1, author2])
@@ -1935,20 +1936,28 @@ class TestBuildConnectionsAIMerge:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author2.id,
-                    "relationship": "family",
-                    "sub_type": "MARRIAGE",
-                    "confidence": 0.95,
-                    "evidence": "Married in 1846",
-                }
-            ],
         )
         db.add(profile)
+
+        # Canonical ordering: lower node ID string first
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="family",
+                sub_type="MARRIAGE",
+                confidence=0.95,
+                evidence="Married in 1846",
+            )
+        )
         db.commit()
 
         source = _make_graph_node(
@@ -1996,20 +2005,28 @@ class TestBuildConnectionsAIMerge:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author.id,
-                    "target_type": "author",
-                    "target_id": 99,
-                    "relationship": "friendship",
-                    "sub_type": "CLOSE_FRIENDS",
-                    "confidence": 0.8,
-                    "evidence": "Were close friends",
-                }
-            ],
         )
         db.add(profile)
+
+        # Canonical ordering: "author:{author.id}" vs "author:99"
+        src_key = f"author:{author.id}"
+        tgt_key = "author:99"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", 99, "author", author.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author.id, "author", 99
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="friendship",
+                sub_type="CLOSE_FRIENDS",
+                confidence=0.8,
+                evidence="Were close friends",
+            )
+        )
         db.commit()
 
         source = _make_graph_node(f"author:{author.id}", author.id, "Darwin")
@@ -2120,23 +2137,27 @@ class TestScandalConnectionsAppear:
         db.add_all([author1, author2])
         db.flush()
 
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author2.id,
-                    "relationship": "scandal",
-                    "sub_type": "LEGAL_DISPUTE",
-                    "confidence": 0.95,
-                    "evidence": "The Queensberry trial of 1895",
-                }
-            ],
-        )
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
         db.add(profile)
+
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="scandal",
+                sub_type="LEGAL_DISPUTE",
+                confidence=0.95,
+                evidence="The Queensberry trial of 1895",
+            )
+        )
         db.commit()
 
         source = _make_graph_node(
@@ -2184,23 +2205,27 @@ class TestScandalConnectionsAppear:
         db.add_all([author1, author2])
         db.flush()
 
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author2.id,
-                    "relationship": "scandal",
-                    "sub_type": "LEGAL_DISPUTE",
-                    "confidence": 0.9,
-                    "evidence": "The Queensberry trial of 1895",
-                }
-            ],
-        )
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
         db.add(profile)
+
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="scandal",
+                sub_type="LEGAL_DISPUTE",
+                confidence=0.9,
+                evidence="The Queensberry trial of 1895",
+            )
+        )
         db.commit()
 
         # Only the source entity is in the graph — target is missing
@@ -2239,23 +2264,28 @@ class TestScandalConnectionsAppear:
         db.add(author1)
         db.flush()
 
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": 99999,  # non-existent entity
-                    "relationship": "scandal",
-                    "sub_type": "FEUD",
-                    "confidence": 0.7,
-                    "evidence": "A famous dispute",
-                }
-            ],
-        )
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
         db.add(profile)
+
+        # Canonical ordering for author1 vs non-existent author:99999
+        src_key = f"author:{author1.id}"
+        tgt_key = "author:99999"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", 99999, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", 99999
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="scandal",
+                sub_type="FEUD",
+                confidence=0.7,
+                evidence="A famous dispute",
+            )
+        )
         db.commit()
 
         source = _make_graph_node(
@@ -2290,33 +2320,32 @@ class TestScandalConnectionsAppear:
         db.add_all([author1, author2, author3])
         db.flush()
 
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author2.id,
-                    "relationship": "scandal",
-                    "sub_type": "AFFAIR",
-                    "confidence": 0.85,
-                    "evidence": "Secret relationship with Ellen Ternan",
-                },
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author3.id,
-                    "relationship": "friendship",
-                    "sub_type": "CLOSE_FRIENDS",
-                    "confidence": 0.95,
-                    "evidence": "Lifelong friends and collaborators",
-                },
-            ],
-        )
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
         db.add(profile)
+
+        # Add two AI connections in canonical order
+        for target, rel, sub, conf, ev in [
+            (author2, "scandal", "AFFAIR", 0.85, "Secret relationship with Ellen Ternan"),
+            (author3, "friendship", "CLOSE_FRIENDS", 0.95, "Lifelong friends and collaborators"),
+        ]:
+            src_key = f"author:{author1.id}"
+            tgt_key = f"author:{target.id}"
+            if src_key > tgt_key:
+                s_type, s_id, t_type, t_id = "author", target.id, "author", author1.id
+            else:
+                s_type, s_id, t_type, t_id = "author", author1.id, "author", target.id
+            db.add(
+                AIConnection(
+                    source_type=s_type,
+                    source_id=s_id,
+                    target_type=t_type,
+                    target_id=t_id,
+                    relationship=rel,
+                    sub_type=sub,
+                    confidence=conf,
+                    evidence=ev,
+                )
+            )
         db.commit()
 
         source = _make_graph_node(

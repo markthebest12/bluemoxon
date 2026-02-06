@@ -12,10 +12,8 @@ from datetime import UTC, datetime
 from itertools import combinations
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import load_only
-
 from app.enums import OWNED_STATUSES
-from app.models.entity_profile import EntityProfile
+from app.models.ai_connection import AIConnection
 from app.schemas.social_circles import (
     ConnectionType,
     Era,
@@ -25,7 +23,6 @@ from app.schemas.social_circles import (
     SocialCirclesMeta,
     SocialCirclesResponse,
 )
-from app.services.ai_connection_parser import parse_ai_connection
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -316,48 +313,43 @@ def build_social_circles_graph(
                     shared_book_ids=shared_books,
                 )
 
-    # Merge AI-discovered edges from entity profiles
-    profiles_with_ai = (
-        db.query(EntityProfile)
-        .options(load_only(EntityProfile.ai_connections))
-        .filter(EntityProfile.ai_connections.isnot(None))
-        .all()
-    )
-    for profile in profiles_with_ai:
-        for connection in profile.ai_connections or []:
-            parsed = parse_ai_connection(connection)
-            if parsed is None:
-                continue
+    # Merge AI-discovered edges from canonical table (#1813)
+    ai_rows = db.query(AIConnection).all()
+    for row in ai_rows:
+        source_node_id = f"{row.source_type}:{row.source_id}"
+        target_node_id = f"{row.target_type}:{row.target_id}"
 
-            # Skip if either node is not in the current graph
-            if parsed.source_node_id not in nodes or parsed.target_node_id not in nodes:
-                continue
+        # Skip if either node is not in the current graph
+        if source_node_id not in nodes or target_node_id not in nodes:
+            continue
 
-            conn_type = ConnectionType(parsed.relationship)
+        conn_type = ConnectionType(row.relationship)
+        strength = max(2, min(int(row.confidence * 10), 10))
+        edge_id = f"e:{source_node_id}:{target_node_id}:{row.relationship}"
 
-            # If this edge already exists, keep the higher-confidence version
-            if parsed.edge_id in edges:
-                if parsed.strength > edges[parsed.edge_id].strength:
-                    edges[parsed.edge_id] = SocialCircleEdge(
-                        id=parsed.edge_id,
-                        source=parsed.source_node_id,
-                        target=parsed.target_node_id,
-                        type=conn_type,
-                        strength=parsed.strength,
-                        evidence=parsed.evidence,
-                        shared_book_ids=None,
-                    )
-                continue
+        # If this edge already exists, keep the higher-confidence version
+        if edge_id in edges:
+            if strength > edges[edge_id].strength:
+                edges[edge_id] = SocialCircleEdge(
+                    id=edge_id,
+                    source=source_node_id,
+                    target=target_node_id,
+                    type=conn_type,
+                    strength=strength,
+                    evidence=row.evidence,
+                    shared_book_ids=None,
+                )
+            continue
 
-            edges[parsed.edge_id] = SocialCircleEdge(
-                id=parsed.edge_id,
-                source=parsed.source_node_id,
-                target=parsed.target_node_id,
-                type=conn_type,
-                strength=parsed.strength,
-                evidence=parsed.evidence,
-                shared_book_ids=None,
-            )
+        edges[edge_id] = SocialCircleEdge(
+            id=edge_id,
+            source=source_node_id,
+            target=target_node_id,
+            type=conn_type,
+            strength=strength,
+            evidence=row.evidence,
+            shared_book_ids=None,
+        )
 
     # Calculate date range (with outlier filtering)
     years: list[int] = []
