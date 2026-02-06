@@ -235,7 +235,7 @@ resource "aws_iam_role_policy" "bedrock_access" {
         Resource = "*"
       },
       {
-        # Required for Claude 3.5 Haiku model access verification at runtime
+        # Required for Bedrock model access verification at runtime
         # Without these, InvokeModel fails with AccessDeniedException
         Effect = "Allow"
         Action = [

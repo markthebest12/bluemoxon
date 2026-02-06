@@ -681,12 +681,13 @@ class TestDateRangeClamping:
         assert result == (1810, 1900)
 
     def test_outlier_year_excluded(self):
-        """A single extreme outlier (1265) should be excluded."""
+        """A single extreme outlier (1265) should be excluded; post-collection years clamped."""
         from app.services.social_circles import _compute_date_range
 
         years = [1265, 1810, 1820, 1830, 1840, 1850, 1860, 1870, 1880, 1900, 1967]
         result = _compute_date_range(years)
-        assert result == (1810, 1967)
+        # 1265 excluded by reasonable filter; 1967 clamped to COLLECTION_MAX_YEAR (1950)
+        assert result == (1810, 1950)
 
     def test_empty_years_returns_default(self):
         """Empty years list returns DEFAULT_DATE_RANGE."""
@@ -703,11 +704,12 @@ class TestDateRangeClamping:
         assert result == (1850, 1850)
 
     def test_boundary_years_included(self):
-        """Years exactly at boundaries should be included."""
+        """Years at reasonable boundaries pass filter; result clamped to collection era."""
         from app.services.social_circles import _compute_date_range
 
         result = _compute_date_range([1700, 2025])
-        assert result == (1700, 2025)
+        # Both pass reasonable filter (1700-2025), then clamped to collection era (1700-1950)
+        assert result == (1700, 1950)
 
     def test_all_outliers_returns_default(self):
         """If ALL years are outside reasonable bounds, return default."""

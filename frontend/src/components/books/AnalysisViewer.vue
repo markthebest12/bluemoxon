@@ -6,6 +6,7 @@ import { api } from "@/services/api";
 import { useBooksStore } from "@/stores/books";
 import { useAuthStore } from "@/stores/auth";
 import { useJobPolling } from "@/composables/useJobPolling";
+import { useModelLabels } from "@/composables/useModelLabels";
 import { DEFAULT_ANALYSIS_MODEL, type AnalysisModel } from "@/config";
 import { getErrorMessage, getHttpStatus } from "@/types/errors";
 
@@ -299,6 +300,13 @@ function formatPacificTime(isoString: string): string {
   return `${formatted} Pacific`;
 }
 
+// Model labels from shared composable (single API call, module-level cache)
+const { modelLabels } = useModelLabels();
+
+const modelOptions = computed(() =>
+  Object.entries(modelLabels.value).map(([value, label]) => ({ value, label }))
+);
+
 function formatModelId(modelId: string): string {
   // Convert model IDs like:
   // "us.anthropic.claude-sonnet-4-5-20250929-v1:0" → "Claude Sonnet 4.5"
@@ -433,8 +441,9 @@ function formatModelId(modelId: string): string {
                       class="select text-sm w-32 pr-8 bg-[var(--color-surface-primary)] text-[var(--color-text-primary)]"
                       :disabled="generating"
                     >
-                      <option value="sonnet">Sonnet 4.5</option>
-                      <option value="opus">Opus 4.5</option>
+                      <option v-for="opt in modelOptions" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                      </option>
                     </select>
                     <button
                       :disabled="generating"

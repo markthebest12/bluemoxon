@@ -23,7 +23,7 @@ Models are configured in `backend/app/services/bedrock.py`.
 # Create test payload
 echo '{"anthropic_version":"bedrock-2023-05-31","max_tokens":500,"messages":[{"role":"user","content":"What is 2+2?"}]}' > .tmp/test.json
 
-# Invoke Claude 4.5 Sonnet
+# Invoke Claude Sonnet
 aws bedrock-runtime invoke-model \
   --model-id "us.anthropic.claude-sonnet-4-5-20250929-v1:0" \
   --body file://.tmp/test.json \
@@ -192,7 +192,7 @@ curl -X POST "https://api.bluemoxon.com/api/v1/books/123/analysis/generate" \
 
 ## Performance Benchmarks
 
-| Scenario | Claude 4.5 Sonnet | Claude 4.5 Opus |
+| Scenario | Claude Sonnet | Claude Opus |
 |----------|------------------|-----------------|
 | Text only (no images) | ~5-10s | ~15-20s |
 | 1 image (~100KB) | ~15-20s | ~30-40s |
@@ -203,7 +203,7 @@ curl -X POST "https://api.bluemoxon.com/api/v1/books/123/analysis/generate" \
 
 ### Timeout Issues
 
-If Claude 4.5 requests hang indefinitely:
+If Claude requests hang indefinitely:
 
 1. **Check Marketplace approval** - New models require AWS Marketplace approval
 2. **Wait 24-48 hours** - Provisioning may take time after approval
@@ -234,7 +234,7 @@ If Claude 4.5 requests hang indefinitely:
 ### Response Token Limits
 
 - Default `max_tokens`: 16000 (sufficient for Napoleon framework)
-- Claude 4.5 output limit: ~8000 tokens typical
+- Claude output limit: ~8000 tokens typical
 - If truncated, increase `max_tokens` or simplify prompt
 
 ## Related Files

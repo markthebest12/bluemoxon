@@ -117,6 +117,11 @@ function handlePlay() {
       </button>
     </div>
 
+    <!-- Year display moved ABOVE track to avoid overlapping with marker year labels below -->
+    <div class="timeline-slider__current">
+      {{ yearLabel }}
+    </div>
+
     <div class="timeline-slider__track">
       <span v-show="showMinLabel" class="timeline-slider__label">{{ minYear }}</span>
       <div class="timeline-slider__input-wrapper">
@@ -132,10 +137,6 @@ function handlePlay() {
         <TimelineMarkers :min-year="minYear" :max-year="maxYear" :slider-year="localYear" />
       </div>
       <span v-show="showMaxLabel" class="timeline-slider__label">{{ maxYear }}</span>
-    </div>
-
-    <div class="timeline-slider__current">
-      {{ yearLabel }}
     </div>
   </div>
 </template>
@@ -224,6 +225,6 @@ function handlePlay() {
   text-align: center;
   font-weight: 600;
   color: var(--color-victorian-hunter-700);
-  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 </style>
