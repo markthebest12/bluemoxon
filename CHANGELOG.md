@@ -5,6 +5,14 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.4.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.4.1) - 2026-02-06
+
+- [`57a63db`](https://github.com/markthebest12/bluemoxon/commit/57a63db939055a39ae66377ec31b2c4bc1549e6b) fix: v3.4.0 Wave 6 — model labels, checkboxes, sidebar, timeline, connection colors (#1859)
+- [`180b481`](https://github.com/markthebest12/bluemoxon/commit/180b481ef737acc13560b789e0c7c2eb8597c29c) fix: address code review findings for portrait sync name matching (#1870)
+- [`0eebc34`](https://github.com/markthebest12/bluemoxon/commit/0eebc34cf9a056a3715a57fcc798a52594722896) fix: improve portrait sync name matching with variants and altLabel (#1868)
+- [`277f16e`](https://github.com/markthebest12/bluemoxon/commit/277f16e93bac40b93602536fe48993585fa8e757) fix: import wikidata_scoring from app.utils (Lambda ModuleNotFoundError) (#1861)
+- [`57a63db`](https://github.com/markthebest12/bluemoxon/commit/57a63db939055a39ae66377ec31b2c4bc1549e6b) fix: v3.4.0 Wave 6 — model labels, checkboxes, sidebar, timeline, connection colors (#1859)
+
 ## [v3.4.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.4.0) - 2026-02-05
 
 - [`e6981b0`](https://github.com/markthebest12/bluemoxon/commit/e6981b037f158a77d67c696a1e05d0ab915a2aae) feat: add portrait sync admin endpoint (#1849)
