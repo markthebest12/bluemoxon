@@ -40,7 +40,7 @@ from app.models.binder import Binder
 from app.models.book import Book
 from app.models.publisher import Publisher
 from app.services.aws_clients import get_s3_client
-from scripts.wikidata_scoring import score_candidate
+from app.utils.wikidata_scoring import score_candidate
 
 # Wikidata SPARQL endpoint
 WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
@@ -483,7 +483,7 @@ def process_publisher_entity(
         image_url = row.get("image", {}).get("value")
 
         # Simple name similarity check for organizations
-        from scripts.wikidata_scoring import name_similarity
+        from app.utils.wikidata_scoring import name_similarity
 
         ns = name_similarity(entity.name, label)
         # Boost if has image
