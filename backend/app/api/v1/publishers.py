@@ -18,6 +18,7 @@ from app.schemas.reference import (
 )
 from app.services.entity_matching import invalidate_entity_cache
 from app.services.entity_validation import validate_entity_creation
+from app.services.sqs import send_entity_enrichment_job
 
 router = APIRouter()
 
@@ -124,6 +125,9 @@ def create_publisher(
 
     # Invalidate cache since new publisher was created
     invalidate_entity_cache("publisher")
+
+    # Fire-and-forget: enqueue async enrichment via Bedrock (never blocks creation)
+    send_entity_enrichment_job("publisher", publisher.id, publisher.name)
 
     return PublisherResponse(
         id=publisher.id,
