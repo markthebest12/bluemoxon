@@ -275,6 +275,11 @@ const strengthDots = computed(() => {
   color: var(--color-text-secondary, #6b6b6b);
   padding: 0 4px;
   line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .connection-sidebar__close:hover {
