@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.3.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.3) - 2026-02-05
+
+- [`d34bfe3`](https://github.com/markthebest12/bluemoxon/commit/d34bfe30c06326578cc706296fa39f362b840de2) fix: add --ignore-detached to Uplift CI config check
+
 ## [v3.3.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.2) - 2026-02-05
 
 - [`c51b15a`](https://github.com/markthebest12/bluemoxon/commit/c51b15ac37a9d5fb662d32626065563012043e97) fix: v3.4.0 bugfixes, refactors, and testing (#1841)
