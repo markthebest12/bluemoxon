@@ -5,6 +5,20 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.3.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.2) - 2026-02-05
+
+- [`c51b15a`](https://github.com/markthebest12/bluemoxon/commit/c51b15ac37a9d5fb662d32626065563012043e97) fix: v3.4.0 bugfixes, refactors, and testing (#1841)
+- [`81d7caf`](https://github.com/markthebest12/bluemoxon/commit/81d7caff7f6141261e0744a79e747dbf93c122a2) fix: v3.4.0 wave5 — batch upsert, image_url, WCAG luminance (#1843)
+- [`2b4b1c9`](https://github.com/markthebest12/bluemoxon/commit/2b4b1c99b7550f1300f8b0127e6877c06e335945) fix: DISTINCT ON dedup for data migration INSERT
+- [`398c8ca`](https://github.com/markthebest12/bluemoxon/commit/398c8ca24e3836f6cc646ecbcda043e8b2329cfd) fix: use jsonb_to_recordset for data migration (eliminates ->> operator)
+- [`90a1036`](https://github.com/markthebest12/bluemoxon/commit/90a1036a828f4f759a40eb98a2b2bf3f660803f0) fix: cast conn to jsonb in data migration INSERT
+- [`fdbee9b`](https://github.com/markthebest12/bluemoxon/commit/fdbee9baecec42925a937f9f8bd2f33874a33d6f) fix: use explicit ::jsonb cast in migration data migration SQL
+- [`c05073a`](https://github.com/markthebest12/bluemoxon/commit/c05073a55666ba46ba066080de046380b5c3c9f9) fix: use json_array_elements in migration_sql.py for JSON column
+- [`7472ccf`](https://github.com/markthebest12/bluemoxon/commit/7472ccf52817ac74c3248a5dde9df08ccb095c81) fix: use json_array_elements for JSON column in migration
+- [`c51b15a`](https://github.com/markthebest12/bluemoxon/commit/c51b15ac37a9d5fb662d32626065563012043e97) fix: v3.4.0 bugfixes, refactors, and testing (#1841)
+- [`81d7caf`](https://github.com/markthebest12/bluemoxon/commit/81d7caff7f6141261e0744a79e747dbf93c122a2) fix: v3.4.0 wave5 — batch upsert, image_url, WCAG luminance (#1843)
+- [`c51b15a`](https://github.com/markthebest12/bluemoxon/commit/c51b15ac37a9d5fb662d32626065563012043e97) fix: v3.4.0 bugfixes, refactors, and testing (#1841)
+
 ## [v3.3.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.1) - 2026-02-05
 
 - [`29e8705`](https://github.com/markthebest12/bluemoxon/commit/29e8705ce0b988d61012d762ed7aef67a3829e1d) fix: v3.3.1 AI connection bugfixes + Opus 4.6 (#1837)
