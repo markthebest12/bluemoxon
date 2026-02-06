@@ -114,9 +114,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showAuthors: true }) },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      // Authors is the first checkbox in Node Types section (after search)
-      const authorsCheckbox = checkboxes[0];
+      const authorsCheckbox = wrapper.find('[data-testid="filter-authors"] input[type="checkbox"]');
       expect((authorsCheckbox.element as HTMLInputElement).checked).toBe(true);
     });
 
@@ -125,8 +123,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showAuthors: false }) },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      const authorsCheckbox = checkboxes[0];
+      const authorsCheckbox = wrapper.find('[data-testid="filter-authors"] input[type="checkbox"]');
       expect((authorsCheckbox.element as HTMLInputElement).checked).toBe(false);
     });
 
@@ -135,8 +132,9 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showPublishers: false }) },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      const publishersCheckbox = checkboxes[1];
+      const publishersCheckbox = wrapper.find(
+        '[data-testid="filter-publishers"] input[type="checkbox"]'
+      );
       expect((publishersCheckbox.element as HTMLInputElement).checked).toBe(false);
     });
 
@@ -145,8 +143,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showBinders: false }) },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      const bindersCheckbox = checkboxes[2];
+      const bindersCheckbox = wrapper.find('[data-testid="filter-binders"] input[type="checkbox"]');
       expect((bindersCheckbox.element as HTMLInputElement).checked).toBe(false);
     });
 
@@ -155,9 +152,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showAuthors: true }) },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      // First label in Node Types section is Authors
-      await labels[0].trigger("click");
+      await wrapper.find('[data-testid="filter-authors"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["showAuthors", false]);
@@ -168,8 +163,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showPublishers: true }) },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      await labels[1].trigger("click");
+      await wrapper.find('[data-testid="filter-publishers"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["showPublishers", false]);
@@ -180,8 +174,7 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState({ showBinders: true }) },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      await labels[2].trigger("click");
+      await wrapper.find('[data-testid="filter-binders"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["showBinders", false]);
@@ -240,11 +233,14 @@ describe("FilterPanel", () => {
         },
       });
 
-      // Connection checkboxes start at index 3 (after node type checkboxes)
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      expect((checkboxes[3].element as HTMLInputElement).checked).toBe(true); // publisher
-      expect((checkboxes[4].element as HTMLInputElement).checked).toBe(true); // shared_publisher
-      expect((checkboxes[5].element as HTMLInputElement).checked).toBe(true); // binder
+      const publisherCb = wrapper.find('[data-testid="filter-publisher"] input[type="checkbox"]');
+      const sharedPubCb = wrapper.find(
+        '[data-testid="filter-shared_publisher"] input[type="checkbox"]'
+      );
+      const binderCb = wrapper.find('[data-testid="filter-binder"] input[type="checkbox"]');
+      expect((publisherCb.element as HTMLInputElement).checked).toBe(true);
+      expect((sharedPubCb.element as HTMLInputElement).checked).toBe(true);
+      expect((binderCb.element as HTMLInputElement).checked).toBe(true);
     });
 
     it("shows connection type as unchecked when not in connectionTypes array", () => {
@@ -256,10 +252,14 @@ describe("FilterPanel", () => {
         },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      expect((checkboxes[3].element as HTMLInputElement).checked).toBe(true); // publisher
-      expect((checkboxes[4].element as HTMLInputElement).checked).toBe(false); // shared_publisher
-      expect((checkboxes[5].element as HTMLInputElement).checked).toBe(false); // binder
+      const publisherCb = wrapper.find('[data-testid="filter-publisher"] input[type="checkbox"]');
+      const sharedPubCb = wrapper.find(
+        '[data-testid="filter-shared_publisher"] input[type="checkbox"]'
+      );
+      const binderCb = wrapper.find('[data-testid="filter-binder"] input[type="checkbox"]');
+      expect((publisherCb.element as HTMLInputElement).checked).toBe(true);
+      expect((sharedPubCb.element as HTMLInputElement).checked).toBe(false);
+      expect((binderCb.element as HTMLInputElement).checked).toBe(false);
     });
 
     it("emits update:filter with added connection type when checkbox clicked", async () => {
@@ -271,10 +271,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      // Connection labels start at index 3 (after node type labels)
-      // Click on shared_publisher (index 4)
-      await labels[4].trigger("click");
+      await wrapper.find('[data-testid="filter-shared_publisher"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual([
@@ -292,9 +289,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      // Click on binder (index 5) to remove it
-      await labels[5].trigger("click");
+      await wrapper.find('[data-testid="filter-binder"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual([
@@ -365,13 +360,24 @@ describe("FilterPanel", () => {
         },
       });
 
-      // Era checkboxes start at index 6 (after node types and connection types)
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      expect((checkboxes[11].element as HTMLInputElement).checked).toBe(true); // pre_romantic
-      expect((checkboxes[12].element as HTMLInputElement).checked).toBe(true); // romantic
-      expect((checkboxes[13].element as HTMLInputElement).checked).toBe(true); // victorian
-      expect((checkboxes[14].element as HTMLInputElement).checked).toBe(true); // edwardian
-      expect((checkboxes[15].element as HTMLInputElement).checked).toBe(true); // post_1910
+      const preRomanticCb = wrapper.find(
+        '[data-testid="filter-era-pre_romantic"] input[type="checkbox"]'
+      );
+      const romanticCb = wrapper.find('[data-testid="filter-era-romantic"] input[type="checkbox"]');
+      const victorianCb = wrapper.find(
+        '[data-testid="filter-era-victorian"] input[type="checkbox"]'
+      );
+      const edwardianCb = wrapper.find(
+        '[data-testid="filter-era-edwardian"] input[type="checkbox"]'
+      );
+      const post1910Cb = wrapper.find(
+        '[data-testid="filter-era-post_1910"] input[type="checkbox"]'
+      );
+      expect((preRomanticCb.element as HTMLInputElement).checked).toBe(true);
+      expect((romanticCb.element as HTMLInputElement).checked).toBe(true);
+      expect((victorianCb.element as HTMLInputElement).checked).toBe(true);
+      expect((edwardianCb.element as HTMLInputElement).checked).toBe(true);
+      expect((post1910Cb.element as HTMLInputElement).checked).toBe(true);
     });
 
     it("shows specific eras as checked when in eras array", () => {
@@ -383,12 +389,24 @@ describe("FilterPanel", () => {
         },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      expect((checkboxes[11].element as HTMLInputElement).checked).toBe(false); // pre_romantic
-      expect((checkboxes[12].element as HTMLInputElement).checked).toBe(false); // romantic
-      expect((checkboxes[13].element as HTMLInputElement).checked).toBe(true); // victorian
-      expect((checkboxes[14].element as HTMLInputElement).checked).toBe(true); // edwardian
-      expect((checkboxes[15].element as HTMLInputElement).checked).toBe(false); // post_1910
+      const preRomanticCb = wrapper.find(
+        '[data-testid="filter-era-pre_romantic"] input[type="checkbox"]'
+      );
+      const romanticCb = wrapper.find('[data-testid="filter-era-romantic"] input[type="checkbox"]');
+      const victorianCb = wrapper.find(
+        '[data-testid="filter-era-victorian"] input[type="checkbox"]'
+      );
+      const edwardianCb = wrapper.find(
+        '[data-testid="filter-era-edwardian"] input[type="checkbox"]'
+      );
+      const post1910Cb = wrapper.find(
+        '[data-testid="filter-era-post_1910"] input[type="checkbox"]'
+      );
+      expect((preRomanticCb.element as HTMLInputElement).checked).toBe(false);
+      expect((romanticCb.element as HTMLInputElement).checked).toBe(false);
+      expect((victorianCb.element as HTMLInputElement).checked).toBe(true);
+      expect((edwardianCb.element as HTMLInputElement).checked).toBe(true);
+      expect((post1910Cb.element as HTMLInputElement).checked).toBe(false);
     });
 
     it("emits update:filter when era checkbox clicked to add era", async () => {
@@ -400,9 +418,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      // Era labels start at index 11 (3 nodes + 8 connections), romantic is at index 12
-      await labels[12].trigger("click");
+      await wrapper.find('[data-testid="filter-era-romantic"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["eras", ["victorian", "romantic"]]);
@@ -417,9 +433,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      // Click on victorian (index 13: 3 nodes + 8 connections + 2 eras) to remove it
-      await labels[13].trigger("click");
+      await wrapper.find('[data-testid="filter-era-victorian"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["eras", ["romantic"]]);
@@ -470,9 +484,8 @@ describe("FilterPanel", () => {
         },
       });
 
-      // Tier checkbox is the last one (index 11)
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      expect((checkboxes[16].element as HTMLInputElement).checked).toBe(true);
+      const tierCb = wrapper.find('[data-testid="filter-tier1"] input[type="checkbox"]');
+      expect((tierCb.element as HTMLInputElement).checked).toBe(true);
     });
 
     it("shows tier1Only checkbox as unchecked when false", () => {
@@ -482,8 +495,8 @@ describe("FilterPanel", () => {
         },
       });
 
-      const checkboxes = wrapper.findAll('input[type="checkbox"]');
-      expect((checkboxes[16].element as HTMLInputElement).checked).toBe(false);
+      const tierCb = wrapper.find('[data-testid="filter-tier1"] input[type="checkbox"]');
+      expect((tierCb.element as HTMLInputElement).checked).toBe(false);
     });
 
     it("emits update:filter when tier1Only checkbox clicked", async () => {
@@ -493,9 +506,7 @@ describe("FilterPanel", () => {
         },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
-      // Tier label is the last one (index 16: 3 nodes + 8 connections + 5 eras)
-      await labels[16].trigger("click");
+      await wrapper.find('[data-testid="filter-tier1"]').trigger("click");
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
       expect(wrapper.emitted("update:filter")![0]).toEqual(["tier1Only", true]);
@@ -654,11 +665,10 @@ describe("FilterPanel", () => {
         props: { filterState: createDefaultFilterState() },
       });
 
-      const labels = wrapper.findAll(".filter-panel__checkbox");
       const mockEvent = { preventDefault: vi.fn() };
 
       // The component uses @click.prevent, so we verify the emit happens
-      await labels[0].trigger("click", mockEvent);
+      await wrapper.find('[data-testid="filter-authors"]').trigger("click", mockEvent);
 
       expect(wrapper.emitted("update:filter")).toBeTruthy();
     });

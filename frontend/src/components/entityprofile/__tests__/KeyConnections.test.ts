@@ -196,3 +196,152 @@ describe("KeyConnections — Thumbnails & Badges", () => {
     expect(wrapper.find(".condition-badge").exists()).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// AI-discovered connection tests
+// ---------------------------------------------------------------------------
+
+describe("KeyConnections — AI Badges & Discovery", () => {
+  const aiConn: ProfileConnection = {
+    entity: { id: 50, type: "author", name: "Percy Bysshe Shelley", image_url: null },
+    connection_type: "romantic_partner",
+    sub_type: "familial",
+    confidence: 0.85,
+    is_ai_discovered: true,
+    strength: 7,
+    shared_book_count: 0,
+    shared_books: [],
+    narrative: "A passionate literary romance discovered through AI analysis.",
+    narrative_trigger: null,
+    is_key: true,
+    relationship_story: null,
+  };
+
+  const bookDerivedConn: ProfileConnection = {
+    entity: { id: 7, type: "publisher", name: "Smith, Elder & Co.", image_url: null },
+    connection_type: "publisher",
+    strength: 6,
+    shared_book_count: 5,
+    shared_books: [],
+    narrative: "Published several works.",
+    narrative_trigger: null,
+    is_key: true,
+    relationship_story: null,
+    // is_ai_discovered not set (undefined / falsy)
+  };
+
+  it("renders AI badge for AI-discovered connections", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [aiConn] },
+      global: { stubs },
+    });
+    const badge = wrapper.find(".key-connections__ai-badge");
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toBe("AI");
+  });
+
+  it("does NOT render AI badge for book-derived connections", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [bookDerivedConn] },
+      global: { stubs },
+    });
+    expect(wrapper.find(".key-connections__ai-badge").exists()).toBe(false);
+  });
+
+  it("renders AI badge only on the AI-discovered card when mixed", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [aiConn, bookDerivedConn] },
+      global: { stubs },
+    });
+    const badges = wrapper.findAll(".key-connections__ai-badge");
+    expect(badges).toHaveLength(1);
+    // The badge belongs to the first card (Shelley)
+    const firstCard = wrapper.findAll(".key-connections__card")[0];
+    expect(firstCard.find(".key-connections__ai-badge").exists()).toBe(true);
+    const secondCard = wrapper.findAll(".key-connections__card")[1];
+    expect(secondCard.find(".key-connections__ai-badge").exists()).toBe(false);
+  });
+
+  it("hides 'shared books' count when shared_book_count is 0 for AI-discovered connections", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [aiConn] },
+      global: { stubs },
+    });
+    // The meta section should NOT contain "shared book" text
+    const meta = wrapper.find(".key-connections__meta");
+    expect(meta.text()).not.toContain("shared book");
+  });
+
+  it("shows 'shared books' count when shared_book_count is 0 for non-AI connections", () => {
+    const nonAiZeroBooks: ProfileConnection = {
+      ...bookDerivedConn,
+      shared_book_count: 0,
+    };
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [nonAiZeroBooks] },
+      global: { stubs },
+    });
+    const meta = wrapper.find(".key-connections__meta");
+    expect(meta.text()).toContain("0 shared books");
+  });
+
+  it("shows 'shared books' count when shared_book_count > 0 for AI-discovered connections", () => {
+    const aiWithBooks: ProfileConnection = {
+      ...aiConn,
+      shared_book_count: 2,
+    };
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [aiWithBooks] },
+      global: { stubs },
+    });
+    const meta = wrapper.find(".key-connections__meta");
+    expect(meta.text()).toContain("2 shared books");
+  });
+
+  it("renders sub_type badge when sub_type is present", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [aiConn] },
+      global: { stubs },
+    });
+    const subType = wrapper.find(".key-connections__sub-type");
+    expect(subType.exists()).toBe(true);
+    expect(subType.text()).toBe("familial");
+  });
+
+  it("does NOT render sub_type badge when sub_type is absent", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [bookDerivedConn] },
+      global: { stubs },
+    });
+    expect(wrapper.find(".key-connections__sub-type").exists()).toBe(false);
+  });
+
+  it("applies rumored narrative style when confidence is below 0.3", () => {
+    const lowConfConn: ProfileConnection = {
+      ...aiConn,
+      confidence: 0.2,
+      narrative: "A rumored connection between the two poets.",
+    };
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [lowConfConn] },
+      global: { stubs },
+    });
+    expect(wrapper.find(".key-connections__narrative--rumored").exists()).toBe(true);
+  });
+
+  it("does NOT apply rumored narrative style when confidence is 0.3 or above", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [aiConn] }, // confidence: 0.85
+      global: { stubs },
+    });
+    expect(wrapper.find(".key-connections__narrative--rumored").exists()).toBe(false);
+  });
+
+  it("does NOT apply rumored narrative style when confidence is undefined", () => {
+    const wrapper = mount(KeyConnections, {
+      props: { connections: [bookDerivedConn] },
+      global: { stubs },
+    });
+    expect(wrapper.find(".key-connections__narrative--rumored").exists()).toBe(false);
+  });
+});
