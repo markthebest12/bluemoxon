@@ -941,19 +941,38 @@ class TestHelperFunctions:
         url = "http://commons.wikimedia.org/wiki/Special:FilePath/Dickens.jpg"
         assert extract_filename_from_commons_url(url) == "Dickens.jpg"
 
-    def test_build_sparql_query_person(self):
+    def test_build_sparql_query_person_string(self):
         from app.services.portrait_sync import build_sparql_query_person
 
         sparql = build_sparql_query_person("Charles Dickens")
         assert '"Charles Dickens"@en' in sparql
         assert "wdt:P31 wd:Q5" in sparql
+        assert "skos:altLabel" in sparql
+        assert "VALUES ?searchName" in sparql
 
-    def test_build_sparql_query_org(self):
+    def test_build_sparql_query_person_list(self):
+        from app.services.portrait_sync import build_sparql_query_person
+
+        sparql = build_sparql_query_person(["Sir Walter Scott", "Walter Scott"])
+        assert '"Sir Walter Scott"@en' in sparql
+        assert '"Walter Scott"@en' in sparql
+        assert "skos:altLabel" in sparql
+
+    def test_build_sparql_query_org_string(self):
         from app.services.portrait_sync import build_sparql_query_org
 
         sparql = build_sparql_query_org("Macmillan")
         assert '"Macmillan"@en' in sparql
         assert "Q2085381" in sparql
+        assert "skos:altLabel" in sparql
+        assert "VALUES ?searchName" in sparql
+
+    def test_build_sparql_query_org_list(self):
+        from app.services.portrait_sync import build_sparql_query_org
+
+        sparql = build_sparql_query_org(["Macmillan Publishers", "Macmillan"])
+        assert '"Macmillan Publishers"@en' in sparql
+        assert '"Macmillan"@en' in sparql
 
     def test_make_result_factory(self):
         from app.services.portrait_sync import _make_result
@@ -1032,3 +1051,149 @@ class TestBinderUsesOrgQuery:
         assert result["results"][0]["entity_type"] == "binder"
         sparql_arg = mock_query.call_args[0][0]
         assert "Q2085381" in sparql_arg or "Q7275" in sparql_arg
+
+
+class TestExtractParentheticalAlias:
+    """Tests for extract_parenthetical_alias()."""
+
+    def test_extracts_person_name(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("George Eliot (Mary Ann Evans)") == "Mary Ann Evans"
+
+    def test_skips_descriptive_of(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("John Murray (of London)") is None
+
+    def test_skips_descriptive_est(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("Macmillan (est. 1843)") is None
+
+    def test_skips_editor(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("John Smith (editor)") is None
+
+    def test_skips_single_word(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("Voltaire (philosopher)") is None
+
+    def test_no_parentheses(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("Charles Dickens") is None
+
+    def test_skips_lowercase_start(self):
+        from app.services.portrait_sync import extract_parenthetical_alias
+
+        assert extract_parenthetical_alias("Some Name (née something)") is None
+
+
+class TestPrepareNameVariants:
+    """Tests for prepare_name_variants()."""
+
+    def test_plain_name_returns_single(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Charles Dickens", "author")
+        assert variants[0] == "Charles Dickens"
+        assert len(variants) >= 1
+
+    def test_honorific_stripping(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Sir Walter Scott", "author")
+        assert "Sir Walter Scott" in variants
+        assert "Walter Scott" in variants
+
+    def test_alias_extraction(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("George Eliot (Mary Ann Evans)", "author")
+        assert "George Eliot (Mary Ann Evans)" in variants
+        assert "George Eliot" in variants
+        assert "Mary Ann Evans" in variants
+
+    def test_initial_spacing(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("W.S. Gilbert", "author")
+        assert "W. S. Gilbert" in variants
+
+    def test_dedup(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Charles Dickens", "author")
+        assert len(variants) == len(set(variants))
+
+    def test_max_four_variants(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Sir W.S. Gilbert (William Schwenck Gilbert)", "author")
+        assert len(variants) <= 4
+
+    def test_publisher_strips_parenthetical_only(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Macmillan (est. 1843)", "publisher")
+        assert "Macmillan (est. 1843)" in variants
+        assert "Macmillan" in variants
+        # Publishers shouldn't get normalize_author_name treatment
+        assert len(variants) == 2
+
+    def test_publisher_no_parens(self):
+        from app.services.portrait_sync import prepare_name_variants
+
+        variants = prepare_name_variants("Macmillan Publishers", "publisher")
+        assert variants == ["Macmillan Publishers"]
+
+
+class TestEnhancedSparqlBuilders:
+    """Tests for enhanced SPARQL builders with altLabel and VALUES."""
+
+    def test_person_altlabel_present(self):
+        from app.services.portrait_sync import build_sparql_query_person
+
+        sparql = build_sparql_query_person("Walter Scott")
+        assert "skos:altLabel" in sparql
+        assert "rdfs:label" in sparql
+        assert "UNION" in sparql
+
+    def test_person_multiple_variants(self):
+        from app.services.portrait_sync import build_sparql_query_person
+
+        sparql = build_sparql_query_person(["Sir Walter Scott", "Walter Scott"])
+        assert '"Sir Walter Scott"@en' in sparql
+        assert '"Walter Scott"@en' in sparql
+        assert "VALUES ?searchName" in sparql
+
+    def test_person_backward_compat_string(self):
+        from app.services.portrait_sync import build_sparql_query_person
+
+        sparql = build_sparql_query_person("Charles Dickens")
+        assert '"Charles Dickens"@en' in sparql
+        assert "wdt:P31 wd:Q5" in sparql
+
+    def test_org_altlabel_present(self):
+        from app.services.portrait_sync import build_sparql_query_org
+
+        sparql = build_sparql_query_org("Macmillan")
+        assert "skos:altLabel" in sparql
+        assert "rdfs:label" in sparql
+
+    def test_org_multiple_variants(self):
+        from app.services.portrait_sync import build_sparql_query_org
+
+        sparql = build_sparql_query_org(["Macmillan Publishers", "Macmillan"])
+        assert '"Macmillan Publishers"@en' in sparql
+        assert '"Macmillan"@en' in sparql
+
+    def test_sparql_escaping_in_variants(self):
+        from app.services.portrait_sync import build_sparql_query_person
+
+        sparql = build_sparql_query_person(['O\'Brien "The Writer"'])
+        assert "O'Brien" in sparql
+        assert '\\"The Writer\\"' in sparql
