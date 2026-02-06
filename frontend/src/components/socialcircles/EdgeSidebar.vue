@@ -95,6 +95,13 @@ const sharedBookCount = computed(() => {
   return props.edge?.shared_book_ids?.length ?? 0;
 });
 
+// Evidence/narrative from AI or book-derived connections
+const evidence = computed(() => props.edge?.evidence ?? null);
+
+// AI-discovered edge types use narrative quotes; book-based types don't
+const AI_TYPES = new Set(["family", "friendship", "influence", "collaboration", "scandal"]);
+const isAIEdge = computed(() => !!props.edge && AI_TYPES.has(props.edge.type));
+
 // Fetch shared books
 interface BookSummary {
   id: number;
@@ -298,6 +305,12 @@ onUnmounted(() => {
           <span class="edge-sidebar__strength-dots">{{ strengthDisplay }}</span>
           <span class="edge-sidebar__strength-count">({{ sharedBookCount }} works)</span>
         </div>
+      </section>
+
+      <!-- Evidence / Narrative (#1824) -->
+      <section v-if="evidence" class="edge-sidebar__narrative">
+        <p v-if="isAIEdge" class="edge-sidebar__evidence">"{{ evidence }}"</p>
+        <p v-else class="edge-sidebar__evidence edge-sidebar__evidence--plain">{{ evidence }}</p>
       </section>
 
       <!-- Shared Books (scrollable) -->
@@ -508,6 +521,27 @@ onUnmounted(() => {
 .edge-sidebar__strength-count {
   font-size: 0.875rem;
   color: var(--color-text-muted, #8b8579);
+}
+
+.edge-sidebar__narrative {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border, #d4cfc4);
+}
+
+.edge-sidebar__evidence {
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--color-text-secondary, #5c5446);
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.edge-sidebar__evidence--plain {
+  font-style: normal;
 }
 
 .edge-sidebar__content {
