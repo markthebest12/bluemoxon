@@ -5,6 +5,12 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.4.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.4.0) - 2026-02-05
+
+- [`e6981b0`](https://github.com/markthebest12/bluemoxon/commit/e6981b037f158a77d67c696a1e05d0ab915a2aae) feat: add portrait sync admin endpoint (#1849)
+- [`73a8a13`](https://github.com/markthebest12/bluemoxon/commit/73a8a1314c19e241250bea1d8c10d167baba16a7) fix: move wikidata_scoring to app/utils for Lambda deployment (#1853)
+- [`e6981b0`](https://github.com/markthebest12/bluemoxon/commit/e6981b037f158a77d67c696a1e05d0ab915a2aae) feat: add portrait sync admin endpoint (#1849)
+
 ## [v3.3.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.3.3) - 2026-02-05
 
 - [`d34bfe3`](https://github.com/markthebest12/bluemoxon/commit/d34bfe30c06326578cc706296fa39f362b840de2) fix: add --ignore-detached to Uplift CI config check
