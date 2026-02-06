@@ -20,6 +20,10 @@ DEFAULT_MODEL = "haiku"
 MAX_RETRIES = 3
 BASE_DELAY = 2.0
 
+# Cap entity list for AI discovery prompt to prevent context window overflow.
+# Current collection ~264 entities. Cap at 500 to allow growth while bounding cost.
+_MAX_DISCOVERY_ENTITIES = 500
+
 
 def _resolve_model_id(db: Session) -> str:
     """Resolve the Bedrock model ID for entity profile generation.
@@ -216,6 +220,14 @@ def generate_ai_connections(
     """
     if not all_entities:
         return []
+
+    if len(all_entities) > _MAX_DISCOVERY_ENTITIES:
+        logger.warning(
+            "Entity list (%d) exceeds cap (%d), truncating for AI discovery",
+            len(all_entities),
+            _MAX_DISCOVERY_ENTITIES,
+        )
+        all_entities = all_entities[:_MAX_DISCOVERY_ENTITIES]
 
     entity_lines = "\n".join(
         f'- {e["entity_type"]}:{e["entity_id"]} "{e["name"]}"' for e in all_entities

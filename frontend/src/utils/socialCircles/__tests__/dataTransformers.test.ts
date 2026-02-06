@@ -190,7 +190,7 @@ describe("dataTransformers", () => {
       expect(result.data.id).toBe("e:author:42:publisher:7");
       expect(result.data.source).toBe("author:42");
       expect(result.data.target).toBe("publisher:7");
-      expect(result.data.edgeColor).toBe("#c9a227"); // publisher edge color (gold)
+      expect(result.data.edgeColor).toBe("#4ade80"); // publisher edge color (green)
       expect(result.data.edgeStyle).toBe("solid");
       expect(result.data.edgeOpacity).toBe(0.8);
       expect(result.data.edgeWidth).toBeGreaterThan(1);
@@ -207,7 +207,7 @@ describe("dataTransformers", () => {
 
       const result = transformEdge(edge);
 
-      expect(result.data.edgeColor).toBe("#3a6b5c"); // shared_publisher color (hunter-500)
+      expect(result.data.edgeColor).toBe("#4ade80"); // shared_publisher color (green)
       expect(result.data.edgeStyle).toBe("solid");
       expect(result.data.edgeOpacity).toBe(0.6);
     });
@@ -223,7 +223,7 @@ describe("dataTransformers", () => {
 
       const result = transformEdge(edge);
 
-      expect(result.data.edgeColor).toBe("#722f37"); // binder edge color (burgundy)
+      expect(result.data.edgeColor).toBe("#a78bfa"); // binder edge color (purple)
       expect(result.data.edgeStyle).toBe("dashed");
       expect(result.data.edgeOpacity).toBe(0.5);
     });

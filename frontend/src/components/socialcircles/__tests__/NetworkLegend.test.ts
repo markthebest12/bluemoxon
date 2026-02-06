@@ -66,16 +66,20 @@ describe("NetworkLegend", () => {
     it("renders legend items for each connection type", () => {
       const wrapper = mount(NetworkLegend);
 
-      expect(wrapper.text()).toContain("Published by");
-      expect(wrapper.text()).toContain("Shared publisher");
-      expect(wrapper.text()).toContain("Bound by");
+      // Book-based connections
+      expect(wrapper.text()).toContain("Publisher");
+      expect(wrapper.text()).toContain("Binder");
+      // AI-discovered connections
+      expect(wrapper.text()).toContain("Personal");
+      expect(wrapper.text()).toContain("Influence");
+      expect(wrapper.text()).toContain("Scandal");
     });
 
     it("displays line indicators for connection types", () => {
       const wrapper = mount(NetworkLegend);
 
       const lines = wrapper.findAll(".network-legend__line");
-      expect(lines).toHaveLength(3);
+      expect(lines).toHaveLength(5);
     });
 
     it("applies correct line styles to connection indicators", () => {
@@ -83,12 +87,16 @@ describe("NetworkLegend", () => {
 
       const lines = wrapper.findAll(".network-legend__line");
 
-      // Published by - solid
+      // Publisher - solid
       expect(lines[0].classes()).toContain("network-legend__line--solid");
-      // Shared publisher - solid
-      expect(lines[1].classes()).toContain("network-legend__line--solid");
-      // Bound by - dashed
-      expect(lines[2].classes()).toContain("network-legend__line--dashed");
+      // Binder - dashed
+      expect(lines[1].classes()).toContain("network-legend__line--dashed");
+      // Personal - solid
+      expect(lines[2].classes()).toContain("network-legend__line--solid");
+      // Influence - dotted
+      expect(lines[3].classes()).toContain("network-legend__line--dotted");
+      // Scandal - dashed
+      expect(lines[4].classes()).toContain("network-legend__line--dashed");
     });
 
     it("applies correct colors to connection line indicators", () => {
@@ -96,18 +104,16 @@ describe("NetworkLegend", () => {
 
       const lines = wrapper.findAll(".network-legend__line");
 
-      // Published by - gold
-      expect(lines[0].attributes("style")).toContain(
-        "background-color: var(--color-victorian-gold)"
-      );
-      // Shared publisher - hunter green
-      expect(lines[1].attributes("style")).toContain(
-        "background-color: var(--color-victorian-hunter-500)"
-      );
-      // Bound by - burgundy
-      expect(lines[2].attributes("style")).toContain(
-        "background-color: var(--color-victorian-burgundy)"
-      );
+      // Publisher - green (#4ade80)
+      expect(lines[0].attributes("style")).toContain("background-color: rgb(74, 222, 128)");
+      // Binder - purple (#a78bfa)
+      expect(lines[1].attributes("style")).toContain("background-color: rgb(167, 139, 250)");
+      // Personal - blue (#60a5fa)
+      expect(lines[2].attributes("style")).toContain("background-color: rgb(96, 165, 250)");
+      // Influence - blue (#60a5fa)
+      expect(lines[3].attributes("style")).toContain("background-color: rgb(96, 165, 250)");
+      // Scandal - red (#f87171)
+      expect(lines[4].attributes("style")).toContain("background-color: rgb(248, 113, 113)");
     });
   });
 
@@ -120,23 +126,25 @@ describe("NetworkLegend", () => {
 
       // First container has 3 node items
       expect(itemContainers[0].findAll(".network-legend__item")).toHaveLength(3);
-      // Second container has 3 connection items
-      expect(itemContainers[1].findAll(".network-legend__item")).toHaveLength(3);
+      // Second container has 5 connection items (2 book-based + 3 AI-discovered)
+      expect(itemContainers[1].findAll(".network-legend__item")).toHaveLength(5);
     });
 
     it("renders labels for all items", () => {
       const wrapper = mount(NetworkLegend);
 
       const labels = wrapper.findAll(".network-legend__label");
-      expect(labels).toHaveLength(6);
+      expect(labels).toHaveLength(8); // 3 nodes + 5 connections
 
       const labelTexts = labels.map((label) => label.text());
+      // Node types
       expect(labelTexts).toContain("Author");
       expect(labelTexts).toContain("Publisher");
       expect(labelTexts).toContain("Binder");
-      expect(labelTexts).toContain("Published by");
-      expect(labelTexts).toContain("Shared publisher");
-      expect(labelTexts).toContain("Bound by");
+      // Connection types (book-based + AI-discovered)
+      expect(labelTexts).toContain("Personal");
+      expect(labelTexts).toContain("Influence");
+      expect(labelTexts).toContain("Scandal");
     });
   });
 

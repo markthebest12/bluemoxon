@@ -17,6 +17,7 @@ import type { ConnectionType } from "@/types/socialCircles";
 
 // Connection type display info
 const CONNECTION_LABELS: Record<ConnectionType, { label: string; description: string }> = {
+  // Book-based connections
   publisher: {
     label: "Publisher Relationship",
     description: "Author was published by this publisher",
@@ -29,6 +30,7 @@ const CONNECTION_LABELS: Record<ConnectionType, { label: string; description: st
     label: "Same Bindery",
     description: "Books bound at the same bindery",
   },
+  // AI-discovered connections
   family: {
     label: "Family",
     description: "Family relationship (marriage, siblings, etc.)",

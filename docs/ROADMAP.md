@@ -9,6 +9,8 @@ This document tracks planned features, improvements, and technical debt for the 
 ## Table of Contents
 
 1. [Application Features](#application-features)
+   - [Major Feature Initiatives](#major-feature-initiatives) — Social Circles, AI Connections, Literary London
+   - [Other Feature Ideas](#other-feature-ideas)
 2. [Infrastructure & Resiliency](#infrastructure--resiliency)
 3. [Frontend Performance](#frontend-performance)
 4. [CI/CD Improvements](#cicd-improvements)
@@ -47,7 +49,95 @@ This document tracks planned features, improvements, and technical debt for the 
 | ~~**Advanced Filtering**~~ | ~~Filter panel: bindery, publisher, tier, binding type, condition, status, year/value range~~ | ~~Medium~~ | ~~Medium~~ | ✅ DONE |
 | ~~**Filter State Persistence**~~ | ~~Filter state preserved on back navigation and "Back to Collection" link~~ | ~~Low~~ | ~~Low~~ | ✅ DONE |
 
-### New Feature Ideas
+### Major Feature Initiatives
+
+#### Victorian Social Circles — Interactive Network Visualization
+
+The flagship feature of BMX 3.0. An interactive Cytoscape.js network graph showing who knew whom, who published whom, who influenced whom across the collection.
+
+**Vision:** "Your collection isn't just books — it's a map of Victorian intellectual London. Everyone knew everyone. Same publishers, same binderies, same social circles."
+
+**Design:** [`docs/plans/2026-01-26-victorian-social-circles-design.md`](plans/2026-01-26-victorian-social-circles-design.md)
+
+| Phase | Description | Issues | Status |
+|-------|-------------|--------|--------|
+| **Phase 1: MVP** | Foundation, network graph, tooltips, filters, timeline, detail panel, states, integration | #1316 (epic), #1317-#1347 | ✅ Complete |
+| **Phase 2: Enhanced** | Search, find similar, statistics, degrees of separation, layout modes, polish | #1324-#1344 | In Progress |
+| **Phase 3: Visual** | Filter badges, mini-map, timeline markers | #1345-#1347 | Planned |
+
+#### AI-Discovered Personal Connections
+
+The social circles system only discovers connections through shared book data (publisher, binder). This misses the most compelling relationships — marriages, friendships, mentorships, and scandals.
+
+**The Browning Problem:** Elizabeth Barrett Browning and Robert Browning have 6 books in the collection but share zero publishers. The most famous literary couple in Victorian England is invisible.
+
+**Solution:** AI-discovered connections at profile generation time. 5 connection types: family, friendship, influence, collaboration, scandal. Zero new infrastructure — uses existing SQS pipeline and entity_profiles table. Cost: ~$0.40 for full 264-entity batch.
+
+**Edge styling vision:**
+- **Green** = publisher relationships
+- **Blue** = personal connections (AI-discovered)
+- **Purple** = binder relationships
+- **Rose** = scandal (the soap opera layer)
+
+**Design:** [`docs/plans/2026-02-04-ai-discovered-connections-design.md`](plans/2026-02-04-ai-discovered-connections-design.md)
+
+| Track | Description | Issue | Status |
+|-------|-------------|-------|--------|
+| Foundation | Migration + model + schema + frontend types | #1804 | In Progress |
+| AI Discovery | `generate_ai_connections()` + validation | #1805 | In Progress |
+| Pipeline | Wire into `generate_and_cache_profile()` | #1806 | Planned |
+| Graph Builder | Merge AI edges into social circles graph | #1807 | Planned |
+| Edge Styling | Type-specific colors + click-to-highlight | #1808 | Planned |
+| Badges | Sub_type badges + confidence styling | #1809 | Planned |
+| E2E Tests | Profile + social circles AI connection tests | #1810 | Planned |
+
+**Epic:** #1803
+
+#### "Literary London 1850" — The Walking Tour
+
+An interactive period map of London with actual publisher addresses plotted, showing where the books in the collection were born.
+
+**Concept:** In 1850, you could walk from Chapman & Hall to Smith, Elder in 15 minutes, possibly running into Dickens or Thackeray on the street. This feature makes the geography of Victorian publishing tangible.
+
+**Known addresses:**
+
+| Entity | Address | Notes |
+|--------|---------|-------|
+| John Murray | 50 Albemarle Street | Still there! |
+| Smith, Elder & Co. | 65 Cornhill | Corner of Bishopsgate |
+| Chapman & Hall | 186 Strand | |
+| Edward Moxon | 44 Dover Street | |
+| Macmillan | Cambridge → 16 Bedford Street, Covent Garden | Moved to London 1858 |
+| Rivière (binder) | Bath Street | |
+| Zaehnsdorf (binder) | Goswell Road | |
+
+**Map layers:**
+
+1. **Publisher locations** — pins with hover showing your books from each publisher
+2. **Bindery locations** — Rivière, Zaehnsdorf, and others
+3. **Printing houses** — where the physical books were made
+4. **Bookseller shops** — Mudie's Lending Library, Hatchard's, etc.
+
+**Interactive features:**
+
+- **Street view** — Click an address and see what it looks like today (many buildings still stand)
+- **Timeline slider** — See how the publishing district evolved 1800-1900
+- **"Your collection's center of gravity"** — Where most of your books came from geographically
+- **Walking routes** — Distances between publishers (they were literally neighbors)
+
+**Tech:** Mapbox or Leaflet with historical map overlay (1850s London)
+
+| Aspect | Details |
+|--------|---------|
+| Priority | Low (vision feature) |
+| Effort | High |
+| Dependencies | Social circles data for entity→publisher mapping |
+| Data work | Research and verify historical addresses |
+| Status | Vision — not yet planned |
+
+---
+
+### Other Feature Ideas
 
 | Feature | Description | Priority | Effort | Status |
 |---------|-------------|----------|--------|--------|
@@ -59,10 +149,14 @@ This document tracks planned features, improvements, and technical debt for the 
 | **Carrier API Support** | USPS, FedEx, DHL tracking integration (#516) | Low | High | Planned |
 | **Tiered Recommendations** | Offer prices with reasoning in valuations | Medium | Medium | Planned |
 
-### Recently Completed (January 2026)
+### Recently Completed / In Progress (January–February 2026)
 
 | Feature | Description | Status |
 |---------|-------------|--------|
+| **Victorian Social Circles Phase 1** | Interactive Cytoscape.js network graph — nodes, edges, filters, timeline, tooltips, detail panel | ✅ #1316 |
+| **AI-Discovered Connections** | Personal connections (family, friendship, influence, collaboration, scandal) via AI discovery | In Progress #1803 |
+| **Entity Profiles & AI Bios** | AI-generated entity profiles with bios, stories, and connection narratives | ✅ Complete |
+| **Model Configuration UI** | Per-flow AI model selectors on admin config page (#1571, #1570, #1714) | ✅ #1774, #1775 |
 | **Toast Notification System** | User-friendly error/success notifications with hover-to-pause, duplicate suppression | ✅ #855 |
 | **Shared Constants Extraction** | Centralized book status and dropdown constants in `frontend/src/constants/` | ✅ #854 |
 | **Strict ESLint Rules** | Enabled `@typescript-eslint/no-explicit-any` and `@typescript-eslint/explicit-function-return-type` | ✅ #870 |
@@ -395,6 +489,8 @@ on:
 
 | Item | Category | Effort | Impact | Status |
 |------|----------|--------|--------|--------|
+| AI-Discovered Connections (#1803) | Features | High | High (reveals hidden relationships) | In Progress |
+| Social Circles Phase 2 | Features | High | Medium (search, stats, polish) | In Progress |
 | ~~Thumbnail Generation~~ | Features | ~~Medium~~ | ~~Medium (faster list views)~~ | ✅ DONE |
 | ~~Book Status Management UI~~ | Features | ~~Low~~ | ~~Medium (workflow improvement)~~ | ✅ DONE |
 | ~~Advanced Filtering~~ | Features | ~~Medium~~ | ~~Medium (usability)~~ | ✅ DONE |
@@ -407,6 +503,7 @@ on:
 
 | Item | Category | Effort | Impact | Status |
 |------|----------|--------|--------|--------|
+| Literary London 1850 | Features | High | High (unique differentiator) | Vision |
 | ~~Role-Based Authorization~~ | ~~Features~~ | ~~Medium~~ | ~~Low (single admin)~~ | ✅ DONE |
 | Audit Logging | Features | Medium | Low (internal use) | |
 | ~~Playwright E2E Tests~~ | Testing | ~~High~~ | ~~Low (manual testing OK)~~ | ✅ Configured |
@@ -462,7 +559,10 @@ To stay within budget:
 | [Bedrock](BEDROCK.md) | AI analysis integration (Napoleon Framework) |
 | [Operations](OPERATIONS.md) | Runbook for common operations |
 | [Eval Runbook Scaling](EVAL_RUNBOOK_SCALING.md) | Multi-tenant scaling roadmap |
+| [Victorian Social Circles Design](plans/2026-01-26-victorian-social-circles-design.md) | Social circles network visualization |
+| [AI-Discovered Connections Design](plans/2026-02-04-ai-discovered-connections-design.md) | Personal connections via AI discovery |
+| [AI Connections Implementation Plan](plans/2026-02-04-ai-connections-implementation-plan.md) | Implementation tasks for #1803 |
 
 ---
 
-**Last Updated:** 2026-01-06
+**Last Updated:** 2026-02-05
