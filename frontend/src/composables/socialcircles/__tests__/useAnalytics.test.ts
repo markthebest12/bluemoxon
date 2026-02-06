@@ -98,6 +98,67 @@ describe("useAnalytics", () => {
     expect(instance1).not.toBe(instance2);
   });
 
+  // =========================================================================
+  // Entity Profile tracking events
+  // =========================================================================
+
+  it("trackProfileViewed creates correct event", () => {
+    const { trackProfileViewed } = useAnalytics();
+    trackProfileViewed("author", 42, "TIER_1");
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "profile_viewed", {
+      entityType: "author",
+      entityId: 42,
+      tier: "TIER_1",
+    });
+  });
+
+  it("trackProfileViewed handles null tier", () => {
+    const { trackProfileViewed } = useAnalytics();
+    trackProfileViewed("publisher", 7, null);
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "profile_viewed", {
+      entityType: "publisher",
+      entityId: 7,
+      tier: null,
+    });
+  });
+
+  it("trackConnectionClicked creates correct event", () => {
+    const { trackConnectionClicked } = useAnalytics();
+    trackConnectionClicked("co_author", 99, "Lord Byron");
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "connection_clicked", {
+      connectionType: "co_author",
+      entityId: 99,
+      entityName: "Lord Byron",
+    });
+  });
+
+  it("trackGossipExpanded creates correct event", () => {
+    const { trackGossipExpanded } = useAnalytics();
+    trackGossipExpanded(12, "Mary Shelley");
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "gossip_expanded", {
+      entityId: 12,
+      entityName: "Mary Shelley",
+    });
+  });
+
+  it("trackBookClicked creates correct event", () => {
+    const { trackBookClicked } = useAnalytics();
+    trackBookClicked(55, "Frankenstein");
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "book_clicked", {
+      bookId: 55,
+      bookTitle: "Frankenstein",
+    });
+  });
+
+  it("trackProfileRegenerated creates correct event", () => {
+    const { trackProfileRegenerated } = useAnalytics();
+    trackProfileRegenerated("author", 42);
+    expect(console.log).toHaveBeenCalledWith("[Analytics]", "profile_regenerated", {
+      entityType: "author",
+      entityId: 42,
+    });
+  });
+
   it("logs errors in dev mode and does not throw", () => {
     // Mock console.log to throw an error
     vi.spyOn(console, "log").mockImplementation(() => {

@@ -2,6 +2,8 @@
 import { onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEntityProfile } from "@/composables/entityprofile";
+import { useAnalytics } from "@/composables/socialcircles/useAnalytics";
+import type { ProfileBook } from "@/types/entityProfile";
 import ProfileHero from "@/components/entityprofile/ProfileHero.vue";
 import KeyConnections from "@/components/entityprofile/KeyConnections.vue";
 import AllConnections from "@/components/entityprofile/AllConnections.vue";
@@ -35,6 +37,7 @@ const {
   regenerateProfile,
 } = useEntityProfile();
 
+const analytics = useAnalytics();
 const isMobile = useMediaQuery("(max-width: 768px)");
 const isMounted = ref(false);
 const isRegenerating = ref(false);
@@ -44,14 +47,29 @@ async function handleRegenerate() {
   isRegenerating.value = true;
   try {
     await regenerateProfile(entity.value.type, entity.value.id);
+    analytics.trackProfileRegenerated(entity.value.type, entity.value.id);
   } finally {
     isRegenerating.value = false;
   }
 }
 
+function handleBookClicked(book: ProfileBook) {
+  analytics.trackBookClicked(book.id, book.title);
+}
+
 onMounted(() => {
   isMounted.value = true;
   void fetchProfile(props.type, props.id);
+});
+
+// Track profile view when entity data loads (initial + navigation)
+// Dedup by entity ID to avoid spurious fires during regeneration polling
+let lastTrackedEntityId: number | null = null;
+watch(entity, (newEntity) => {
+  if (newEntity && newEntity.id !== lastTrackedEntityId) {
+    lastTrackedEntityId = newEntity.id;
+    analytics.trackProfileViewed(newEntity.type, newEntity.id, newEntity.tier ?? null);
+  }
 });
 
 // Refetch when route params change (navigating between profiles)
@@ -110,7 +128,7 @@ watch(
         </div>
 
         <div class="entity-profile-view__right">
-          <EntityBooks :books="books" />
+          <EntityBooks :books="books" @book-clicked="handleBookClicked" />
           <PublicationTimeline :books="books" />
           <CollectionStats v-if="stats" :stats="stats" />
         </div>

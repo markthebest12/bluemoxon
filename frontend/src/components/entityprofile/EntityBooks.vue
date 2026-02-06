@@ -8,6 +8,10 @@ const props = defineProps<{
   books: ProfileBook[];
 }>();
 
+const emit = defineEmits<{
+  "book-clicked": [book: ProfileBook];
+}>();
+
 const showAll = ref(false);
 const INITIAL_COUNT = 6;
 
@@ -28,6 +32,7 @@ const visibleBooks = computed(() => {
         :key="book.id"
         :to="bookDetailRoute(book.id)"
         class="entity-books__card"
+        @click="emit('book-clicked', book)"
       >
         <img
           v-if="book.primary_image_url"
