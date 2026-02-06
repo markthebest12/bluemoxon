@@ -309,11 +309,7 @@ class TestStoreAIConnections:
         stored2 = _store_ai_connections(db, connections)
         assert stored2 >= 1
 
-        row = (
-            db.query(AIConnection)
-            .filter(AIConnection.source_id == 0)
-            .first()
-        )
+        row = db.query(AIConnection).filter(AIConnection.source_id == 0).first()
         assert row.confidence == pytest.approx(0.95)
 
 
