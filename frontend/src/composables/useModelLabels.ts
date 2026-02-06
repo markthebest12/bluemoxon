@@ -52,9 +52,7 @@ function createFormatModelId(labels: typeof cachedLabels) {
     }
 
     // Parse versioned Bedrock IDs: us.anthropic.claude-{family}-{version}-{date}-v{n}:{m}
-    const bedrockMatch = modelId.match(
-      /claude-(\w+)-(\d+)-(\d+)-\d{8}(?:-v\d+:\d+)?$/
-    );
+    const bedrockMatch = modelId.match(/claude-(\w+)-(\d+)-(\d+)-\d{8}(?:-v\d+:\d+)?$/);
     if (bedrockMatch) {
       const family = bedrockMatch[1].charAt(0).toUpperCase() + bedrockMatch[1].slice(1);
       const version = `${bedrockMatch[2]}.${bedrockMatch[3]}`;
