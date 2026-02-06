@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getConditionColor, formatConditionGrade, CONDITION_COLORS } from "../conditionColors";
+import {
+  getConditionColor,
+  formatConditionGrade,
+  getLuminance,
+  CONDITION_COLORS,
+} from "../conditionColors";
 
 describe("getConditionColor", () => {
   it("returns correct color for FINE", () => {
@@ -34,6 +39,38 @@ describe("getConditionColor", () => {
     expect(getConditionColor("fine")).toBe("#2d6a4f");
     expect(getConditionColor("Fine")).toBe("#2d6a4f");
     expect(getConditionColor("near_fine")).toBe("#40916c");
+  });
+});
+
+describe("getLuminance", () => {
+  it("returns 0 for black", () => {
+    expect(getLuminance("#000000")).toBeCloseTo(0, 3);
+  });
+
+  it("returns 1 for white", () => {
+    expect(getLuminance("#ffffff")).toBeCloseTo(1, 3);
+  });
+
+  it("returns low luminance for dark green (FINE)", () => {
+    expect(getLuminance("#2d6a4f")).toBeLessThan(0.18);
+  });
+
+  it("returns higher luminance for golden (GOOD)", () => {
+    expect(getLuminance("#e09f3e")).toBeGreaterThan(0.18);
+  });
+
+  it("matches expected text color decisions for all grades", () => {
+    const darkBg = ["FINE", "POOR"];
+    const lightBg = ["NEAR_FINE", "VERY_GOOD", "GOOD", "FAIR", "UNGRADED"];
+
+    for (const grade of darkBg) {
+      const lum = getLuminance(getConditionColor(grade));
+      expect(lum, `${grade} should have dark background`).toBeLessThan(0.18);
+    }
+    for (const grade of lightBg) {
+      const lum = getLuminance(getConditionColor(grade));
+      expect(lum, `${grade} should have light background`).toBeGreaterThanOrEqual(0.18);
+    }
   });
 });
 
