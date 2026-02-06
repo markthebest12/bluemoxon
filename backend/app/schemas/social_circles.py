@@ -63,6 +63,9 @@ class SocialCircleNode(BaseModel):
     founded_year: int | None = Field(None, description="Year founded (publishers/binders)")
     closed_year: int | None = Field(None, description="Year closed (publishers/binders)")
 
+    # Entity image
+    image_url: str | None = Field(None, description="Entity image URL")
+
     # Collection stats
     book_count: int = Field(..., description="Number of books in collection")
     book_ids: list[int] = Field(default_factory=list, description="Book IDs in collection")

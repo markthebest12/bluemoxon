@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { getConditionColor, formatConditionGrade } from "@/utils/conditionColors";
+import { getConditionColor, formatConditionGrade, getLuminance } from "@/utils/conditionColors";
 
 const props = defineProps<{
   condition: string;
@@ -9,12 +9,8 @@ const props = defineProps<{
 const bgColor = computed(() => getConditionColor(props.condition));
 const label = computed(() => formatConditionGrade(props.condition));
 
-/** Grades with dark backgrounds need white text; lighter ones get dark text. */
-const LIGHT_TEXT_GRADES = new Set(["FINE", "NEAR_FINE", "VERY_GOOD", "POOR", "UNGRADED"]);
-
-const textColor = computed(() =>
-  LIGHT_TEXT_GRADES.has(props.condition.toUpperCase()) ? "#ffffff" : "#1a1a1a"
-);
+/** Use white text on dark backgrounds (luminance < 0.18 threshold per WCAG). */
+const textColor = computed(() => (getLuminance(bgColor.value) < 0.18 ? "#ffffff" : "#1a1a1a"));
 </script>
 
 <template>

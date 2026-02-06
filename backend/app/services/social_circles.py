@@ -155,6 +155,7 @@ def build_social_circles_graph(
             death_year=author.death_year,
             era=era,
             tier=author.tier,
+            image_url=getattr(author, "image_url", None),
             book_count=len(book_ids),
             book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
@@ -174,6 +175,7 @@ def build_social_circles_graph(
             name=publisher.name,
             type=NodeType.publisher,
             tier=publisher.tier,
+            image_url=getattr(publisher, "image_url", None),
             book_count=len(book_ids_set),
             book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
@@ -194,6 +196,7 @@ def build_social_circles_graph(
                 name=binder.name,
                 type=NodeType.binder,
                 tier=binder.tier,
+                image_url=getattr(binder, "image_url", None),
                 book_count=len(book_ids_set),
                 book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
             )

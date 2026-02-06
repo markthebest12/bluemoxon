@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -31,7 +31,7 @@ from app.schemas.entity_profile import (
     ProfileStats,
     RelationshipNarrative,
 )
-from app.schemas.social_circles import SocialCirclesResponse
+from app.schemas.social_circles import SocialCircleNode, SocialCirclesResponse
 from app.services.ai_profile_generator import (
     GeneratorConfig,
     generate_ai_connections,
@@ -83,8 +83,12 @@ def _store_ai_connections(db: Session, connections: list[dict]) -> int:
     Uses canonical ordering (lower node ID string first) to prevent
     duplicate A→B / B→A storage.  On conflict, keeps the higher-confidence
     version.  Returns the number of rows written/updated.
+
+    On PostgreSQL, uses a single ``INSERT … ON CONFLICT DO UPDATE`` for the
+    entire batch.  On other dialects (SQLite in tests) falls back to
+    per-row upsert.
     """
-    count = 0
+    rows: list[dict] = []
     for conn in connections:
         src_type = conn.get("source_type")
         src_id = conn.get("source_id")
@@ -104,41 +108,111 @@ def _store_ai_connections(db: Session, connections: list[dict]) -> int:
 
         confidence = max(0.0, min(float(conn.get("confidence", 0.5)), 1.0))
 
+        rows.append(
+            {
+                "source_type": src_type,
+                "source_id": src_id,
+                "target_type": tgt_type,
+                "target_id": tgt_id,
+                "relationship": relationship,
+                "sub_type": conn.get("sub_type"),
+                "confidence": confidence,
+                "evidence": conn.get("evidence"),
+            }
+        )
+
+    if not rows:
+        return 0
+
+    # Deduplicate by canonical key, keeping highest-confidence entry.
+    # Without this, PG ON CONFLICT fails when the same key appears twice
+    # in a single INSERT statement.
+    seen: dict[tuple, dict] = {}
+    for row in rows:
+        key = (
+            row["source_type"],
+            row["source_id"],
+            row["target_type"],
+            row["target_id"],
+            row["relationship"],
+        )
+        if key not in seen or row["confidence"] > seen[key]["confidence"]:
+            seen[key] = row
+    rows = list(seen.values())
+
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        count = _batch_upsert_pg(db, rows)
+    else:
+        count = _upsert_fallback(db, rows)
+
+    if count:
+        db.flush()
+    return count
+
+
+def _batch_upsert_pg(db: Session, rows: list[dict]) -> int:
+    """PostgreSQL fast path: single INSERT … ON CONFLICT DO UPDATE.
+
+    Only updates evidence/sub_type when the incoming confidence is higher,
+    matching the semantics of ``_upsert_fallback``.
+    """
+    from sqlalchemy.dialects.postgresql import insert
+
+    stmt = insert(AIConnection).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_ai_connection",
+        set_={
+            "confidence": func.greatest(
+                stmt.excluded.confidence,
+                func.coalesce(AIConnection.confidence, 0.0),
+            ),
+            "evidence": case(
+                (
+                    stmt.excluded.confidence > func.coalesce(AIConnection.confidence, 0.0),
+                    stmt.excluded.evidence,
+                ),
+                else_=AIConnection.evidence,
+            ),
+            "sub_type": case(
+                (
+                    stmt.excluded.confidence > func.coalesce(AIConnection.confidence, 0.0),
+                    stmt.excluded.sub_type,
+                ),
+                else_=AIConnection.sub_type,
+            ),
+        },
+    )
+    result = db.execute(stmt)
+    return result.rowcount  # type: ignore[return-value]
+
+
+def _upsert_fallback(db: Session, rows: list[dict]) -> int:
+    """Per-row upsert for non-PostgreSQL dialects (SQLite in tests)."""
+    count = 0
+    for row in rows:
         existing = (
             db.query(AIConnection)
             .filter(
-                AIConnection.source_type == src_type,
-                AIConnection.source_id == src_id,
-                AIConnection.target_type == tgt_type,
-                AIConnection.target_id == tgt_id,
-                AIConnection.relationship == relationship,
+                AIConnection.source_type == row["source_type"],
+                AIConnection.source_id == row["source_id"],
+                AIConnection.target_type == row["target_type"],
+                AIConnection.target_id == row["target_id"],
+                AIConnection.relationship == row["relationship"],
             )
             .first()
         )
 
         if existing:
-            if confidence > existing.confidence:
-                existing.confidence = confidence
-                existing.evidence = conn.get("evidence")
-                existing.sub_type = conn.get("sub_type")
+            if row["confidence"] > existing.confidence:
+                existing.confidence = row["confidence"]
+                existing.evidence = row["evidence"]
+                existing.sub_type = row["sub_type"]
                 count += 1
         else:
-            db.add(
-                AIConnection(
-                    source_type=src_type,
-                    source_id=src_id,
-                    target_type=tgt_type,
-                    target_id=tgt_id,
-                    relationship=relationship,
-                    sub_type=conn.get("sub_type"),
-                    confidence=confidence,
-                    evidence=conn.get("evidence"),
-                )
-            )
+            db.add(AIConnection(**row))
             count += 1
 
-    if count:
-        db.flush()
     return count
 
 
@@ -200,6 +274,29 @@ def _build_profile_entity(entity: Author | Publisher | Binder, entity_type: str)
         era=getattr(entity, "era", None),
         tier=getattr(entity, "tier", None),
         image_url=getattr(entity, "image_url", None),
+    )
+
+
+def _node_to_profile_entity(node: SocialCircleNode) -> ProfileEntity:
+    """Convert a graph node to ProfileEntity schema.
+
+    Unlike _build_profile_entity (which takes a DB model), this takes
+    a SocialCircleNode from the cached graph.  Both produce identical
+    ProfileEntity objects including image_url (#1840).
+    """
+    type_str = node.type.value if hasattr(node.type, "value") else str(node.type)
+    return ProfileEntity(
+        id=node.entity_id,
+        type=EntityType(type_str),
+        name=node.name,
+        birth_year=node.birth_year,
+        death_year=node.death_year,
+        founded_year=node.founded_year,
+        closed_year=node.closed_year,
+        era=_era_str(node),
+        tier=node.tier,
+        # isinstance guard: test mocks pass MagicMock for image_url
+        image_url=node.image_url if isinstance(node.image_url, str) else None,
     )
 
 
@@ -429,7 +526,7 @@ def _build_connections(
         rel_stories = profile.relationship_stories
 
     connections: list[ProfileConnection] = []
-    for type_str, _eid, _name, other_node, edge in connected:
+    for _type_str, _eid, _name, other_node, edge in connected:
         other_id = edge.target if edge.source == node_id else edge.source
         narrative_key = f"{node_id}:{other_id}"
         narrative_key_rev = f"{other_id}:{node_id}"
@@ -481,17 +578,7 @@ def _build_connections(
 
         connections.append(
             ProfileConnection(
-                entity=ProfileEntity(
-                    id=other_node.entity_id,
-                    type=EntityType(type_str),
-                    name=other_node.name,
-                    birth_year=other_node.birth_year,
-                    death_year=other_node.death_year,
-                    founded_year=other_node.founded_year,
-                    closed_year=other_node.closed_year,
-                    era=era_value,
-                    tier=other_node.tier,
-                ),
+                entity=_node_to_profile_entity(other_node),
                 connection_type=conn_type_str,
                 strength=edge.strength,
                 shared_book_count=len(edge.shared_book_ids) if edge.shared_book_ids else 0,
@@ -565,22 +652,7 @@ def _build_connections(
             )
 
             if target_node:
-                type_str = (
-                    target_node.type.value
-                    if hasattr(target_node.type, "value")
-                    else str(target_node.type)
-                )
-                entity_data = ProfileEntity(
-                    id=target_node.entity_id,
-                    type=EntityType(type_str),
-                    name=target_node.name,
-                    birth_year=target_node.birth_year,
-                    death_year=target_node.death_year,
-                    founded_year=target_node.founded_year,
-                    closed_year=target_node.closed_year,
-                    era=_era_str(target_node),
-                    tier=target_node.tier,
-                )
+                entity_data = _node_to_profile_entity(target_node)
             else:
                 # Graph miss — resolve from DB so the connection still appears
                 db_entity = _get_entity(db, other_type, other_id)

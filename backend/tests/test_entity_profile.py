@@ -2381,3 +2381,47 @@ class TestScandalConnectionsAppear:
         assert "scandal" in conn_types, "Scandal connection should appear"
         assert "friendship" in conn_types, "Friendship connection should appear"
         assert len(connections) == 2
+
+
+class TestNodeToProfileEntity:
+    """Tests for _node_to_profile_entity helper (#1840)."""
+
+    def test_node_to_profile_entity_includes_image_url(self):
+        """_node_to_profile_entity should propagate image_url from graph node (#1840)."""
+        from app.schemas.social_circles import NodeType, SocialCircleNode
+        from app.services.entity_profile import _node_to_profile_entity
+
+        node = SocialCircleNode(
+            id="author:42",
+            entity_id=42,
+            name="Charles Dickens",
+            type=NodeType.author,
+            birth_year=1812,
+            death_year=1870,
+            tier="A",
+            image_url="https://cdn.example.com/images/dickens.jpg",
+            book_count=5,
+            book_ids=[1, 2, 3],
+        )
+        result = _node_to_profile_entity(node)
+        assert result.id == 42
+        assert result.name == "Charles Dickens"
+        assert result.image_url == "https://cdn.example.com/images/dickens.jpg"
+
+    def test_node_to_profile_entity_none_image_url(self):
+        """_node_to_profile_entity should handle None image_url gracefully."""
+        from app.schemas.social_circles import NodeType, SocialCircleNode
+        from app.services.entity_profile import _node_to_profile_entity
+
+        node = SocialCircleNode(
+            id="publisher:10",
+            entity_id=10,
+            name="Smith Elder",
+            type=NodeType.publisher,
+            tier="B",
+            book_count=3,
+            book_ids=[1, 2],
+        )
+        result = _node_to_profile_entity(node)
+        assert result.id == 10
+        assert result.image_url is None

@@ -282,6 +282,68 @@ class TestStoreAIConnections:
         count = self._store(db, [])
         assert count == 0
 
+    def test_batch_upsert_correctness(self, db):
+        """Batch store + upsert with higher confidence updates the row."""
+        from app.services.entity_profile import _store_ai_connections
+
+        connections = [
+            {
+                "source_type": "author",
+                "source_id": i,
+                "target_type": "author",
+                "target_id": i + 100,
+                "relationship": "friendship",
+                "confidence": 0.8,
+                "evidence": f"Evidence {i}",
+            }
+            for i in range(5)
+        ]
+        stored = _store_ai_connections(db, connections)
+        assert stored == 5
+
+        rows = db.query(AIConnection).all()
+        assert len(rows) == 5
+
+        # Verify upsert: re-store with higher confidence
+        connections[0]["confidence"] = 0.95
+        stored2 = _store_ai_connections(db, connections)
+        assert stored2 >= 1
+
+        row = db.query(AIConnection).filter(AIConnection.source_id == 0).first()
+        assert row.confidence == pytest.approx(0.95)
+
+    def test_duplicate_keys_in_batch_deduped(self, db):
+        """Duplicate canonical keys in one batch keep the highest confidence."""
+        from app.services.entity_profile import _store_ai_connections
+
+        connections = [
+            {
+                "source_type": "author",
+                "source_id": 1,
+                "target_type": "author",
+                "target_id": 2,
+                "relationship": "friendship",
+                "confidence": 0.6,
+                "evidence": "Low confidence",
+            },
+            {
+                "source_type": "author",
+                "source_id": 1,
+                "target_type": "author",
+                "target_id": 2,
+                "relationship": "friendship",
+                "confidence": 0.9,
+                "evidence": "High confidence",
+            },
+        ]
+        stored = _store_ai_connections(db, connections)
+        assert stored == 1
+
+        rows = db.query(AIConnection).all()
+        assert len(rows) == 1
+        assert rows[0].confidence == pytest.approx(0.9)
+        assert rows[0].evidence == "High confidence"
+
 
 # ---------------------------------------------------------------------------
 # Migration SQL verification
