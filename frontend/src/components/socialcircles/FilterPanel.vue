@@ -16,18 +16,19 @@ import { ref, watch } from "vue";
 import FilterBadges from "@/components/socialcircles/FilterBadges.vue";
 import type { ApiNode, ConnectionType, Era } from "@/types/socialCircles";
 
-// Connection type display info
+// Connection type display info (grouping is in connectionGroups below)
 const CONNECTION_INFO: Record<ConnectionType, { label: string; color: string }> = {
   // Book-based connections
   publisher: { label: "Published By", color: "#4ade80" },
   shared_publisher: { label: "Shared Publisher", color: "#4ade80" },
   binder: { label: "Same Bindery", color: "#a78bfa" },
-  // AI-discovered connections
+  // Personal connections
   family: { label: "Family", color: "#60a5fa" },
-  friendship: { label: "Friendship", color: "#60a5fa" },
-  influence: { label: "Influence", color: "#60a5fa" },
-  collaboration: { label: "Collaboration", color: "#60a5fa" },
+  friendship: { label: "Friendship", color: "#38bdf8" },
   scandal: { label: "Scandal", color: "#f87171" },
+  // Professional connections
+  collaboration: { label: "Collaboration", color: "#fb923c" },
+  influence: { label: "Influence", color: "#fbbf24" },
 };
 
 // Era display info
@@ -127,16 +128,20 @@ function handleReset() {
   emit("reset");
 }
 
-// All connection types for iteration (book-based + AI-discovered)
-const allConnectionTypes: ConnectionType[] = [
-  "publisher",
-  "shared_publisher",
-  "binder",
-  "family",
-  "friendship",
-  "influence",
-  "collaboration",
-  "scandal",
+// Connection types grouped by category
+const connectionGroups = [
+  {
+    title: "Book-Based",
+    types: ["publisher", "shared_publisher", "binder"] as ConnectionType[],
+  },
+  {
+    title: "Personal",
+    types: ["family", "friendship", "scandal"] as ConnectionType[],
+  },
+  {
+    title: "Professional",
+    types: ["collaboration", "influence"] as ConnectionType[],
+  },
 ];
 
 // Eras to show (excluding unknown typically)
@@ -167,12 +172,12 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
       <!-- Node Types -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Node Types</h3>
-        <label
-          class="filter-panel__checkbox"
-          data-testid="filter-authors"
-          @click.prevent="toggleNodeType('showAuthors')"
-        >
-          <input type="checkbox" :checked="props.filterState.showAuthors" />
+        <label class="filter-panel__checkbox" data-testid="filter-authors">
+          <input
+            type="checkbox"
+            :checked="props.filterState.showAuthors"
+            @change="toggleNodeType('showAuthors')"
+          />
           <span class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--author" />
           <span>Authors</span>
           <FilterBadges
@@ -182,12 +187,12 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
             node-type="author"
           />
         </label>
-        <label
-          class="filter-panel__checkbox"
-          data-testid="filter-publishers"
-          @click.prevent="toggleNodeType('showPublishers')"
-        >
-          <input type="checkbox" :checked="props.filterState.showPublishers" />
+        <label class="filter-panel__checkbox" data-testid="filter-publishers">
+          <input
+            type="checkbox"
+            :checked="props.filterState.showPublishers"
+            @change="toggleNodeType('showPublishers')"
+          />
           <span
             class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--publisher"
           />
@@ -199,12 +204,12 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
             node-type="publisher"
           />
         </label>
-        <label
-          class="filter-panel__checkbox"
-          data-testid="filter-binders"
-          @click.prevent="toggleNodeType('showBinders')"
-        >
-          <input type="checkbox" :checked="props.filterState.showBinders" />
+        <label class="filter-panel__checkbox" data-testid="filter-binders">
+          <input
+            type="checkbox"
+            :checked="props.filterState.showBinders"
+            @change="toggleNodeType('showBinders')"
+          />
           <span class="filter-panel__checkbox-indicator filter-panel__checkbox-indicator--binder" />
           <span>Binders</span>
           <FilterBadges
@@ -219,20 +224,30 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
       <!-- Connection Types -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Connections</h3>
-        <label
-          v-for="ct in allConnectionTypes"
-          :key="ct"
-          class="filter-panel__checkbox"
-          :data-testid="`filter-${ct}`"
-          @click.prevent="toggleConnectionType(ct)"
+        <div
+          v-for="group in connectionGroups"
+          :key="group.title"
+          class="filter-panel__connection-group"
         >
-          <input type="checkbox" :checked="isConnectionTypeActive(ct)" />
-          <span
-            class="filter-panel__connection-color"
-            :style="{ backgroundColor: CONNECTION_INFO[ct].color }"
-          />
-          <span>{{ CONNECTION_INFO[ct].label }}</span>
-        </label>
+          <span class="filter-panel__group-label">{{ group.title }}</span>
+          <label
+            v-for="ct in group.types"
+            :key="ct"
+            class="filter-panel__checkbox"
+            :data-testid="`filter-${ct}`"
+          >
+            <input
+              type="checkbox"
+              :checked="isConnectionTypeActive(ct)"
+              @change="toggleConnectionType(ct)"
+            />
+            <span
+              class="filter-panel__connection-color"
+              :style="{ backgroundColor: CONNECTION_INFO[ct].color }"
+            />
+            <span>{{ CONNECTION_INFO[ct].label }}</span>
+          </label>
+        </div>
       </section>
 
       <!-- Era Filter -->
@@ -243,9 +258,8 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
           :key="era"
           class="filter-panel__checkbox"
           :data-testid="`filter-era-${era}`"
-          @click.prevent="toggleEra(era)"
         >
-          <input type="checkbox" :checked="isEraActive(era)" />
+          <input type="checkbox" :checked="isEraActive(era)" @change="toggleEra(era)" />
           <span>{{ ERA_INFO[era].label }}</span>
           <span class="filter-panel__era-range">{{ ERA_INFO[era].range }}</span>
         </label>
@@ -254,12 +268,8 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
       <!-- Tier Filter -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Tier</h3>
-        <label
-          class="filter-panel__checkbox"
-          data-testid="filter-tier1"
-          @click.prevent="toggleTier1Only"
-        >
-          <input type="checkbox" :checked="props.filterState.tier1Only" />
+        <label class="filter-panel__checkbox" data-testid="filter-tier1">
+          <input type="checkbox" :checked="props.filterState.tier1Only" @change="toggleTier1Only" />
           <span>Tier 1 Only</span>
         </label>
         <p class="filter-panel__help">Show only major authors and established publishers</p>
@@ -381,6 +391,24 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
 
 .filter-panel__checkbox-indicator--binder {
   background-color: var(--color-victorian-burgundy, #722f37);
+}
+
+.filter-panel__connection-group {
+  margin-bottom: 0.5rem;
+}
+
+.filter-panel__group-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-victorian-ink-muted, #5c5c58);
+  margin-bottom: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.filter-panel__connection-group:first-child .filter-panel__group-label {
+  margin-top: 0;
 }
 
 .filter-panel__connection-color {
