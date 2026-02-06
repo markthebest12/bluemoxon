@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import boto3
 from botocore.exceptions import ClientError
 
-from app.services.bedrock import MODEL_USAGE
+from app.services.bedrock import MODEL_DISPLAY_NAMES, MODEL_USAGE
 
 logger = logging.getLogger(__name__)
 
@@ -19,28 +19,37 @@ logger = logging.getLogger(__name__)
 _cost_cache: dict[str, Any] = {}
 CACHE_TTL_SECONDS = 3600  # 1 hour
 
-# Map AWS service names to our model names
+# Map AWS service names to our model names.
+# Current models — derive from MODEL_DISPLAY_NAMES so model bumps auto-propagate.
+# Legacy models — static, won't change.
 # Note: AWS billing may list "Claude 3 Haiku" or "Claude 3.5 Haiku" depending on
 # when the model was provisioned; include both variants so costs are always captured.
 AWS_SERVICE_TO_MODEL = {
-    "Claude Sonnet 4.5 (Amazon Bedrock Edition)": "Sonnet 4.5",
+    # Current models — derive billing names from single source of truth.
+    # Pattern: "Claude <DisplayName> (Amazon Bedrock Edition)"
+    # Works for Opus/Sonnet; Haiku uses legacy "Claude 3.5 Haiku" naming in AWS billing.
+    **{
+        f"Claude {display} (Amazon Bedrock Edition)": display
+        for key, display in MODEL_DISPLAY_NAMES.items()
+        if key != "haiku"  # Haiku billing name doesn't follow this pattern
+    },
+    # Haiku — AWS bills as "Claude 3.5 Haiku", not "Claude Haiku 3.5"
+    "Claude 3.5 Haiku (Amazon Bedrock Edition)": MODEL_DISPLAY_NAMES.get("haiku", "Haiku 3.5"),
+    # Legacy models — static (no longer in MODEL_IDS, billing names won't change)
     "Claude Opus 4.5 (Amazon Bedrock Edition)": "Opus 4.5",
-    "Claude Opus 4.6 (Amazon Bedrock Edition)": "Opus 4.6",
     "Claude 3 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
-    "Claude 3.5 Haiku (Amazon Bedrock Edition)": "Haiku 3.5",
     "Claude 3.5 Sonnet (Amazon Bedrock Edition)": "Sonnet 3.5",
     "Claude 3.5 Sonnet v2 (Amazon Bedrock Edition)": "Sonnet 3.5 v2",
 }
 
-# Model name to usage description mapping
+# Build from MODEL_DISPLAY_NAMES so model bumps auto-propagate
 MODEL_USAGE_DESCRIPTIONS = {
-    "Sonnet 4.5": MODEL_USAGE.get("sonnet", "Primary analysis"),
-    "Opus 4.5": MODEL_USAGE.get("opus", "High quality analysis"),
-    "Opus 4.6": MODEL_USAGE.get("opus", "High quality analysis"),
-    "Haiku 3.5": MODEL_USAGE.get("haiku", "Fast extraction"),
-    "Sonnet 3.5": "Legacy analysis",
-    "Sonnet 3.5 v2": "Legacy analysis",
+    display: MODEL_USAGE.get(key, "Analysis") for key, display in MODEL_DISPLAY_NAMES.items()
 }
+# Legacy models (no longer in MODEL_IDS) — static, won't change
+MODEL_USAGE_DESCRIPTIONS["Opus 4.5"] = "Legacy analysis"
+MODEL_USAGE_DESCRIPTIONS["Sonnet 3.5"] = "Legacy analysis"
+MODEL_USAGE_DESCRIPTIONS["Sonnet 3.5 v2"] = "Legacy analysis"
 
 # Other AWS services to track
 OTHER_SERVICES = [
