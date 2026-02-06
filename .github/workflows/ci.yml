@@ -536,7 +536,7 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/gembaadvantage/uplift/main/scripts/install | bash
 
       - name: Validate Uplift Config
-        run: uplift release --dry-run --no-push
+        run: uplift release --dry-run --no-push --ignore-detached
 
   # ============================================
   # Security Scanning - BLOCKING GATES
