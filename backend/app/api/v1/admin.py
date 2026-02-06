@@ -975,6 +975,48 @@ def delete_stale_listings(
     )
 
 
+class PortraitSyncEntityResult(BaseModel):
+    """Result for a single entity in portrait sync."""
+
+    entity_type: str
+    entity_id: int
+    entity_name: str
+    status: str
+    score: float = 0.0
+    wikidata_uri: str | None = None
+    wikidata_label: str | None = None
+    image_uploaded: bool = False
+    s3_key: str | None = None
+    cdn_url: str | None = None
+    image_url_source: str | None = None
+    error: str | None = None
+
+
+class PortraitSyncSummary(BaseModel):
+    """Summary counters for portrait sync run."""
+
+    total_processed: int
+    skipped_existing: int
+    matched: int
+    uploaded: int
+    no_results: int
+    below_threshold: int
+    no_portrait: int
+    download_failed: int
+    upload_failed: int
+    processing_failed: int
+    duration_seconds: float
+
+
+class PortraitSyncResponse(BaseModel):
+    """Response for portrait sync endpoint."""
+
+    dry_run: bool
+    threshold: float
+    summary: PortraitSyncSummary
+    results: list[PortraitSyncEntityResult]
+
+
 class RetryQueueFailedResult(BaseModel):
     """Result of retry queue_failed operation."""
 
@@ -1100,4 +1142,58 @@ def run_image_migration(
         errors=[MigrationError(**e) for e in errors],
         continuation_token=result.continuation_token if result else None,
         has_more=result.has_more if result else False,
+    )
+
+
+@router.post(
+    "/maintenance/portrait-sync",
+    response_model=PortraitSyncResponse,
+    summary="Sync entity portraits from Wikidata",
+    description=(
+        "Batch fetch portraits from Wikimedia Commons for authors, publishers, and binders. "
+        "Queries Wikidata SPARQL for matching entities, scores candidates, and optionally "
+        "downloads, resizes to 400x400 JPEG, uploads to S3, and updates entity.image_url. "
+        "Defaults to dry_run=true (score only, no uploads). "
+        "Max 10 entities per request due to API Gateway timeout; use entity_type/entity_ids to filter."
+    ),
+)
+def sync_entity_portraits(
+    dry_run: bool = Query(True, description="Score only — don't download/upload"),
+    threshold: float = Query(0.7, ge=0.0, le=1.0, description="Min confidence score"),
+    entity_type: Literal["author", "publisher", "binder"] | None = Query(
+        None, description="Process only this entity type (required when entity_ids is set)"
+    ),
+    entity_ids: list[int] | None = Query(
+        None, description="Specific entity IDs (max 50, requires entity_type)"
+    ),
+    skip_existing: bool = Query(True, description="Skip entities with existing portraits"),
+    db: Session = Depends(get_db),
+    _user=Depends(require_admin),
+):
+    """Sync entity portraits from Wikidata/Wikimedia Commons."""
+    import time
+
+    from app.services.portrait_sync import run_portrait_sync
+
+    start = time.time()
+    try:
+        data = run_portrait_sync(
+            db=db,
+            dry_run=dry_run,
+            threshold=threshold,
+            entity_type=entity_type,
+            entity_ids=entity_ids,
+            skip_existing=skip_existing,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    duration = round(time.time() - start, 2)
+
+    data["summary"]["duration_seconds"] = duration
+
+    return PortraitSyncResponse(
+        dry_run=dry_run,
+        threshold=threshold,
+        summary=PortraitSyncSummary(**data["summary"]),
+        results=[PortraitSyncEntityResult(**r) for r in data["results"]],
     )
