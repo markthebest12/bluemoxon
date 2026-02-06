@@ -433,10 +433,10 @@ class TestRunPortraitSync:
 
 
 class TestScoringImport:
-    """Verify scoring functions can be imported from scripts module."""
+    """Verify scoring functions can be imported from app.utils module."""
 
     def test_score_candidate_import(self):
-        from scripts.wikidata_scoring import score_candidate
+        from app.utils.wikidata_scoring import score_candidate
 
         score = score_candidate(
             entity_name="Charles Dickens",
@@ -452,7 +452,7 @@ class TestScoringImport:
         assert score > 0.7
 
     def test_name_similarity_import(self):
-        from scripts.wikidata_scoring import name_similarity
+        from app.utils.wikidata_scoring import name_similarity
 
         assert name_similarity("Charles Dickens", "Charles Dickens") == 1.0
         assert name_similarity("Charles Dickens", "Completely Different") == 0.0
