@@ -179,6 +179,7 @@ def _call_bedrock_for_enrichment(prompt: str) -> str:
         {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 500,
+            "temperature": 0.0,
             "messages": [{"role": "user", "content": prompt}],
         }
     )
@@ -265,6 +266,10 @@ def _apply_enrichment(
                     new_value,
                 )
                 continue
+
+        # Truncate string fields to model column limits
+        if field == "full_name" and isinstance(new_value, str) and len(new_value) > 200:
+            new_value = new_value[:200]
 
         setattr(entity, field, new_value)
         updated_fields.append(field)
