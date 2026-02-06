@@ -43,7 +43,7 @@ BlueMoxon is a serverless book collection management application deployed on AWS
         │                             │                            │
         │                   ┌─────────▼─────────┐          ┌───────▼───────┐
         │                   │  Secrets Manager   │          │   Bedrock     │
-        │                   │  (DB Credentials)  │          │ (Claude 4.5)  │
+        │                   │  (DB Credentials)  │          │  (Claude)     │
         │                   └───────────────────┘          │ Napoleon AI   │
         │                                                  └───────────────┘
         │                   ┌───────────────────┐
@@ -69,7 +69,7 @@ Both environments are deployed via Terraform with isolated resources (separate C
 | Compute | AWS Lambda + Layers | Cost-effective for low traffic, layers for shared dependencies |
 | Database | Aurora Serverless v2 | PostgreSQL for full-text search, scales to zero |
 | Auth | Cognito + MFA | Managed auth, built-in 2FA, admin invite only |
-| AI Analysis | AWS Bedrock (Claude 4.5) | Napoleon Framework valuations via managed Claude models |
+| AI Analysis | AWS Bedrock (Claude) | Napoleon Framework valuations via managed Claude models |
 | Async Jobs | SQS + Worker Lambda | Decoupled analysis generation, retry handling |
 | Frontend | Vue 3 + Vite + Tailwind v4 | User preference, modern tooling, CSS-first configuration |
 | Backend | FastAPI | Fast, modern Python, auto-generated docs |
@@ -292,7 +292,7 @@ flowchart TB
     end
 
     subgraph AI["AI Analysis"]
-        Bedrock["AWS Bedrock<br/>(Claude 4.5)"]
+        Bedrock["AWS Bedrock<br/>(Claude)"]
     end
 
     Vue -->|HTTPS| CF

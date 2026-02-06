@@ -584,9 +584,24 @@ def main():
         help="Enable debug logging",
     )
     parser.add_argument(
+        "--enable-fallbacks",
+        action="store_true",
+        help="Enable all fallback providers (Commons SDC, Google KG, NLS) for unmatched entities",
+    )
+    parser.add_argument(
         "--skip-nls",
         action="store_true",
         help="Skip NLS historical map fallback for unmatched publishers/binders",
+    )
+    parser.add_argument(
+        "--skip-commons",
+        action="store_true",
+        help="Skip Wikimedia Commons SDC fallback",
+    )
+    parser.add_argument(
+        "--skip-google",
+        action="store_true",
+        help="Skip Google Knowledge Graph fallback",
     )
 
     args = parser.parse_args()
@@ -656,35 +671,51 @@ def main():
                     print(json.dumps(result))
                     time.sleep(WIKIDATA_REQUEST_INTERVAL)
 
-            # NLS map fallback for unmatched publishers/binders
-            if not args.skip_nls and etype in ("publisher", "binder"):
-                unmatched_statuses = {"no_results", "below_threshold", "no_portrait"}
+            # Fallback providers for unmatched entities
+            enable_any_fallback = args.enable_fallbacks or (
+                not args.skip_nls and etype in ("publisher", "binder")
+            )
+            if enable_any_fallback:
+                from app.services.portrait_sync import (
+                    FALLBACK_TRIGGER_STATUSES,
+                    _try_fallback_providers,
+                )
+
+                enable_commons = args.enable_fallbacks and not args.skip_commons
+                enable_google = args.enable_fallbacks and not args.skip_google
+                enable_nls = not args.skip_nls
+
                 unmatched = [
                     r
                     for r in results
-                    if r["entity_type"] == etype and r["status"] in unmatched_statuses
+                    if r["entity_type"] == etype and r["status"] in FALLBACK_TRIGGER_STATUSES
                 ]
                 if unmatched:
                     logger.info(
-                        "Running NLS map fallback for %d unmatched %ss",
+                        "Running fallback providers for %d unmatched %ss",
                         len(unmatched),
                         etype,
                     )
-                    from scripts.nls_map_fallback import process_nls_fallback
-
-                    # Build lookup of unmatched entity IDs
                     unmatched_ids = {r["entity_id"] for r in unmatched}
+                    model_cls = {"author": Author, "publisher": Publisher, "binder": Binder}[etype]
+                    fb_entities = db.query(model_cls).filter(model_cls.id.in_(unmatched_ids)).all()
+                    entity_to_result = {r["entity_id"]: r for r in unmatched}
 
-                    # Re-query entities for unmatched IDs
-                    model_cls = Publisher if etype == "publisher" else Binder
-                    nls_entities = db.query(model_cls).filter(model_cls.id.in_(unmatched_ids)).all()
-
-                    for nls_entity in nls_entities:
-                        nls_result = process_nls_fallback(
-                            db, nls_entity, etype, args.dry_run, settings
+                    for fb_entity in fb_entities:
+                        original_result = entity_to_result[fb_entity.id]
+                        fb_result = _try_fallback_providers(
+                            db,
+                            fb_entity,
+                            etype,
+                            original_result,
+                            args.dry_run,
+                            enable_commons=enable_commons,
+                            enable_google=enable_google,
+                            enable_nls=enable_nls,
                         )
-                        results.append(nls_result)
-                        print(json.dumps(nls_result))
+                        if fb_result.get("image_source"):
+                            results.append(fb_result)
+                            print(json.dumps(fb_result))
 
         # Summary to stderr
         total = len(results)

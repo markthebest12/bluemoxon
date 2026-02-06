@@ -42,6 +42,7 @@ from app.services.app_config import get_config, set_config
 from app.services.bedrock import (
     CLAUDE_MAX_IMAGE_BYTES,
     CLAUDE_SAFE_RAW_BYTES,
+    MODEL_DISPLAY_NAMES,
     MODEL_IDS,
     MODEL_USAGE,
     PROMPT_CACHE_TTL,
@@ -108,6 +109,7 @@ class ModelConfigResponse(BaseModel):
 
     flows: list[ModelConfigFlow]
     available_models: list[str]
+    model_labels: dict[str, str]  # {"opus": "Opus 4.6", ...}
 
 
 class ModelConfigUpdate(BaseModel):
@@ -492,6 +494,7 @@ def get_model_config(
     return ModelConfigResponse(
         flows=flows,
         available_models=list(MODEL_IDS.keys()),
+        model_labels=MODEL_DISPLAY_NAMES,
     )
 
 
@@ -975,48 +978,6 @@ def delete_stale_listings(
     )
 
 
-class PortraitSyncEntityResult(BaseModel):
-    """Result for a single entity in portrait sync."""
-
-    entity_type: str
-    entity_id: int
-    entity_name: str
-    status: str
-    score: float = 0.0
-    wikidata_uri: str | None = None
-    wikidata_label: str | None = None
-    image_uploaded: bool = False
-    s3_key: str | None = None
-    cdn_url: str | None = None
-    image_url_source: str | None = None
-    error: str | None = None
-
-
-class PortraitSyncSummary(BaseModel):
-    """Summary counters for portrait sync run."""
-
-    total_processed: int
-    skipped_existing: int
-    matched: int
-    uploaded: int
-    no_results: int
-    below_threshold: int
-    no_portrait: int
-    download_failed: int
-    upload_failed: int
-    processing_failed: int
-    duration_seconds: float
-
-
-class PortraitSyncResponse(BaseModel):
-    """Response for portrait sync endpoint."""
-
-    dry_run: bool
-    threshold: float
-    summary: PortraitSyncSummary
-    results: list[PortraitSyncEntityResult]
-
-
 class RetryQueueFailedResult(BaseModel):
     """Result of retry queue_failed operation."""
 
@@ -1145,55 +1106,101 @@ def run_image_migration(
     )
 
 
-@router.post(
-    "/maintenance/portrait-sync",
-    response_model=PortraitSyncResponse,
-    summary="Sync entity portraits from Wikidata",
-    description=(
-        "Batch fetch portraits from Wikimedia Commons for authors, publishers, and binders. "
-        "Queries Wikidata SPARQL for matching entities, scores candidates, and optionally "
-        "downloads, resizes to 400x400 JPEG, uploads to S3, and updates entity.image_url. "
-        "Defaults to dry_run=true (score only, no uploads). "
-        "Max 10 entities per request due to API Gateway timeout; use entity_type/entity_ids to filter."
-    ),
-)
-def sync_entity_portraits(
-    dry_run: bool = Query(True, description="Score only — don't download/upload"),
-    threshold: float = Query(0.7, ge=0.0, le=1.0, description="Min confidence score"),
-    entity_type: Literal["author", "publisher", "binder"] | None = Query(
-        None, description="Process only this entity type (required when entity_ids is set)"
-    ),
-    entity_ids: list[int] | None = Query(
-        None, description="Specific entity IDs (max 50, requires entity_type)"
-    ),
-    skip_existing: bool = Query(True, description="Skip entities with existing portraits"),
+# --- Portrait sync ---
+
+
+class PortraitSyncEntityResult(BaseModel):
+    """Result for a single entity in portrait sync."""
+
+    entity_type: str
+    entity_id: int
+    entity_name: str
+    status: str
+    score: float = 0.0
+    wikidata_uri: str | None = None
+    wikidata_label: str | None = None
+    image_uploaded: bool = False
+    s3_key: str | None = None
+    cdn_url: str | None = None
+    image_url_source: str | None = None
+    image_source: str | None = None
+    error: str | None = None
+
+
+class PortraitSyncSummary(BaseModel):
+    """Summary counters for portrait sync."""
+
+    total_processed: int = 0
+    skipped_existing: int = 0
+    matched: int = 0
+    uploaded: int = 0
+    no_results: int = 0
+    below_threshold: int = 0
+    no_portrait: int = 0
+    download_failed: int = 0
+    upload_failed: int = 0
+    processing_failed: int = 0
+    duration_seconds: float = 0.0
+    fallback_commons_sdc: int = 0
+    fallback_google_kg: int = 0
+    fallback_nls_map: int = 0
+
+
+class PortraitSyncResponse(BaseModel):
+    """Response for portrait sync endpoint."""
+
+    dry_run: bool
+    threshold: float
+    summary: PortraitSyncSummary
+    results: list[PortraitSyncEntityResult]
+
+
+@router.post("/maintenance/portrait-sync", response_model=PortraitSyncResponse)
+def sync_portraits(
+    dry_run: bool = Query(True),
+    threshold: float = Query(0.7, ge=0.0, le=1.0),
+    entity_type: Literal["author", "publisher", "binder"] | None = Query(None),
+    entity_ids: list[int] | None = Query(None),
+    skip_existing: bool = Query(True),
+    enable_fallbacks: bool = Query(False),
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
 ):
-    """Sync entity portraits from Wikidata/Wikimedia Commons."""
+    """Sync entity portraits from Wikidata with optional fallback providers.
+
+    Searches Wikidata for entity portraits, scores candidates, and optionally
+    downloads/uploads them.
+
+    When enable_fallbacks=true, entities that miss on Wikidata are tried against:
+    1. Wikimedia Commons SDC (structured data search)
+    2. Google Knowledge Graph (requires GOOGLE_API_KEY)
+    3. NLS Historical Maps (publishers/binders only, requires ANTHROPIC_API_KEY)
+    """
     import time
 
     from app.services.portrait_sync import run_portrait_sync
 
     start = time.time()
+
     try:
-        data = run_portrait_sync(
+        result = run_portrait_sync(
             db=db,
             dry_run=dry_run,
             threshold=threshold,
             entity_type=entity_type,
             entity_ids=entity_ids,
             skip_existing=skip_existing,
+            enable_fallbacks=enable_fallbacks,
         )
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    duration = round(time.time() - start, 2)
 
-    data["summary"]["duration_seconds"] = duration
+    duration = round(time.time() - start, 2)
+    result["summary"]["duration_seconds"] = duration
 
     return PortraitSyncResponse(
         dry_run=dry_run,
         threshold=threshold,
-        summary=PortraitSyncSummary(**data["summary"]),
-        results=[PortraitSyncEntityResult(**r) for r in data["results"]],
+        summary=PortraitSyncSummary(**result["summary"]),
+        results=[PortraitSyncEntityResult(**r) for r in result["results"]],
     )
