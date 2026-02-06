@@ -22,7 +22,7 @@ from app.models.book import Book
 from app.models.publisher import Publisher
 from app.services.aws_clients import get_s3_client
 from app.utils.cdn import get_cloudfront_cdn_url
-from scripts.wikidata_scoring import name_similarity, score_candidate
+from app.utils.wikidata_scoring import name_similarity, score_candidate
 
 logger = logging.getLogger(__name__)
 
