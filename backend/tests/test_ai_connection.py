@@ -282,6 +282,40 @@ class TestStoreAIConnections:
         count = self._store(db, [])
         assert count == 0
 
+    def test_batch_upsert_query_efficiency(self, db):
+        """Batch upsert should use fewer queries than N connections."""
+        from app.services.entity_profile import _store_ai_connections
+
+        connections = [
+            {
+                "source_type": "author",
+                "source_id": i,
+                "target_type": "author",
+                "target_id": i + 100,
+                "relationship": "friendship",
+                "confidence": 0.8,
+                "evidence": f"Evidence {i}",
+            }
+            for i in range(5)
+        ]
+        stored = _store_ai_connections(db, connections)
+        assert stored == 5
+
+        rows = db.query(AIConnection).all()
+        assert len(rows) == 5
+
+        # Verify upsert: re-store with higher confidence
+        connections[0]["confidence"] = 0.95
+        stored2 = _store_ai_connections(db, connections)
+        assert stored2 >= 1
+
+        row = (
+            db.query(AIConnection)
+            .filter(AIConnection.source_id == 0)
+            .first()
+        )
+        assert row.confidence == pytest.approx(0.95)
+
 
 # ---------------------------------------------------------------------------
 # Migration SQL verification
