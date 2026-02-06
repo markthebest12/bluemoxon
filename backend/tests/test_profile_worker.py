@@ -16,11 +16,15 @@ from app.services.profile_worker import (
 class TestProfileWorker:
     """Tests for profile generation worker handler."""
 
+    @patch("app.services.profile_worker._get_entity_books")
     @patch("app.services.profile_worker.get_or_build_graph")
     @patch("app.services.profile_worker.generate_and_cache_profile")
     @patch("app.services.profile_worker._update_job_progress")
-    def test_success_increments_succeeded(self, mock_update, mock_gen, mock_graph, db):
+    def test_success_increments_succeeded(
+        self, mock_update, mock_gen, mock_graph, mock_books, db
+    ):
         """Successful generation increments succeeded count."""
+        mock_books.return_value = [MagicMock()]  # Has qualifying books
         mock_graph.return_value = MagicMock()
         mock_gen.return_value = MagicMock()
 
@@ -35,11 +39,15 @@ class TestProfileWorker:
         mock_gen.assert_called_once()
         mock_update.assert_called_once_with(db, "test-job-1", success=True)
 
+    @patch("app.services.profile_worker._get_entity_books")
     @patch("app.services.profile_worker.get_or_build_graph")
     @patch("app.services.profile_worker.generate_and_cache_profile")
     @patch("app.services.profile_worker._update_job_progress")
-    def test_failure_increments_failed(self, mock_update, mock_gen, mock_graph, db):
+    def test_failure_increments_failed(
+        self, mock_update, mock_gen, mock_graph, mock_books, db
+    ):
         """Failed generation increments failed count."""
+        mock_books.return_value = [MagicMock()]  # Has qualifying books
         mock_graph.return_value = MagicMock()
         mock_gen.side_effect = Exception("Bedrock error")
 
@@ -55,12 +63,16 @@ class TestProfileWorker:
             db, "test-job-1", success=False, error="author:1: Bedrock error"
         )
 
+    @patch("app.services.profile_worker._get_entity_books")
     @patch("app.services.profile_worker.get_or_build_graph")
     @patch("app.services.profile_worker.is_profile_stale")
     @patch("app.services.profile_worker.generate_and_cache_profile")
     @patch("app.services.profile_worker._update_job_progress")
-    def test_skips_non_stale_entity(self, mock_update, mock_gen, mock_stale, mock_graph, db):
+    def test_skips_non_stale_entity(
+        self, mock_update, mock_gen, mock_stale, mock_graph, mock_books, db
+    ):
         """Non-stale entity is skipped (idempotency)."""
+        mock_books.return_value = [MagicMock()]  # Has qualifying books
         mock_graph.return_value = MagicMock()
         mock_stale.return_value = False  # Not stale = already generated
 
@@ -73,6 +85,22 @@ class TestProfileWorker:
         handle_profile_generation_message(message, db)
 
         mock_gen.assert_not_called()
+        mock_update.assert_called_once_with(db, "test-job-1", success=True)
+
+    @patch("app.services.profile_worker._get_entity_books")
+    @patch("app.services.profile_worker._update_job_progress")
+    def test_skips_entity_with_no_qualifying_books(self, mock_update, mock_books, db):
+        """Entity with no qualifying books is skipped (#1866)."""
+        mock_books.return_value = []  # No qualifying books
+
+        message = {
+            "job_id": "test-job-1",
+            "entity_type": "author",
+            "entity_id": 1,
+        }
+
+        handle_profile_generation_message(message, db)
+
         mock_update.assert_called_once_with(db, "test-job-1", success=True)
 
 

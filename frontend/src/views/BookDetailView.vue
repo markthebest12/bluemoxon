@@ -16,6 +16,7 @@ import BookMetadataSection from "@/components/book-detail/BookMetadataSection.vu
 import ProvenanceSection from "@/components/book-detail/ProvenanceSection.vue";
 import AnalysisSection from "@/components/book-detail/AnalysisSection.vue";
 import BookSidebarSection from "@/components/book-detail/BookSidebarSection.vue";
+import BookSocialCirclesSummary from "@/components/book-detail/BookSocialCirclesSummary.vue";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal.vue";
 
 const route = useRoute();
@@ -212,6 +213,11 @@ function printPage() {
         />
 
         <AnalysisSection :book="booksStore.currentBook" :is-editor="authStore.isEditor" />
+
+        <BookSocialCirclesSummary
+          :book-id="booksStore.currentBook.id"
+          :book-status="booksStore.currentBook.status"
+        />
       </div>
 
       <!-- Sidebar -->

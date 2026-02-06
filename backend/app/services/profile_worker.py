@@ -13,6 +13,7 @@ from app.db import SessionLocal
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.services.entity_profile import (
     _get_all_collection_entities,
+    _get_entity_books,
     generate_and_cache_profile,
     is_profile_stale,
 )
@@ -71,6 +72,15 @@ def handle_profile_generation_message(
     entity_id = message["entity_id"]
 
     try:
+        # Guard: skip if entity has no qualifying (owned) books (#1866).
+        # This handles the race where books are removed after the SQS message was sent.
+        owned_books = _get_entity_books(db, entity_type, entity_id)
+        if not owned_books:
+            logger.info("Skipping %s:%s (no qualifying books)", entity_type, entity_id)
+            if job_id:
+                _update_job_progress(db, job_id, success=True)
+            return
+
         # Idempotency: skip if entity already has a non-stale profile
         if not is_profile_stale(db, entity_type, entity_id):
             logger.info("Skipping %s:%s (profile is current)", entity_type, entity_id)
