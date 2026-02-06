@@ -178,3 +178,29 @@ class TestPortraitSyncEndpoint:
         """Non-admin users should get 403."""
         response = viewer_client.post("/api/v1/admin/maintenance/portrait-sync")
         assert response.status_code == 403
+
+    def test_entity_ids_without_type_returns_400(self, client: TestClient):
+        """entity_ids without entity_type should return 400."""
+        response = client.post(
+            "/api/v1/admin/maintenance/portrait-sync",
+            params={"entity_ids": [1, 2]},
+        )
+        assert response.status_code == 400
+        assert "entity_type is required" in response.json()["detail"]
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_too_many_entities_returns_400(
+        self, mock_query, mock_sleep, client: TestClient, db: Session
+    ):
+        """Exceeding entity cap should return 400."""
+        for i in range(11):
+            db.add(Author(name=f"Author {i}"))
+        db.flush()
+
+        response = client.post(
+            "/api/v1/admin/maintenance/portrait-sync",
+            params={"entity_type": "author"},
+        )
+        assert response.status_code == 400
+        assert "Too many entities" in response.json()["detail"]

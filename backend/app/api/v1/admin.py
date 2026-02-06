@@ -1153,16 +1153,19 @@ def run_image_migration(
         "Batch fetch portraits from Wikimedia Commons for authors, publishers, and binders. "
         "Queries Wikidata SPARQL for matching entities, scores candidates, and optionally "
         "downloads, resizes to 400x400 JPEG, uploads to S3, and updates entity.image_url. "
-        "Defaults to dry_run=true (score only, no uploads)."
+        "Defaults to dry_run=true (score only, no uploads). "
+        "Max 10 entities per request due to API Gateway timeout; use entity_type/entity_ids to filter."
     ),
 )
 def sync_entity_portraits(
     dry_run: bool = Query(True, description="Score only — don't download/upload"),
     threshold: float = Query(0.7, ge=0.0, le=1.0, description="Min confidence score"),
     entity_type: Literal["author", "publisher", "binder"] | None = Query(
-        None, description="Process only this entity type"
+        None, description="Process only this entity type (required when entity_ids is set)"
     ),
-    entity_ids: list[int] | None = Query(None, description="Specific entity IDs"),
+    entity_ids: list[int] | None = Query(
+        None, description="Specific entity IDs (max 50, requires entity_type)"
+    ),
     skip_existing: bool = Query(True, description="Skip entities with existing portraits"),
     db: Session = Depends(get_db),
     _user=Depends(require_admin),
@@ -1173,14 +1176,17 @@ def sync_entity_portraits(
     from app.services.portrait_sync import run_portrait_sync
 
     start = time.time()
-    data = run_portrait_sync(
-        db=db,
-        dry_run=dry_run,
-        threshold=threshold,
-        entity_type=entity_type,
-        entity_ids=entity_ids,
-        skip_existing=skip_existing,
-    )
+    try:
+        data = run_portrait_sync(
+            db=db,
+            dry_run=dry_run,
+            threshold=threshold,
+            entity_type=entity_type,
+            entity_ids=entity_ids,
+            skip_existing=skip_existing,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     duration = round(time.time() - start, 2)
 
     data["summary"]["duration_seconds"] = duration

@@ -45,12 +45,51 @@ WIKIDATA_REQUEST_INTERVAL = 1.5
 # User-Agent required by Wikimedia API policy
 USER_AGENT = "BlueMoxonBot/1.0 (https://bluemoxon.com; contact@bluemoxon.com)"
 
+# Max entities per request to fit within API Gateway 30s timeout.
+# Each entity needs ~2s (1.5s rate limit + HTTP round-trip).
+MAX_ENTITIES_PER_REQUEST = 10
+
+# Max entity IDs that can be passed in a single request
+MAX_ENTITY_IDS = 50
+
 # Entity type to model mapping
 ENTITY_MODELS = {
     "author": Author,
     "publisher": Publisher,
     "binder": Binder,
 }
+
+
+def _make_result(
+    entity_type: str,
+    entity_id: int,
+    entity_name: str,
+    status: str,
+    *,
+    score: float = 0.0,
+    wikidata_uri: str | None = None,
+    wikidata_label: str | None = None,
+    image_uploaded: bool = False,
+    s3_key: str | None = None,
+    cdn_url: str | None = None,
+    image_url_source: str | None = None,
+    error: str | None = None,
+) -> dict:
+    """Create a standardized result dict for a single entity."""
+    return {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "entity_name": entity_name,
+        "status": status,
+        "score": score,
+        "wikidata_uri": wikidata_uri,
+        "wikidata_label": wikidata_label,
+        "image_uploaded": image_uploaded,
+        "s3_key": s3_key,
+        "cdn_url": cdn_url,
+        "image_url_source": image_url_source,
+        "error": error,
+    }
 
 
 def _escape_sparql_string(value: str) -> str:
@@ -93,7 +132,7 @@ LIMIT 10
 
 
 def build_sparql_query_org(entity_name: str) -> str:
-    """Build SPARQL query for an organizational entity (publisher)."""
+    """Build SPARQL query for an organizational entity (publisher, binder firm)."""
     escaped_name = _escape_sparql_string(entity_name)
     return f"""
 SELECT ?item ?itemLabel ?itemDescription ?image ?inception
@@ -251,6 +290,7 @@ def upload_to_s3(image_bytes: bytes, entity_type: str, entity_id: int) -> str:
         Key=s3_key,
         Body=image_bytes,
         ContentType="image/jpeg",
+        CacheControl="public, max-age=86400, stale-while-revalidate=3600",
     )
     return s3_key
 
@@ -261,6 +301,46 @@ def _build_cdn_url(s3_key: str) -> str:
     return f"{cdn_base}/{s3_key}"
 
 
+def _download_process_upload(
+    db: Session,
+    entity,
+    entity_type: str,
+    best_candidate: dict,
+    result: dict,
+) -> dict:
+    """Download, process, and upload portrait for a matched candidate.
+
+    Shared pipeline for both person and publisher entities.
+    """
+    image_bytes = download_portrait(best_candidate["image_url"])
+    if not image_bytes:
+        result["status"] = "download_failed"
+        return result
+
+    processed = process_portrait(image_bytes)
+    if not processed:
+        result["status"] = "processing_failed"
+        return result
+
+    try:
+        s3_key = upload_to_s3(processed, entity_type, entity.id)
+        cdn_url = _build_cdn_url(s3_key)
+
+        entity.image_url = cdn_url
+        db.flush()
+
+        result["status"] = "uploaded"
+        result["image_uploaded"] = True
+        result["s3_key"] = s3_key
+        result["cdn_url"] = cdn_url
+    except Exception:
+        logger.exception("S3 upload failed for %s/%s", entity_type, entity.id)
+        result["status"] = "upload_failed"
+        result["error"] = "S3 upload failed"
+
+    return result
+
+
 def _process_person_entity(
     db: Session,
     entity,
@@ -268,37 +348,18 @@ def _process_person_entity(
     threshold: float,
     dry_run: bool,
 ) -> dict:
-    """Process a person entity (author or binder)."""
+    """Process a person entity (author)."""
     entity_name = entity.name
     entity_birth = getattr(entity, "birth_year", None)
     entity_death = getattr(entity, "death_year", None)
-
-    if entity_type == "binder":
-        entity_birth = getattr(entity, "founded_year", None)
-        entity_death = getattr(entity, "closed_year", None)
-
     book_titles = get_entity_book_titles(db, entity_type, entity.id)
 
-    result = {
-        "entity_type": entity_type,
-        "entity_id": entity.id,
-        "entity_name": entity_name,
-        "status": "no_match",
-        "score": 0.0,
-        "wikidata_uri": None,
-        "wikidata_label": None,
-        "image_uploaded": False,
-        "s3_key": None,
-        "cdn_url": None,
-        "image_url_source": None,
-        "error": None,
-    }
+    result = _make_result(entity_type, entity.id, entity_name, "no_results")
 
     sparql = build_sparql_query_person(entity_name)
     bindings = query_wikidata(sparql)
 
     if not bindings:
-        result["status"] = "no_results"
         return result
 
     candidates = group_sparql_results(bindings)
@@ -339,81 +400,37 @@ def _process_person_entity(
         result["image_url_source"] = best_candidate["image_url"]
         return result
 
-    image_bytes = download_portrait(best_candidate["image_url"])
-    if not image_bytes:
-        result["status"] = "download_failed"
-        return result
-
-    processed = process_portrait(image_bytes)
-    if not processed:
-        result["status"] = "processing_failed"
-        return result
-
-    try:
-        s3_key = upload_to_s3(processed, entity_type, entity.id)
-        cdn_url = _build_cdn_url(s3_key)
-
-        entity.image_url = cdn_url
-        db.flush()
-
-        result["status"] = "uploaded"
-        result["image_uploaded"] = True
-        result["s3_key"] = s3_key
-        result["cdn_url"] = cdn_url
-    except Exception:
-        logger.exception("S3 upload failed for %s/%s", entity_type, entity.id)
-        result["status"] = "upload_failed"
-        result["error"] = "S3 upload failed"
-
-    return result
+    return _download_process_upload(db, entity, entity_type, best_candidate, result)
 
 
-def _process_publisher_entity(
+def _process_org_entity(
     db: Session,
-    entity: Publisher,
+    entity,
+    entity_type: str,
     threshold: float,
     dry_run: bool,
 ) -> dict:
-    """Process a publisher entity (organizational search)."""
-    result = {
-        "entity_type": "publisher",
-        "entity_id": entity.id,
-        "entity_name": entity.name,
-        "status": "no_match",
-        "score": 0.0,
-        "wikidata_uri": None,
-        "wikidata_label": None,
-        "image_uploaded": False,
-        "s3_key": None,
-        "cdn_url": None,
-        "image_url_source": None,
-        "error": None,
-    }
+    """Process an organizational entity (publisher or binder firm)."""
+    result = _make_result(entity_type, entity.id, entity.name, "no_results")
 
     sparql = build_sparql_query_org(entity.name)
     bindings = query_wikidata(sparql)
 
     if not bindings:
-        result["status"] = "no_results"
         return result
 
+    # Group results to handle multiple rows per entity
+    grouped = group_sparql_results(bindings)
     best_candidate = None
     best_score = 0.0
 
-    for row in bindings:
-        label = row.get("itemLabel", {}).get("value", "")
-        image_url = row.get("image", {}).get("value")
-
-        ns = name_similarity(entity.name, label)
-        score = ns * 0.8 + (0.2 if image_url else 0.0)
+    for _uri, candidate in grouped.items():
+        ns = name_similarity(entity.name, candidate["label"])
+        score = ns * 0.8 + (0.2 if candidate.get("image_url") else 0.0)
 
         if score > best_score:
             best_score = score
-            best_candidate = {
-                "uri": row.get("item", {}).get("value", ""),
-                "label": label,
-                "image_url": image_url,
-            }
+            best_candidate = candidate
 
     result["score"] = round(best_score, 4)
 
@@ -433,33 +450,7 @@ def _process_publisher_entity(
         result["image_url_source"] = best_candidate["image_url"]
         return result
 
-    image_bytes = download_portrait(best_candidate["image_url"])
-    if not image_bytes:
-        result["status"] = "download_failed"
-        return result
-
-    processed = process_portrait(image_bytes)
-    if not processed:
-        result["status"] = "processing_failed"
-        return result
-
-    try:
-        s3_key = upload_to_s3(processed, "publisher", entity.id)
-        cdn_url = _build_cdn_url(s3_key)
-
-        entity.image_url = cdn_url
-        db.flush()
-
-        result["status"] = "uploaded"
-        result["image_uploaded"] = True
-        result["s3_key"] = s3_key
-        result["cdn_url"] = cdn_url
-    except Exception:
-        logger.exception("S3 upload failed for publisher/%s", entity.id)
-        result["status"] = "upload_failed"
-        result["error"] = "S3 upload failed"
-
-    return result
+    return _download_process_upload(db, entity, entity_type, best_candidate, result)
 
 
 def run_portrait_sync(
@@ -476,18 +467,32 @@ def run_portrait_sync(
         db: Database session.
         dry_run: If True, score candidates but don't download/upload.
         threshold: Minimum confidence score for a match.
-        entity_type: Filter to a single entity type.
-        entity_ids: Filter to specific entity IDs.
+        entity_type: Filter to a single entity type. Required when entity_ids is set.
+        entity_ids: Filter to specific entity IDs (max 50).
         skip_existing: Skip entities that already have an image_url.
 
     Returns:
         Dict with 'results' list and 'summary' counters.
+
+    Raises:
+        ValueError: If entity_ids provided without entity_type, or if too many
+            entities would be processed (max 10 per request due to API Gateway timeout).
     """
+    if entity_ids and not entity_type:
+        msg = "entity_type is required when entity_ids is specified"
+        raise ValueError(msg)
+
+    if entity_ids and len(entity_ids) > MAX_ENTITY_IDS:
+        msg = f"Maximum {MAX_ENTITY_IDS} entity_ids per request"
+        raise ValueError(msg)
+
     results: list[dict] = []
-    skipped_existing = 0
+    skipped_existing_count = 0
+    to_process: list[tuple[str, object]] = []
 
     entity_types = [entity_type] if entity_type else ["author", "publisher", "binder"]
 
+    # Collect entities to process, count skipped
     for etype in entity_types:
         model = ENTITY_MODELS[etype]
         query = db.query(model)
@@ -496,54 +501,41 @@ def run_portrait_sync(
             query = query.filter(model.id.in_(entity_ids))
 
         entities = query.all()
-        logger.info("Processing %d %ss", len(entities), etype)
 
         for entity in entities:
             if skip_existing and entity.image_url:
-                skipped_existing += 1
-                results.append(
-                    {
-                        "entity_type": etype,
-                        "entity_id": entity.id,
-                        "entity_name": entity.name,
-                        "status": "skipped",
-                        "score": 0.0,
-                        "wikidata_uri": None,
-                        "wikidata_label": None,
-                        "image_uploaded": False,
-                        "s3_key": None,
-                        "cdn_url": None,
-                        "image_url_source": None,
-                        "error": None,
-                    }
-                )
-                continue
+                skipped_existing_count += 1
+                results.append(_make_result(etype, entity.id, entity.name, "skipped"))
+            else:
+                to_process.append((etype, entity))
 
-            try:
-                if etype == "publisher":
-                    result = _process_publisher_entity(db, entity, threshold, dry_run)
-                else:
-                    result = _process_person_entity(db, entity, etype, threshold, dry_run)
-                results.append(result)
-            except Exception:
-                logger.exception("Unexpected error processing %s/%s", etype, entity.id)
-                results.append(
-                    {
-                        "entity_type": etype,
-                        "entity_id": entity.id,
-                        "entity_name": entity.name,
-                        "status": "processing_failed",
-                        "score": 0.0,
-                        "wikidata_uri": None,
-                        "wikidata_label": None,
-                        "image_uploaded": False,
-                        "s3_key": None,
-                        "cdn_url": None,
-                        "image_url_source": None,
-                        "error": "Unexpected error",
-                    }
-                )
+    # Enforce per-request cap (API Gateway 30s timeout)
+    if len(to_process) > MAX_ENTITIES_PER_REQUEST:
+        msg = (
+            f"Too many entities to process ({len(to_process)}). "
+            f"Maximum {MAX_ENTITIES_PER_REQUEST} per request due to API Gateway timeout. "
+            f"Use entity_type and/or entity_ids to filter."
+        )
+        raise ValueError(msg)
 
+    # Process entities
+    for i, (etype, entity) in enumerate(to_process):
+        try:
+            if etype in ("publisher", "binder"):
+                result = _process_org_entity(db, entity, etype, threshold, dry_run)
+            else:
+                result = _process_person_entity(db, entity, etype, threshold, dry_run)
+            results.append(result)
+        except Exception:
+            logger.exception("Unexpected error processing %s/%s", etype, entity.id)
+            results.append(
+                _make_result(
+                    etype, entity.id, entity.name, "processing_failed", error="Unexpected error"
+                )
+            )
+
+        # Rate limit between Wikidata requests (skip after last entity)
+        if i < len(to_process) - 1:
             time.sleep(WIKIDATA_REQUEST_INTERVAL)
 
     # Commit all DB changes at end (entity.image_url updates were flushed)
@@ -552,7 +544,7 @@ def run_portrait_sync(
 
     summary = {
         "total_processed": len(results),
-        "skipped_existing": skipped_existing,
+        "skipped_existing": skipped_existing_count,
         "matched": sum(1 for r in results if r["status"] in ("uploaded", "dry_run_match")),
         "uploaded": sum(1 for r in results if r["status"] == "uploaded"),
         "no_results": sum(1 for r in results if r["status"] == "no_results"),

@@ -2,9 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.models.author import Author
+from app.models.binder import Binder
 from app.models.publisher import Publisher
 
 
@@ -162,6 +164,7 @@ class TestUploadToS3:
             Key="entities/author/42/portrait.jpg",
             Body=b"jpeg-bytes",
             ContentType="image/jpeg",
+            CacheControl="public, max-age=86400, stale-while-revalidate=3600",
         )
 
 
@@ -490,3 +493,84 @@ class TestHelperFunctions:
         sparql = build_sparql_query_org("Macmillan")
         assert '"Macmillan"@en' in sparql
         assert "Q2085381" in sparql  # publisher class
+
+    def test_make_result_factory(self):
+        from app.services.portrait_sync import _make_result
+
+        r = _make_result("author", 1, "Test", "no_results")
+        assert r["entity_type"] == "author"
+        assert r["entity_id"] == 1
+        assert r["entity_name"] == "Test"
+        assert r["status"] == "no_results"
+        assert r["score"] == 0.0
+        assert r["error"] is None
+
+    def test_make_result_with_kwargs(self):
+        from app.services.portrait_sync import _make_result
+
+        r = _make_result("author", 1, "Test", "uploaded", score=0.95, error="oops")
+        assert r["score"] == 0.95
+        assert r["error"] == "oops"
+
+
+class TestValidation:
+    """Tests for input validation in run_portrait_sync."""
+
+    def test_entity_ids_requires_entity_type(self, db: Session):
+        from app.services.portrait_sync import run_portrait_sync
+
+        with pytest.raises(ValueError, match="entity_type is required"):
+            run_portrait_sync(db=db, entity_ids=[1, 2])
+
+    def test_too_many_entity_ids_rejected(self, db: Session):
+        from app.services.portrait_sync import run_portrait_sync
+
+        with pytest.raises(ValueError, match="Maximum 50"):
+            run_portrait_sync(db=db, entity_type="author", entity_ids=list(range(51)))
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_too_many_entities_rejected(self, mock_query, mock_sleep, db: Session):
+        """More than MAX_ENTITIES_PER_REQUEST should raise ValueError."""
+        from app.services.portrait_sync import run_portrait_sync
+
+        # Create 11 authors (exceeds MAX_ENTITIES_PER_REQUEST=10)
+        for i in range(11):
+            db.add(Author(name=f"Author {i}"))
+        db.flush()
+
+        with pytest.raises(ValueError, match="Too many entities"):
+            run_portrait_sync(db=db, entity_type="author")
+
+
+class TestBinderUsesOrgQuery:
+    """Binders should use org SPARQL query, not person query."""
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_binder_uses_org_search(self, mock_query, mock_sleep, db: Session):
+        from app.services.portrait_sync import run_portrait_sync
+
+        binder = Binder(name="Zaehnsdorf")
+        db.add(binder)
+        db.flush()
+
+        mock_query.return_value = [
+            {
+                "item": {"value": "http://wd/Q999"},
+                "itemLabel": {"value": "Zaehnsdorf"},
+                "image": {"value": "http://commons.wikimedia.org/wiki/Special:FilePath/Z.jpg"},
+            }
+        ]
+
+        result = run_portrait_sync(
+            db=db,
+            dry_run=True,
+            entity_type="binder",
+            entity_ids=[binder.id],
+        )
+
+        assert result["results"][0]["entity_type"] == "binder"
+        # Verify the org query was used (not person query)
+        sparql_arg = mock_query.call_args[0][0]
+        assert "Q2085381" in sparql_arg or "Q7275" in sparql_arg
