@@ -174,8 +174,8 @@ Canonical storage for AI-discovered personal connections between entities (BMX 3
 | source_id | INTEGER | ID of source entity (always lower) |
 | target_type | VARCHAR(20) | author, publisher, binder |
 | target_id | INTEGER | ID of target entity (always higher) |
-| relationship | VARCHAR(50) | family, friendship, influence, collaboration, scandal |
-| sub_type | VARCHAR(100) | Specific sub-type (e.g., marriage, mentorship, rivalry) |
+| relationship | VARCHAR(20) | family, friendship, influence, collaboration, scandal |
+| sub_type | VARCHAR(50) | Specific sub-type (e.g., marriage, mentorship, rivalry) |
 | confidence | FLOAT | Confidence score (0.0-1.0) |
 | evidence | TEXT | Supporting evidence text |
 | created_at | TIMESTAMP | Record creation |
@@ -191,14 +191,15 @@ Tracks batch entity profile generation jobs (BMX 3.0).
 
 | Column | Type | Description |
 |--------|------|-------------|
-| id | SERIAL | Primary key |
-| status | VARCHAR(20) | pending, running, completed, failed, cancelled |
+| id | VARCHAR(36) | Primary key (UUID) |
+| status | VARCHAR(20) | pending, in_progress, completed, failed, cancelled |
+| owner_id | INTEGER | FK to users.id |
 | total_entities | INTEGER | Total entities to process |
-| completed_count | INTEGER | Successfully generated count |
-| failed_count | INTEGER | Failed generation count |
-| model | VARCHAR(50) | AI model used (e.g., haiku) |
-| error_message | TEXT | Error details if failed |
+| succeeded | INTEGER | Successfully generated count |
+| failed | INTEGER | Failed generation count |
+| error_log | TEXT | Error details if failed |
 | created_at | TIMESTAMP | Job creation |
+| updated_at | TIMESTAMP | Last update |
 | completed_at | TIMESTAMP | Job completion |
 
 ### app_config
@@ -207,10 +208,11 @@ Application configuration key-value store with caching (BMX 3.0).
 
 | Column | Type | Description |
 |--------|------|-------------|
-| id | SERIAL | Primary key |
-| key | VARCHAR(200) | Configuration key (e.g., model.entity_profiles) |
-| value | TEXT | Configuration value |
+| key | VARCHAR(100) | Configuration key (primary key, e.g., model.entity_profiles) |
+| value | VARCHAR(500) | Configuration value |
+| description | VARCHAR(500) | Human-readable description of the config entry |
 | updated_at | TIMESTAMP | Last update |
+| updated_by | VARCHAR(100) | Who last changed this value |
 
 **Used for:** AI model assignments per workflow, cached with 5-minute TTL.
 

@@ -41,7 +41,7 @@ X-API-Key: <api_key>
 | `GET /social-circles/*` | Viewer |
 | `GET /entity/*/profile` | Viewer |
 | `POST /entity/*/regenerate` | Editor |
-| `PUT /entity/*/portrait` | Editor |
+| `PUT /entity/*/portrait` | Admin |
 | `POST /entity/profiles/generate-all` | Admin |
 | `GET /admin/model-config` | Admin |
 | `PUT /admin/model-config/*` | Admin |
@@ -2534,7 +2534,8 @@ Response:
 
 Error Responses:
 
-- 400 Bad Request - Unknown flow key or invalid model name
+- 404 Not Found - Unknown flow key
+- 400 Bad Request - Invalid model name
 
 ---
 

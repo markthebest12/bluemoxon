@@ -582,21 +582,23 @@ erDiagram
     }
 
     PROFILE_GENERATION_JOBS {
-        int id PK
+        string id PK
         string status
+        int owner_id FK
         int total_entities
-        int completed_count
-        int failed_count
-        string model
+        int succeeded
+        int failed
+        text error_log
         timestamp created_at
         timestamp completed_at
     }
 
     APP_CONFIG {
-        int id PK
-        string key
+        string key PK
         string value
+        string description
         timestamp updated_at
+        string updated_by
     }
 ```
 
