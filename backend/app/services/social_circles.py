@@ -25,6 +25,7 @@ from app.schemas.social_circles import (
     SocialCirclesMeta,
     SocialCirclesResponse,
 )
+from app.services.ai_connection_parser import parse_ai_connection
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -324,70 +325,37 @@ def build_social_circles_graph(
     )
     for profile in profiles_with_ai:
         for connection in profile.ai_connections or []:
-            source_type = connection.get("source_type")
-            source_id = connection.get("source_id")
-            target_type = connection.get("target_type")
-            target_id = connection.get("target_id")
-            relationship = connection.get("relationship")
-
-            # Skip connections with missing required fields (explicit None checks
-            # to avoid falsiness of 0 from all())
-            if (
-                source_type is None
-                or source_id is None
-                or target_type is None
-                or target_id is None
-                or relationship is None
-            ):
-                logger.warning(
-                    "Skipping AI connection with missing fields, keys=%s",
-                    list(connection.keys()),
-                )
+            parsed = parse_ai_connection(connection)
+            if parsed is None:
                 continue
-
-            source_node_id = f"{source_type}:{source_id}"
-            target_node_id = f"{target_type}:{target_id}"
 
             # Skip if either node is not in the current graph
-            if source_node_id not in nodes or target_node_id not in nodes:
+            if parsed.source_node_id not in nodes or parsed.target_node_id not in nodes:
                 continue
 
-            # Canonical ordering: lower node ID first (by string comparison)
-            if source_node_id > target_node_id:
-                source_node_id, target_node_id = target_node_id, source_node_id
-            edge_id = f"e:{source_node_id}:{target_node_id}:{relationship}"
-
-            try:
-                conn_type = ConnectionType(relationship)
-            except ValueError:
-                logger.warning("Skipping AI connection with invalid type: %s", relationship)
-                continue
-
-            # Map confidence to strength (2-10 range)
-            confidence = connection.get("confidence", 0.5)
-            ai_strength = max(2, min(int(confidence * 10), 10))
+            conn_type = ConnectionType(parsed.relationship)
 
             # If this edge already exists, keep the higher-confidence version
-            if edge_id in edges:
-                if ai_strength > edges[edge_id].strength:
-                    edges[edge_id] = SocialCircleEdge(
-                        id=edge_id,
-                        source=source_node_id,
-                        target=target_node_id,
+            if parsed.edge_id in edges:
+                if parsed.strength > edges[parsed.edge_id].strength:
+                    edges[parsed.edge_id] = SocialCircleEdge(
+                        id=parsed.edge_id,
+                        source=parsed.source_node_id,
+                        target=parsed.target_node_id,
                         type=conn_type,
-                        strength=ai_strength,
-                        evidence=connection.get("evidence"),
+                        strength=parsed.strength,
+                        evidence=parsed.evidence,
                         shared_book_ids=None,
                     )
                 continue
 
-            edges[edge_id] = SocialCircleEdge(
-                id=edge_id,
-                source=source_node_id,
-                target=target_node_id,
+            edges[parsed.edge_id] = SocialCircleEdge(
+                id=parsed.edge_id,
+                source=parsed.source_node_id,
+                target=parsed.target_node_id,
                 type=conn_type,
-                strength=ai_strength,
-                evidence=connection.get("evidence"),
+                strength=parsed.strength,
+                evidence=parsed.evidence,
                 shared_book_ids=None,
             )
 
