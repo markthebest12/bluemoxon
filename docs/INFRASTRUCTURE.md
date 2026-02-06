@@ -33,7 +33,8 @@ flowchart TB
         end
 
         subgraph Async
-            SQS[SQS Queue]
+            SQS[SQS Queue<br/>Analysis]
+            SQS_P[SQS Queue<br/>Profile Gen]
         end
 
         subgraph Data
@@ -60,8 +61,11 @@ flowchart TB
     Lambda --> S3I
     Lambda --> Cognito
     Lambda --> SQS --> Worker
+    Lambda --> SQS_P --> ProfileWorker[Profile Worker]
     Worker --> Aurora
     Worker --> Bedrock
+    ProfileWorker --> Aurora
+    ProfileWorker --> Bedrock
     Lambda --> Scraper
 ```
 
@@ -927,6 +931,7 @@ When adding a new async worker flow (SQS queue + Lambda processor), update these
 | Analysis | `analysis_queue_name` | `check_sqs()` | `analysis_queue` | AdminConfigView |
 | Eval Runbook | `eval_runbook_queue_name` | `check_sqs()` | `eval_runbook_queue` | AdminConfigView |
 | Image Processing | `image_processor_queue_name` | `check_sqs()` | `image_processor_queue` | AdminConfigView |
+| Profile Generation | `profile_generation_queue_name` | `check_sqs()` | `profile_generation_queue` | AdminConfigView |
 
 ---
 
@@ -940,4 +945,4 @@ When adding a new async worker flow (SQS queue + Lambda processor), update these
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 2026*

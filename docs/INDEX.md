@@ -2,6 +2,15 @@
 
 Start here to find what you need.
 
+## What's New in BMX 3.0
+
+- **Social Circles** -- Interactive network graph showing who knew whom across the collection
+- **Entity Profiles** -- AI-generated bios, stories, and connection narratives for authors, publishers, and binders
+- **AI-Discovered Connections** -- Personal connections (family, friendship, influence, collaboration, scandal) via Bedrock
+- **Model Registry** -- Admin-configurable AI model selection per workflow
+
+See [Features](FEATURES.md#whats-new-in-bmx-30--social-circles) for full details.
+
 ## Quick Start
 
 | Guide | Purpose |

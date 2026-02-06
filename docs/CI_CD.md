@@ -216,12 +216,13 @@ Deploy workflow skips unchanged components:
 - Non-blocking: deployment continues (warn-only mode)
 
 **Parallel Lambda Deploys:**
-After API Lambda publishes the shared layer, 8 Lambda functions deploy in parallel:
+After API Lambda publishes the shared layer, 9 Lambda functions deploy in parallel:
 
 | Lambda | Purpose |
 |--------|---------|
 | `deploy-worker-lambda` | AI analysis worker |
 | `deploy-eval-worker-lambda` | Eval runbook generation |
+| `deploy-profile-worker-lambda` | Entity profile generation (BMX 3.0) |
 | `deploy-cleanup-lambda` | Orphaned resource cleanup |
 | `deploy-tracking-dispatcher` | Shipment tracking dispatcher |
 | `deploy-tracking-worker` | Shipment tracking worker |
@@ -516,4 +517,4 @@ Updates flow: Dependabot PR → staging → test → promote to main
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 2026*

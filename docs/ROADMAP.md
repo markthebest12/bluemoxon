@@ -73,7 +73,8 @@ The social circles system only discovers connections through shared book data (p
 
 **Solution:** AI-discovered connections at profile generation time. 5 connection types: family, friendship, influence, collaboration, scandal. Zero new infrastructure — uses existing SQS pipeline and entity_profiles table. Cost: ~$0.40 for full 264-entity batch.
 
-**Edge styling vision:**
+**Edge styling:**
+
 - **Green** = publisher relationships
 - **Blue** = personal connections (AI-discovered)
 - **Purple** = binder relationships
@@ -83,12 +84,12 @@ The social circles system only discovers connections through shared book data (p
 
 | Track | Description | Issue | Status |
 |-------|-------------|-------|--------|
-| Foundation | Migration + model + schema + frontend types | #1804 | In Progress |
-| AI Discovery | `generate_ai_connections()` + validation | #1805 | In Progress |
-| Pipeline | Wire into `generate_and_cache_profile()` | #1806 | Planned |
-| Graph Builder | Merge AI edges into social circles graph | #1807 | Planned |
-| Edge Styling | Type-specific colors + click-to-highlight | #1808 | Planned |
-| Badges | Sub_type badges + confidence styling | #1809 | Planned |
+| Foundation | Migration + model + schema + frontend types | #1804 | ✅ Complete |
+| AI Discovery | `generate_ai_connections()` + validation | #1805 | ✅ Complete |
+| Pipeline | Wire into `generate_and_cache_profile()` | #1806 | ✅ Complete |
+| Graph Builder | Merge AI edges into social circles graph | #1807 | ✅ Complete |
+| Edge Styling | Type-specific colors + click-to-highlight | #1808 | ✅ Complete |
+| Badges | Sub_type badges + confidence styling | #1809 | ✅ Complete |
 | E2E Tests | Profile + social circles AI connection tests | #1810 | Planned |
 
 **Epic:** #1803
@@ -154,7 +155,7 @@ An interactive period map of London with actual publisher addresses plotted, sho
 | Feature | Description | Status |
 |---------|-------------|--------|
 | **Victorian Social Circles Phase 1** | Interactive Cytoscape.js network graph — nodes, edges, filters, timeline, tooltips, detail panel | ✅ #1316 |
-| **AI-Discovered Connections** | Personal connections (family, friendship, influence, collaboration, scandal) via AI discovery | In Progress #1803 |
+| **AI-Discovered Connections** | Personal connections (family, friendship, influence, collaboration, scandal) via AI discovery | ✅ #1803 |
 | **Entity Profiles & AI Bios** | AI-generated entity profiles with bios, stories, and connection narratives | ✅ Complete |
 | **Model Configuration UI** | Per-flow AI model selectors on admin config page (#1571, #1570, #1714) | ✅ #1774, #1775 |
 | **Toast Notification System** | User-friendly error/success notifications with hover-to-pause, duplicate suppression | ✅ #855 |
@@ -215,8 +216,9 @@ An interactive period map of London with actual publisher addresses plotted, sho
 ```text
 CloudFront → S3 (Frontend)
 CloudFront → API Gateway → Lambda → Aurora Serverless v2
-                                  → AWS Bedrock (Claude 4.5)
-                                  → S3 (Images + Prompts)
+                                  → AWS Bedrock (Opus/Sonnet/Haiku)
+                                  → S3 (Images + Prompts + Portraits)
+                                  → SQS (Analysis + Profile Generation)
 ```
 
 **Dual Environment:** Production (`app.bluemoxon.com`) and Staging (`staging.app.bluemoxon.com`) with isolated Cognito pools, databases, and S3 buckets.
@@ -489,7 +491,7 @@ on:
 
 | Item | Category | Effort | Impact | Status |
 |------|----------|--------|--------|--------|
-| AI-Discovered Connections (#1803) | Features | High | High (reveals hidden relationships) | In Progress |
+| ~~AI-Discovered Connections (#1803)~~ | ~~Features~~ | ~~High~~ | ~~High (reveals hidden relationships)~~ | ✅ Complete |
 | Social Circles Phase 2 | Features | High | Medium (search, stats, polish) | In Progress |
 | ~~Thumbnail Generation~~ | Features | ~~Medium~~ | ~~Medium (faster list views)~~ | ✅ DONE |
 | ~~Book Status Management UI~~ | Features | ~~Low~~ | ~~Medium (workflow improvement)~~ | ✅ DONE |
@@ -565,4 +567,4 @@ To stay within budget:
 
 ---
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-06

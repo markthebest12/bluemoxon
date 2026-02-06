@@ -269,6 +269,94 @@
             color: var(--text-muted);
         }
 
+        /* Announcement Banner */
+        .announcement-banner {
+            background: linear-gradient(135deg, #1a2744 0%, #0f172a 50%, #1a1f3d 100%);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            padding: 3rem;
+            margin-bottom: 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .announcement-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-green));
+        }
+
+        .announcement-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .announcement-banner h3 {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .announcement-banner p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            max-width: 800px;
+        }
+
+        .announcement-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .announcement-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .announcement-feature .feature-icon {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .feature-icon.blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue-light); }
+        .feature-icon.purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
+        .feature-icon.green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .feature-icon.amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+
+        .announcement-feature h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .announcement-feature p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
         /* Screenshots Gallery */
         .screenshots-grid {
             display: grid;
@@ -1004,6 +1092,88 @@
         </div>
     </section>
 
+    <!-- BMX 3.0 Announcement -->
+    <section id="bmx3" style="padding-top: 2rem;">
+        <div class="section-header">
+            <h2>Introducing BMX 3.0</h2>
+            <p>Social Circles: Your collection is a map of Victorian intellectual London</p>
+        </div>
+
+        <div class="announcement-banner">
+            <span class="announcement-badge">New in 3.0</span>
+            <h3>Victorian Social Circles</h3>
+            <p>
+                An interactive network graph showing who knew whom, who published whom, and who influenced
+                whom across your collection. Powered by Cytoscape.js with AI-discovered personal connections
+                via AWS Bedrock. Your books are not just inventory &mdash; they are a living map of the
+                relationships that shaped Victorian literature.
+            </p>
+
+            <div class="announcement-features">
+                <div class="announcement-feature">
+                    <div class="feature-icon blue">&#x1f310;</div>
+                    <div>
+                        <h4>Network Graph</h4>
+                        <p>Interactive Cytoscape.js visualization with era filtering and timeline scrubber</p>
+                    </div>
+                </div>
+                <div class="announcement-feature">
+                    <div class="feature-icon purple">&#x1f9e0;</div>
+                    <div>
+                        <h4>AI Entity Profiles</h4>
+                        <p>Biographical summaries, personal stories, and connection narratives for every entity</p>
+                    </div>
+                </div>
+                <div class="announcement-feature">
+                    <div class="feature-icon green">&#x1f517;</div>
+                    <div>
+                        <h4>AI-Discovered Connections</h4>
+                        <p>Family, friendship, influence, collaboration, and scandal edges discovered by Claude</p>
+                    </div>
+                </div>
+                <div class="announcement-feature">
+                    <div class="feature-icon amber">&#x2699;</div>
+                    <div>
+                        <h4>Model Registry</h4>
+                        <p>Admin-configurable AI model selection per workflow (Opus, Sonnet, Haiku)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="name-origin" style="margin-bottom: 3rem;">
+            <div class="name-grid">
+                <div class="name-card">
+                    <h3>The Browning Problem, Solved</h3>
+                    <p>
+                        Elizabeth Barrett Browning and Robert Browning have six books in the collection but
+                        share <strong>zero publishers</strong>. Data-only analysis sees no relationship. AI-discovered
+                        connections solve this: the most famous literary couple in Victorian England is now visible
+                        as a <strong>family</strong> edge, with biographical context and confidence scoring.
+                    </p>
+                    <p class="quote">
+                        "Everyone knew everyone. Same publishers, same binderies, same social circles. Now you can see it."
+                    </p>
+                </div>
+                <div class="name-card">
+                    <h3>Five Connection Types</h3>
+                    <p>
+                        AI discovers personal connections between entities and classifies them:
+                        <strong>family</strong> (the Brownings, the Rossettis),
+                        <strong>friendship</strong> (Dickens and Collins),
+                        <strong>influence</strong> (Ruskin on Morris),
+                        <strong>collaboration</strong> (shared works),
+                        and <strong>scandal</strong> (the soap opera layer). Each type gets distinct
+                        color-coded edges in the network graph.
+                    </p>
+                    <p class="quote">
+                        "Green for publishers, blue for friendships, purple for binders, rose for scandal."
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- About Section -->
     <section id="about">
         <div class="section-header">
@@ -1363,6 +1533,35 @@
         <div class="name-origin" style="margin-bottom: 3rem;">
             <div class="name-grid">
                 <div class="name-card">
+                    <h3>Social Circles Network</h3>
+                    <p>
+                        <strong>BMX 3.0 flagship feature.</strong> An interactive Cytoscape.js network graph showing
+                        connections between authors, publishers, and binders. Filter by era, zoom into clusters,
+                        scrub through a timeline, and click any node to see a detailed AI-generated biography with
+                        personal stories and connection narratives.
+                    </p>
+                    <p class="quote">
+                        "Your collection is not just books - it is a map of Victorian intellectual London."
+                    </p>
+                </div>
+                <div class="name-card">
+                    <h3>Entity Profiles &amp; AI Bios</h3>
+                    <p>
+                        Every author, publisher, and binder gets an <strong>AI-generated biographical profile</strong>
+                        with personal stories, key life events, and connection narratives explaining how entities
+                        relate to each other. Portraits are uploaded as 400x400 JPEG images served via CloudFront CDN.
+                        Profiles are generated asynchronously via SQS with batch job tracking.
+                    </p>
+                    <p class="quote">
+                        "From Dickens to Zaehnsdorf, every entity tells a story."
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="name-origin" style="margin-bottom: 3rem;">
+            <div class="name-grid">
+                <div class="name-card">
                     <h3>Victorian Dark Mode</h3>
                     <p>
                         A carefully crafted <strong>dark theme</strong> with deep burgundy backgrounds, aged parchment text,
@@ -1495,7 +1694,7 @@ graph TB
 
         <!-- AI Valuation Flow -->
         <div class="diagram-container">
-            <h4>AI-Powered Valuation Flow (AWS Bedrock + Claude Sonnet 4)</h4>
+            <h4>AI-Powered Valuation Flow (AWS Bedrock + Claude Opus/Sonnet/Haiku)</h4>
             <div class="mermaid">
 flowchart TB
     subgraph Input["Acquisition Input"]

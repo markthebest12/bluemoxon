@@ -137,6 +137,22 @@ aws cloudfront create-invalidation \
   --paths "/*"
 ```
 
+### Deploy Profile Worker Lambda
+
+The profile worker Lambda is deployed the same way as the analysis worker -- it shares the Lambda layer and uses a zip-based deployment package:
+
+```bash
+# Deploy to staging (follows same pattern as analysis worker)
+AWS_PROFILE=bmx-staging aws lambda update-function-code \
+  --function-name bluemoxon-staging-profile-worker \
+  --s3-bucket bluemoxon-staging-deploy \
+  --s3-key lambda/bluemoxon-api.zip
+```
+
+The profile worker is SQS-triggered (profile generation queue), uses 1024 MB memory, and has a 600s timeout. It processes entity profile generation requests using Bedrock.
+
+---
+
 ### Deploy Image Processor Lambda
 
 The image processor is a container-based Lambda deployed via ECR:
@@ -322,4 +338,4 @@ aws cloudfront create-invalidation --distribution-id E16BJX90QWQNQO --paths "/*"
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 2026*

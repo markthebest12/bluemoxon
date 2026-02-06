@@ -163,6 +163,7 @@ AWS_PROFILE=bmx-staging aws lambda get-function-configuration --function-name bl
 | `bluemoxon-api` / `bluemoxon-staging-api` | Main API | 30s |
 | `bluemoxon-analysis-worker` | Async Bedrock analysis | 600s |
 | `bluemoxon-eval-runbook-worker` | Async eval runbook generation | 600s |
+| `bluemoxon-profile-worker` | Entity profile generation (BMX 3.0) | 600s |
 | `bluemoxon-image-processor` | AI background removal (container) | 300s |
 | `bluemoxon-retry-queue-failed` | Retry failed image processing jobs | 60s |
 | `bluemoxon-scraper` | eBay Playwright scraping | 120s |
@@ -231,6 +232,54 @@ AWS_PROFILE=bmx-staging aws lambda invoke \
   --payload '{}' \
   .tmp/retry-response.json
 ```
+
+### Profile Generation Jobs (BMX 3.0)
+
+Entity profile generation runs via SQS-triggered profile worker Lambda.
+
+**Trigger batch generation:**
+
+```bash
+bmx-api POST /entity/profiles/generate-all
+# Returns: {"job_id": 42, "total_entities": 264, "status": "in_progress"}
+```
+
+**Check job progress:**
+
+```bash
+bmx-api GET /entity/profiles/generate-all/status/42
+# Returns: {"job_id": 42, "status": "in_progress", "succeeded": 180, "failed": 2, ...}
+```
+
+**Cancel a stuck job:**
+
+```bash
+bmx-api POST /entity/profiles/generate-all/42/cancel
+```
+
+**View profile worker logs:**
+
+```bash
+AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-profile-worker --since 10m
+```
+
+**Check profile generation queue depth:**
+
+```bash
+AWS_PROFILE=bmx-staging aws sqs get-queue-attributes \
+  --queue-url https://sqs.us-west-2.amazonaws.com/ACCOUNT/bluemoxon-staging-profile-generation \
+  --attribute-names ApproximateNumberOfMessages
+```
+
+### Social Circles Health Check (BMX 3.0)
+
+The social circles feature has a dedicated health endpoint:
+
+```bash
+bmx-api GET /social-circles/health
+```
+
+Response includes node counts, edge counts, and query performance metrics. The graph build should complete in under 500ms; longer times indicate `degraded` status.
 
 ### Dead Letter Queue (DLQ)
 

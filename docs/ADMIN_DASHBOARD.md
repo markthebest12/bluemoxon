@@ -12,7 +12,7 @@ The Admin Dashboard provides system monitoring, configuration management, and co
 |-----|---------|---------|
 | **Settings** | Currency exchange rates | Manual save |
 | **System Status** | Health checks, version info | On page load |
-| **Models** | AI model configuration | Read-only |
+| **Models** | AI model configuration per workflow | Editable (Admin) |
 | **Scoring Config** | Recommendation algorithm settings | Read-only |
 | **Entity Tiers** | Author/Publisher/Binder tiers | Read-only |
 | **Reference Data** | CRUD for Authors/Publishers/Binders | Real-time |
@@ -67,13 +67,25 @@ Shows if this request triggered a Lambda cold start (first request after idle pe
 
 ## Models Tab
 
-Read-only display of configured AI models and their purposes.
+Configurable AI model assignments per workflow (BMX 3.0). Admin users can change which model is used for each workflow. Editors see a read-only display.
 
-| Model | Typical Usage |
-|-------|---------------|
-| **Sonnet 4.5** | Primary book analysis |
-| **Opus 4.6** | Complex reasoning tasks |
-| **Haiku 3.5** | Fast extraction tasks |
+### Available Models
+
+| Model | Model ID | Typical Usage |
+|-------|----------|---------------|
+| **Sonnet 4.5** | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | Eval runbooks, FMV lookup, listing extraction |
+| **Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | Napoleon analysis (default) |
+| **Haiku 3.5** | `anthropic.claude-3-5-haiku-20241022-v1:0` | Entity profiles, order extraction |
+
+### Configurable Workflows
+
+| Flow | Default Model | Description |
+|------|---------------|-------------|
+| **Napoleon Analysis** | Opus | Full book analysis using the Napoleon framework |
+| **Entity Profiles** | Haiku | AI-generated biographical profiles for authors, publishers, and binders |
+| **Order Extraction** | Haiku | Structured data extraction from order emails |
+
+Each workflow shows a dropdown selector (admin only) to change the model. Changes are stored in the `app_config` table with 5-minute cache TTL. A "Reset to Default" button reverts to the hardcoded default.
 
 ---
 
@@ -300,5 +312,7 @@ Cost data caches for 1 hour. Wait for cache expiry or check `cached_at` timestam
 | `/admin/costs` | GET | AWS cost data |
 | `/admin/config` | GET | Currency rates |
 | `/admin/config` | PUT | Update currency rates (Admin only) |
+| `/admin/model-config` | GET | Model assignments per workflow (Admin only) |
+| `/admin/model-config/{flow_key}` | PUT | Update model for a workflow (Admin only) |
 
 See [API Reference](API_REFERENCE.md#admin-dashboard-api-editor) for full documentation.
