@@ -32,6 +32,8 @@ class TestEbayImportPurchasePrice:
             "condition_notes": "Fine condition",
             "status": "EVALUATING",  # Watchlist items are EVALUATING
             "inventory_type": "PRIMARY",
+            "category": "Victorian Poetry",
+            "listing_s3_keys": ["listings/123456789/image_0.jpg"],
         }
 
         # Create book via API (simulating frontend addToWatchlist call)
@@ -74,6 +76,8 @@ class TestEbayImportPurchasePrice:
                 "purchase_price": 350.00,  # Asking price from eBay
                 "status": "EVALUATING",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         book_id = create_response.json()["id"]
@@ -119,6 +123,8 @@ class TestEbayImportPurchasePrice:
                 "purchase_price": 500.00,  # Original asking price from eBay
                 "status": "EVALUATING",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert create_response.status_code == 201

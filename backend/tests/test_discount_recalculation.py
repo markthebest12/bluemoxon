@@ -352,6 +352,8 @@ class TestDiscountPctOnBookCreation:
                 "purchase_price": "448.00",
                 "value_mid": "475.00",
                 "status": "ON_HAND",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -372,6 +374,8 @@ class TestDiscountPctOnBookCreation:
                 "acquisition_cost": "169.63",
                 "value_mid": "260.00",
                 "status": "ON_HAND",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -569,6 +573,8 @@ class TestNegativeDiscountScenarios:
                 "purchase_price": "300.00",
                 "value_mid": "200.00",  # Paid more than market value
                 "status": "ON_HAND",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -617,6 +623,8 @@ class TestCreateBookWithPartialData:
                 "purchase_price": "100.00",
                 # No value_mid - can't calculate discount yet
                 "status": "ON_HAND",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 

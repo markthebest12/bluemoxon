@@ -44,7 +44,10 @@ class TestListImages:
     def test_list_images_empty(self, client):
         """Test listing images for a book with no images."""
         # Create a book first
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # List images
@@ -64,7 +67,10 @@ class TestPrimaryImage:
     def test_primary_image_placeholder(self, client):
         """Test placeholder returned when no images exist."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Get primary image
@@ -87,7 +93,10 @@ class TestUploadImage:
     def test_upload_image(self, client):
         """Test uploading an image."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create a simple test image (1x1 PNG)
@@ -126,7 +135,10 @@ class TestUpdateImage:
     def test_update_image_metadata(self, client):
         """Test updating image metadata."""
         # Create book and upload image
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         png_data = (
@@ -156,7 +168,10 @@ class TestDeleteImage:
     def test_delete_image(self, client):
         """Test deleting an image."""
         # Create book and upload image
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         png_data = (
@@ -181,7 +196,10 @@ class TestDeleteImage:
 
     def test_delete_image_not_found(self, client):
         """Test 404 when image doesn't exist."""
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         response = client.delete(f"/api/v1/books/{book_id}/images/999")
@@ -205,7 +223,10 @@ class TestThumbnailGeneration:
     def test_upload_image_returns_thumbnail_status_field(self, client):
         """Test that upload response includes thumbnail_status field."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create a simple test image (1x1 PNG)
@@ -231,7 +252,10 @@ class TestThumbnailGeneration:
     def test_upload_image_thumbnail_status_generated_on_success(self, client):
         """Test thumbnail_status is 'generated' when thumbnail generation succeeds."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create a valid 100x100 RGB JPEG (realistic for thumbnail gen)
@@ -263,7 +287,10 @@ class TestThumbnailGeneration:
         )
 
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create a simple test image
@@ -289,7 +316,10 @@ class TestThumbnailGeneration:
     def test_upload_duplicate_image_thumbnail_status_skipped(self, client):
         """Test thumbnail_status is 'skipped' for duplicate image uploads."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create a valid image
@@ -330,7 +360,10 @@ class TestImageProcessingTrigger:
         """Uploading an image as primary should queue processing."""
         from unittest.mock import patch
 
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         png_data = (
@@ -353,7 +386,10 @@ class TestImageProcessingTrigger:
         """Uploading a non-primary image should not queue processing."""
         from unittest.mock import patch
 
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         png_data = (
@@ -384,7 +420,10 @@ class TestImageProcessingTrigger:
 
         from PIL import Image
 
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create two distinct images to avoid duplicate detection

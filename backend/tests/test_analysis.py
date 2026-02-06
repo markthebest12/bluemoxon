@@ -11,7 +11,10 @@ class TestGetAnalysis:
     def test_get_analysis_not_found(self, client):
         """Test 404 when book has no analysis."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Try to get analysis
@@ -26,7 +29,10 @@ class TestGetAnalysis:
 
     def test_get_analysis_includes_generated_at(self, client):
         """Test that analysis response includes generated_at timestamp."""
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         client.put(
@@ -47,7 +53,10 @@ class TestGetAnalysis:
 
     def test_get_analysis_includes_model_id(self, client):
         """Test that analysis response includes model_id field."""
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Upload analysis via PUT (simulates manual upload - no model_id)
@@ -66,7 +75,10 @@ class TestGetAnalysis:
 
     def test_legacy_analysis_has_null_model_id(self, client):
         """Test that existing/legacy analyses return null model_id."""
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Upload analysis without model_id (simulates legacy data)
@@ -89,7 +101,10 @@ class TestGetAnalysisRaw:
 
     def test_get_analysis_raw_not_found(self, client):
         """Test 404 when book has no analysis."""
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         response = client.get(f"/api/v1/books/{book_id}/analysis/raw")
@@ -107,7 +122,10 @@ class TestUpdateAnalysis:
     def test_create_analysis(self, client):
         """Test creating analysis for a book."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create analysis
@@ -135,7 +153,10 @@ Very good condition.
     def test_update_existing_analysis(self, client):
         """Test updating existing analysis."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create initial analysis
@@ -210,7 +231,10 @@ class TestPublisherIntegration:
     def test_publisher_from_structured_data_updates_book(self, client, db):
         """Test that publisher from structured data updates book.publisher_id."""
         # Create a book without publisher
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Verify no publisher initially
@@ -243,7 +267,10 @@ A fine first edition published by Harper & Brothers.
 
     def test_publisher_from_text_pattern_updates_book(self, client, db):
         """Test that publisher from **Publisher:** pattern updates book."""
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         markdown_content = """## Executive Summary
@@ -284,7 +311,13 @@ A Victorian binding in fine condition.
 
         # Create book with publisher
         response = client.post(
-            "/api/v1/books", json={"title": "Test Book", "publisher_id": publisher.id}
+            "/api/v1/books",
+            json={
+                "title": "Test Book",
+                "publisher_id": publisher.id,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         book_id = response.json()["id"]
 
@@ -310,7 +343,10 @@ class TestAnalysisWithBookInfo:
     def test_book_has_analysis_flag(self, client):
         """Test has_analysis flag in book response."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Initially no analysis

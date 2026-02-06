@@ -15,6 +15,8 @@ class TestEditionAutoInferOnCreate:
             json={
                 "title": "Test Book",
                 "edition": "First Edition",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -28,6 +30,8 @@ class TestEditionAutoInferOnCreate:
             json={
                 "title": "Test Book",
                 "edition": "1st ed.",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -40,6 +44,8 @@ class TestEditionAutoInferOnCreate:
             json={
                 "title": "Test Book",
                 "edition": "Second Edition",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -51,6 +57,8 @@ class TestEditionAutoInferOnCreate:
             "/api/v1/books",
             json={
                 "title": "Test Book",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -64,6 +72,8 @@ class TestEditionAutoInferOnCreate:
                 "title": "Test Book",
                 "edition": "First Edition",  # Would infer True
                 "is_first_edition": False,  # Explicitly set to False
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -78,6 +88,8 @@ class TestEditionAutoInferOnCreate:
                 "title": "Test Book",
                 "edition": "First Edition",
                 "is_first_edition": None,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -92,7 +104,11 @@ class TestEditionAutoInferOnUpdate:
         # Create book without edition
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book"},
+            json={
+                "title": "Test Book",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         book_id = create_response.json()["id"]
 
@@ -109,7 +125,11 @@ class TestEditionAutoInferOnUpdate:
         # Create book without edition
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book"},
+            json={
+                "title": "Test Book",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         book_id = create_response.json()["id"]
 
@@ -129,6 +149,8 @@ class TestEditionAutoInferOnUpdate:
             json={
                 "title": "Test Book",
                 "is_first_edition": False,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         book_id = create_response.json()["id"]
@@ -150,6 +172,8 @@ class TestEditionAutoInferOnUpdate:
             json={
                 "title": "Test Book",
                 "edition": "First Edition",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         book_id = create_response.json()["id"]
@@ -181,6 +205,8 @@ class TestEditionAutoInferOnUpdate:
             json={
                 "title": "Test Book",
                 "edition": "First Edition",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         book_id = create_response.json()["id"]

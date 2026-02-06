@@ -9,6 +9,9 @@ import pytest
 from app.models import Book, BookImage
 from app.models.analysis import BookAnalysis
 
+# Minimum required fields for BookCreate (category + at least one image)
+_REQUIRED = {"category": "Test", "listing_s3_keys": ["test/img.jpg"]}
+
 
 class TestListBooks:
     """Tests for GET /api/v1/books."""
@@ -37,7 +40,7 @@ class TestCreateBook:
         """Test creating a book with minimal data."""
         response = client.post(
             "/api/v1/books",
-            json={"title": "Idylls of the King"},
+            json={"title": "Idylls of the King", **_REQUIRED},
         )
         assert response.status_code == 201
         data = response.json()
@@ -61,6 +64,7 @@ class TestCreateBook:
                 "value_mid": 300,
                 "value_high": 400,
                 "status": "ON_HAND",
+                "listing_s3_keys": ["listings/item/img.jpg"],
             },
         )
         assert response.status_code == 201
@@ -72,6 +76,38 @@ class TestCreateBook:
     def test_create_book_missing_title(self, client):
         """Test that title is required."""
         response = client.post("/api/v1/books", json={})
+        assert response.status_code == 422
+
+    def test_create_book_missing_category(self, client):
+        """Test that category is required."""
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
+        assert response.status_code == 422
+
+    def test_create_book_empty_category(self, client):
+        """Test that empty category is rejected."""
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test", "category": "  ", "listing_s3_keys": ["test/img.jpg"]},
+        )
+        assert response.status_code == 422
+
+    def test_create_book_missing_images(self, client):
+        """Test that listing_s3_keys is required."""
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test", "category": "Victorian Poetry"},
+        )
+        assert response.status_code == 422
+
+    def test_create_book_empty_images_list(self, client):
+        """Test that empty listing_s3_keys list is rejected."""
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test", "category": "Victorian Poetry", "listing_s3_keys": []},
+        )
         assert response.status_code == 422
 
     def test_create_book_with_near_fine_condition(self, client):
@@ -87,6 +123,7 @@ class TestCreateBook:
             json={
                 "title": "The Princess",
                 "condition_grade": "NEAR_FINE",
+                **_REQUIRED,
             },
         )
         assert response.status_code == 201
@@ -121,7 +158,7 @@ class TestGetBook:
         # Create a book first
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book"},
+            json={"title": "Test Book", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -139,7 +176,7 @@ class TestUpdateBook:
         # Create
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Original Title"},
+            json={"title": "Original Title", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -165,7 +202,7 @@ class TestDeleteBook:
         # Create
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "To Delete"},
+            json={"title": "To Delete", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -186,7 +223,7 @@ class TestBookStatus:
         # Create
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test", "status": "IN_TRANSIT"},
+            json={"title": "Test", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -199,7 +236,7 @@ class TestBookStatus:
         """Test invalid status value."""
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test"},
+            json={"title": "Test", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -215,7 +252,7 @@ class TestInventoryType:
         # Create in PRIMARY
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test", "inventory_type": "PRIMARY"},
+            json={"title": "Test", "inventory_type": "PRIMARY", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -234,7 +271,7 @@ class TestAddTracking:
         # Create IN_TRANSIT book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "IN_TRANSIT"},
+            json={"title": "Test Book", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -258,7 +295,7 @@ class TestAddTracking:
         # Create IN_TRANSIT book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "IN_TRANSIT"},
+            json={"title": "Test Book", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -278,7 +315,7 @@ class TestAddTracking:
         # Create IN_TRANSIT book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "IN_TRANSIT"},
+            json={"title": "Test Book", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -297,7 +334,7 @@ class TestAddTracking:
         # Create ON_HAND book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "ON_HAND"},
+            json={"title": "Test Book", "status": "ON_HAND", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -314,7 +351,7 @@ class TestAddTracking:
         # Create IN_TRANSIT book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "IN_TRANSIT"},
+            json={"title": "Test Book", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -339,7 +376,7 @@ class TestAddTracking:
         # Create IN_TRANSIT book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "IN_TRANSIT"},
+            json={"title": "Test Book", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -356,7 +393,7 @@ class TestAddTracking:
         # Create IN_TRANSIT book
         create_response = client.post(
             "/api/v1/books",
-            json={"title": "Test Book", "status": "IN_TRANSIT"},
+            json={"title": "Test Book", "status": "IN_TRANSIT", **_REQUIRED},
         )
         book_id = create_response.json()["id"]
 
@@ -1816,6 +1853,7 @@ class TestTopBooks:
                 "status": "ON_HAND",
                 "inventory_type": "PRIMARY",
                 "value_mid": 999999,  # High value ensures it's in top results
+                **_REQUIRED,
             },
         )
         assert on_hand_response.status_code == 201
@@ -1830,6 +1868,7 @@ class TestTopBooks:
                 "status": "EVALUATING",
                 "inventory_type": "PRIMARY",
                 "value_mid": 9999999,  # Even higher value but still should be excluded
+                **_REQUIRED,
             },
         )
         assert evaluating_response.status_code == 201
@@ -1861,6 +1900,7 @@ class TestTopBooks:
                 "status": "ON_HAND",
                 "inventory_type": "PRIMARY",
                 "value_mid": 999999,  # High value ensures it's in top results
+                **_REQUIRED,
             },
         )
         assert on_hand_response.status_code == 201
@@ -1874,6 +1914,7 @@ class TestTopBooks:
                 "status": "REMOVED",
                 "inventory_type": "PRIMARY",
                 "value_mid": 9999999,  # Even higher value but still should be excluded
+                **_REQUIRED,
             },
         )
         assert removed_response.status_code == 201
@@ -1898,6 +1939,7 @@ class TestTopBooks:
                 "status": "IN_TRANSIT",
                 "inventory_type": "PRIMARY",
                 "value_mid": 999999,  # High value ensures it's in top results
+                **_REQUIRED,
             },
         )
         assert in_transit_response.status_code == 201
@@ -1919,7 +1961,7 @@ class TestIdsTruncation:
         # Create 5 books
         book_ids = []
         for i in range(5):
-            response = client.post("/api/v1/books", json={"title": f"Book {i}"})
+            response = client.post("/api/v1/books", json={"title": f"Book {i}", **_REQUIRED})
             book_ids.append(response.json()["id"])
 
         # Request with less than 100 IDs
@@ -1938,7 +1980,7 @@ class TestIdsTruncation:
         # Create 5 books
         book_ids = []
         for i in range(5):
-            response = client.post("/api/v1/books", json={"title": f"Book {i}"})
+            response = client.post("/api/v1/books", json={"title": f"Book {i}", **_REQUIRED})
             book_ids.append(response.json()["id"])
 
         # Request with more than 100 IDs (simulate with repeated IDs)
