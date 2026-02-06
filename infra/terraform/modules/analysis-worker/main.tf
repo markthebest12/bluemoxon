@@ -229,7 +229,7 @@ resource "aws_iam_role_policy" "bedrock_access" {
         )
       },
       {
-        # Required for Opus 4.5 model access verification at runtime
+        # Required for Bedrock model access verification at runtime
         # Without these, InvokeModel fails with AccessDeniedException
         Effect = "Allow"
         Action = [

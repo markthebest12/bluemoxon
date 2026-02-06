@@ -416,7 +416,7 @@ Response:
 
 Book analyses are detailed markdown documents providing professional valuations,
 historical context, and collection significance for each book. Analyses are
-generated using **AWS Bedrock (Claude 4.5)** with the **Napoleon Framework** prompt,
+generated using **AWS Bedrock (Claude)** with the **Napoleon Framework** prompt,
 which produces comprehensive valuations following a standardized format.
 
 The Napoleon Framework prompt is stored in S3 (`s3://bluemoxon-images/prompts/napoleon-framework/v3.md`)
@@ -1942,7 +1942,7 @@ Response:
   "period_end": "2025-12-23",
   "bedrock_models": [
     {"model_name": "Sonnet 4.5", "usage": "Primary analysis model", "mtd_cost": 52.53},
-    {"model_name": "Opus 4.5", "usage": "Complex reasoning tasks", "mtd_cost": 1.43},
+    {"model_name": "Opus 4.6", "usage": "Complex reasoning tasks", "mtd_cost": 1.43},
     {"model_name": "Claude 3.5 Sonnet v2", "usage": "Legacy analysis", "mtd_cost": 0.94},
     {"model_name": "Claude 3.5 Sonnet", "usage": "Legacy analysis", "mtd_cost": 0.69},
     {"model_name": "Claude 3 Haiku", "usage": "Fast extraction tasks", "mtd_cost": 0.15}

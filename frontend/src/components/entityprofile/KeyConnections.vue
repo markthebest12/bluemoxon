@@ -2,6 +2,7 @@
 import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
+import ConnectionDetailSidebar from "./ConnectionDetailSidebar.vue";
 import ConditionBadge from "./ConditionBadge.vue";
 import EntityLinkedText from "./EntityLinkedText.vue";
 import { bookDetailRoute, entityProfileRoute } from "@/utils/routes";
@@ -11,10 +12,23 @@ const props = defineProps<{
 }>();
 
 const expandedCards = ref<Record<string, boolean>>({});
+const selectedConnection = ref<ProfileConnection | null>(null);
+const sidebarOpen = ref(false);
 
-// Reset expanded state when connections change (navigating between profiles)
+function openConnectionDetail(conn: ProfileConnection) {
+  selectedConnection.value = conn;
+  sidebarOpen.value = true;
+}
+
+function closeSidebar() {
+  sidebarOpen.value = false;
+}
+
+// Reset expanded state and close sidebar when connections change (navigating between profiles)
 watch(toRef(props, "connections"), () => {
   expandedCards.value = {};
+  sidebarOpen.value = false;
+  selectedConnection.value = null;
 });
 
 function toggleCard(conn: ProfileConnection) {
@@ -34,12 +48,14 @@ function isExpanded(conn: ProfileConnection): boolean {
       <div
         v-for="conn in connections"
         :key="`${conn.entity.type}:${conn.entity.id}`"
-        class="key-connections__card"
+        class="key-connections__card key-connections__card--clickable"
+        @click="openConnectionDetail(conn)"
       >
         <div class="key-connections__header">
           <router-link
             :to="entityProfileRoute(conn.entity.type, conn.entity.id)"
             class="key-connections__name"
+            @click.stop
           >
             {{ conn.entity.name }}
           </router-link>
@@ -69,7 +85,11 @@ function isExpanded(conn: ProfileConnection): boolean {
               class="key-connections__book-thumb"
               data-testid="book-thumbnail"
             />
-            <router-link :to="bookDetailRoute(book.id)" class="key-connections__book-link">
+            <router-link
+              :to="bookDetailRoute(book.id)"
+              class="key-connections__book-link"
+              @click.stop
+            >
               {{ book.title }}
             </router-link>
             <span v-if="book.year"> ({{ book.year }})</span>
@@ -95,7 +115,7 @@ function isExpanded(conn: ProfileConnection): boolean {
           v-if="conn.relationship_story"
           class="key-connections__story-toggle"
           :aria-expanded="isExpanded(conn)"
-          @click="toggleCard(conn)"
+          @click.stop="toggleCard(conn)"
         >
           {{ isExpanded(conn) ? "Hide story" : "View full story" }}
         </button>
@@ -108,6 +128,13 @@ function isExpanded(conn: ProfileConnection): boolean {
       </div>
     </div>
   </section>
+
+  <ConnectionDetailSidebar
+    :connection="selectedConnection"
+    :all-connections="connections"
+    :is-open="sidebarOpen"
+    @close="closeSidebar"
+  />
 </template>
 
 <style scoped>
@@ -127,6 +154,15 @@ function isExpanded(conn: ProfileConnection): boolean {
   background: var(--color-surface, #faf8f5);
   border-radius: 8px;
   border: 1px solid var(--color-border, #e8e4de);
+}
+
+.key-connections__card--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.key-connections__card--clickable:hover {
+  border-color: var(--color-accent-gold, #b8860b);
 }
 
 .key-connections__header {
