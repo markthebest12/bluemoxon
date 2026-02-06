@@ -18,6 +18,7 @@ from app.schemas.reference import (
 )
 from app.services.entity_matching import invalidate_entity_cache
 from app.services.entity_validation import validate_entity_creation
+from app.services.sqs import send_entity_enrichment_job
 
 router = APIRouter()
 
@@ -118,6 +119,9 @@ def create_binder(
     db.commit()
     db.refresh(binder)
     invalidate_entity_cache("binder")
+
+    # Fire-and-forget: enqueue async enrichment via Bedrock (never blocks creation)
+    send_entity_enrichment_job("binder", binder.id, binder.name)
 
     return BinderResponse(
         id=binder.id,

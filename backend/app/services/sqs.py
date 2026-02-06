@@ -121,6 +121,14 @@ def get_profile_generation_queue_url() -> str:
     return _get_queue_url(queue_name)
 
 
+def get_entity_enrichment_queue_url() -> str:
+    """Get the entity enrichment jobs queue URL."""
+    queue_name = settings.entity_enrichment_queue_name
+    if not queue_name:
+        raise ValueError("ENTITY_ENRICHMENT_QUEUE_NAME environment variable not set")
+    return _get_queue_url(queue_name)
+
+
 def send_profile_generation_jobs(messages: list[dict]) -> None:
     """Send profile generation job messages to SQS in batches.
 
@@ -145,3 +153,42 @@ def send_profile_generation_jobs(messages: list[dict]) -> None:
         failed = response.get("Failed", [])
         if failed:
             logger.error("Failed to send %d profile generation messages: %s", len(failed), failed)
+
+
+def send_entity_enrichment_job(entity_type: str, entity_id: int, entity_name: str) -> None:
+    """Send an entity enrichment job message to SQS.
+
+    This is fire-and-forget: failures are logged but never raised,
+    so entity creation is never blocked.
+
+    Args:
+        entity_type: Type of entity ("author", "publisher", "binder")
+        entity_id: ID of the newly created entity
+        entity_name: Name of the entity (used in Bedrock prompt)
+    """
+    try:
+        sqs = get_sqs_client()
+        queue_url = get_entity_enrichment_queue_url()
+
+        message = {
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "entity_name": entity_name,
+        }
+
+        logger.info("Sending entity enrichment job to SQS: %s", message)
+
+        response = sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message),
+        )
+
+        logger.info("Entity enrichment job sent, MessageId: %s", response["MessageId"])
+
+    except Exception:
+        logger.warning(
+            "Failed to send entity enrichment job for %s:%s — enrichment skipped",
+            entity_type,
+            entity_id,
+            exc_info=True,
+        )

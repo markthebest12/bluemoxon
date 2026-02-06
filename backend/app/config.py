@@ -192,6 +192,14 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Entity enrichment worker queue
+    entity_enrichment_queue_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "BMX_ENTITY_ENRICHMENT_QUEUE_NAME", "ENTITY_ENRICHMENT_QUEUE_NAME"
+        ),
+    )
+
     # Notifications
     notification_from_email: str | None = Field(
         default=None,
