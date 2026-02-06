@@ -63,8 +63,11 @@ onMounted(() => {
 });
 
 // Track profile view when entity data loads (initial + navigation)
+// Dedup by entity ID to avoid spurious fires during regeneration polling
+let lastTrackedEntityId: number | null = null;
 watch(entity, (newEntity) => {
-  if (newEntity) {
+  if (newEntity && newEntity.id !== lastTrackedEntityId) {
+    lastTrackedEntityId = newEntity.id;
     analytics.trackProfileViewed(newEntity.type, newEntity.id, newEntity.tier ?? null);
   }
 });
