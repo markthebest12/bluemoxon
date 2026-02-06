@@ -12,6 +12,7 @@ from app.auth import CurrentUser, require_admin, require_editor, require_viewer
 from app.db import get_db
 from app.main import app
 from app.models import Author, Binder, Book, BookImage, Publisher
+from app.models.ai_connection import AIConnection
 from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
 from app.models.user import User
@@ -25,7 +26,6 @@ from app.services.entity_profile import (
     _build_connections,
     _build_profile_books,
     _build_stats,
-    _check_staleness,
     _get_entity_books,
     generate_and_cache_profile,
     is_profile_stale,
@@ -166,7 +166,7 @@ class TestProfileBookImageUrl:
 
     # Patch at definition site: _image_url uses a lazy import, so the name
     # is re-resolved each call — must patch at source, not consumer.
-    @patch("app.api.v1.images.get_cloudfront_url")
+    @patch("app.utils.cdn.get_cloudfront_url")
     @patch("app.services.entity_profile.get_settings")
     def test_build_profile_books_uses_cloudfront_in_lambda(self, mock_settings, mock_cf_url, db):
         """_build_profile_books uses CloudFront URL when running in Lambda."""
@@ -392,7 +392,7 @@ class TestEntityProfileEndpoint:
         assert data["books"][0]["title"] == "Owned Book"
 
     def test_profile_without_ai_content(self, profile_client, db):
-        """Profile works without cached AI content."""
+        """Profile works without cached AI content; is_stale=True when no profile exists."""
         author = Author(name="Obscure Author")
         db.add(author)
         db.commit()
@@ -402,7 +402,7 @@ class TestEntityProfileEndpoint:
 
         assert data["profile"]["bio_summary"] is None
         assert data["profile"]["personal_stories"] == []
-        assert data["profile"]["is_stale"] is False
+        assert data["profile"]["is_stale"] is True
 
     def test_stats_calculation(self, profile_client, db):
         """Stats are correctly calculated from books."""
@@ -655,7 +655,7 @@ class TestRegenerateEndpoint:
 
 
 class TestEntityFKMap:
-    """Tests for _get_entity_books and _check_staleness behaviour."""
+    """Tests for _get_entity_books behaviour."""
 
     def test_get_entity_books_unknown_type_returns_empty(self, db):
         """_get_entity_books returns [] for unknown entity type."""
@@ -699,8 +699,8 @@ class TestEntityFKMap:
         assert len(result) == 1
         assert result[0].title == "Owned Book"
 
-    def test_check_staleness_unknown_type_returns_false(self, db):
-        """_check_staleness returns False for unknown entity type."""
+    def test_staleness_unknown_type_returns_false(self, db):
+        """is_profile_stale returns False for unknown entity type with existing profile."""
         profile = EntityProfile(
             entity_type="unknown",
             entity_id=1,
@@ -709,11 +709,11 @@ class TestEntityFKMap:
         db.add(profile)
         db.commit()
 
-        result = _check_staleness(db, profile, "unknown", 1)
+        result = is_profile_stale(db, "unknown", 1)
         assert result is False
 
-    def test_check_staleness_returns_true_when_book_updated_after_profile(self, db):
-        """_check_staleness returns True when a book was updated after generated_at."""
+    def test_staleness_returns_true_when_book_updated_after_profile(self, db):
+        """is_profile_stale returns True when a book was updated after generated_at."""
         author = Author(name="Stale Author")
         db.add(author)
         db.flush()
@@ -733,13 +733,12 @@ class TestEntityFKMap:
 
         db.query(Book).filter(Book.id == book.id).update({"updated_at": datetime.now(UTC)})
         db.commit()
-        db.refresh(profile)
 
-        result = _check_staleness(db, profile, "author", author.id)
+        result = is_profile_stale(db, "author", author.id)
         assert result is True
 
-    def test_check_staleness_returns_false_when_profile_is_fresh(self, db):
-        """_check_staleness returns False when generated_at is after book updates."""
+    def test_staleness_returns_false_when_profile_is_fresh(self, db):
+        """is_profile_stale returns False when generated_at is after book updates."""
         author = Author(name="Fresh Author")
         db.add(author)
         db.flush()
@@ -757,7 +756,7 @@ class TestEntityFKMap:
         db.add(profile)
         db.commit()
 
-        result = _check_staleness(db, profile, "author", author.id)
+        result = is_profile_stale(db, "author", author.id)
         assert result is False
 
 
@@ -1928,7 +1927,7 @@ class TestBuildConnectionsAIMerge:
     @patch("app.services.entity_profile.get_or_build_graph")
     @patch("app.services.entity_profile.classify_connection", return_value=None)
     def test_ai_connections_appear_in_build_connections(self, _mock_classify, mock_graph, db):
-        """AI connections from profile are included in _build_connections output."""
+        """AI connections from table are included in _build_connections output."""
         author1 = Author(name="Elizabeth Barrett Browning", birth_year=1806, death_year=1861)
         author2 = Author(name="Robert Browning", birth_year=1812, death_year=1889)
         db.add_all([author1, author2])
@@ -1937,20 +1936,28 @@ class TestBuildConnectionsAIMerge:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author2.id,
-                    "relationship": "family",
-                    "sub_type": "MARRIAGE",
-                    "confidence": 0.95,
-                    "evidence": "Married in 1846",
-                }
-            ],
         )
         db.add(profile)
+
+        # Canonical ordering: lower node ID string first
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="family",
+                sub_type="MARRIAGE",
+                confidence=0.95,
+                evidence="Married in 1846",
+            )
+        )
         db.commit()
 
         source = _make_graph_node(
@@ -1998,20 +2005,28 @@ class TestBuildConnectionsAIMerge:
         profile = EntityProfile(
             entity_type="author",
             entity_id=author.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author.id,
-                    "target_type": "author",
-                    "target_id": 99,
-                    "relationship": "friendship",
-                    "sub_type": "CLOSE_FRIENDS",
-                    "confidence": 0.8,
-                    "evidence": "Were close friends",
-                }
-            ],
         )
         db.add(profile)
+
+        # Canonical ordering: "author:{author.id}" vs "author:99"
+        src_key = f"author:{author.id}"
+        tgt_key = "author:99"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", 99, "author", author.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author.id, "author", 99
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="friendship",
+                sub_type="CLOSE_FRIENDS",
+                confidence=0.8,
+                evidence="Were close friends",
+            )
+        )
         db.commit()
 
         source = _make_graph_node(f"author:{author.id}", author.id, "Darwin")
@@ -2104,3 +2119,309 @@ class TestPipelineAIConnections:
         result = generate_and_cache_profile(db, "author", author.id)
 
         assert result.ai_connections is None
+
+
+class TestScandalConnectionsAppear:
+    """Tests for scandal connections appearing in profile connections (#1827).
+
+    Scandal connections exist in AI data but were silently dropped when the
+    target entity wasn't present in the cached social circles graph.
+    """
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.classify_connection", return_value=None)
+    def test_scandal_connection_appears_when_target_in_graph(self, _mock_classify, mock_graph, db):
+        """Scandal AI connection appears when both entities are graph nodes."""
+        author1 = Author(name="Oscar Wilde", birth_year=1854, death_year=1900)
+        author2 = Author(name="Lord Alfred Douglas", birth_year=1870, death_year=1945)
+        db.add_all([author1, author2])
+        db.flush()
+
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
+        db.add(profile)
+
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="scandal",
+                sub_type="LEGAL_DISPUTE",
+                confidence=0.95,
+                evidence="The Queensberry trial of 1895",
+            )
+        )
+        db.commit()
+
+        source = _make_graph_node(
+            f"author:{author1.id}",
+            author1.id,
+            "Oscar Wilde",
+            era="victorian",
+            birth_year=1854,
+        )
+        target = _make_graph_node(
+            f"author:{author2.id}",
+            author2.id,
+            "Lord Alfred Douglas",
+            era="victorian",
+            birth_year=1870,
+        )
+
+        graph = MagicMock()
+        graph.nodes = [source, target]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        connections = _build_connections(db, "author", author1.id, profile, graph=graph)
+
+        scandal_conns = [c for c in connections if c.connection_type == "scandal"]
+        assert len(scandal_conns) == 1
+        assert scandal_conns[0].is_ai_discovered is True
+        assert scandal_conns[0].sub_type == "LEGAL_DISPUTE"
+        assert scandal_conns[0].confidence == 0.95
+        assert scandal_conns[0].entity.name == "Lord Alfred Douglas"
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.classify_connection", return_value=None)
+    def test_scandal_connection_appears_when_target_not_in_graph(
+        self, _mock_classify, mock_graph, db
+    ):
+        """Scandal AI connection appears even when target is NOT a graph node.
+
+        The target entity exists in the DB but is absent from the cached graph
+        (e.g. graph was built before AI connections were generated). The fix
+        falls back to a DB lookup so the connection isn't silently dropped.
+        """
+        author1 = Author(name="Oscar Wilde", birth_year=1854, death_year=1900)
+        author2 = Author(name="Lord Alfred Douglas", birth_year=1870, death_year=1945)
+        db.add_all([author1, author2])
+        db.flush()
+
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
+        db.add(profile)
+
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="scandal",
+                sub_type="LEGAL_DISPUTE",
+                confidence=0.9,
+                evidence="The Queensberry trial of 1895",
+            )
+        )
+        db.commit()
+
+        # Only the source entity is in the graph — target is missing
+        source = _make_graph_node(
+            f"author:{author1.id}",
+            author1.id,
+            "Oscar Wilde",
+            era="victorian",
+            birth_year=1854,
+        )
+
+        graph = MagicMock()
+        graph.nodes = [source]  # target deliberately absent
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        connections = _build_connections(db, "author", author1.id, profile, graph=graph)
+
+        scandal_conns = [c for c in connections if c.connection_type == "scandal"]
+        assert len(scandal_conns) == 1, (
+            "Scandal connection should appear via DB fallback when target is not in graph"
+        )
+        assert scandal_conns[0].is_ai_discovered is True
+        assert scandal_conns[0].entity.name == "Lord Alfred Douglas"
+        assert scandal_conns[0].entity.id == author2.id
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.classify_connection", return_value=None)
+    def test_scandal_connection_dropped_when_target_not_in_db(self, _mock_classify, mock_graph, db):
+        """Scandal AI connection is dropped when target entity doesn't exist in DB.
+
+        If the target entity was deleted from the collection entirely, the
+        connection should be gracefully skipped (not crash).
+        """
+        author1 = Author(name="Oscar Wilde", birth_year=1854, death_year=1900)
+        db.add(author1)
+        db.flush()
+
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
+        db.add(profile)
+
+        # Canonical ordering for author1 vs non-existent author:99999
+        src_key = f"author:{author1.id}"
+        tgt_key = "author:99999"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", 99999, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", 99999
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="scandal",
+                sub_type="FEUD",
+                confidence=0.7,
+                evidence="A famous dispute",
+            )
+        )
+        db.commit()
+
+        source = _make_graph_node(
+            f"author:{author1.id}",
+            author1.id,
+            "Oscar Wilde",
+        )
+
+        graph = MagicMock()
+        graph.nodes = [source]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        connections = _build_connections(db, "author", author1.id, profile, graph=graph)
+
+        scandal_conns = [c for c in connections if c.connection_type == "scandal"]
+        assert len(scandal_conns) == 0, (
+            "Scandal connection to non-existent entity should be gracefully skipped"
+        )
+
+    @patch("app.services.entity_profile.get_or_build_graph")
+    @patch("app.services.entity_profile.classify_connection", return_value=None)
+    def test_scandal_among_multiple_ai_types_all_appear(self, _mock_classify, mock_graph, db):
+        """Scandal connection appears alongside other AI connection types.
+
+        When an entity has multiple AI connection types (family, friendship,
+        scandal), all of them should appear in the connections list.
+        """
+        author1 = Author(name="Charles Dickens", birth_year=1812, death_year=1870)
+        author2 = Author(name="Ellen Ternan", birth_year=1839, death_year=1914)
+        author3 = Author(name="Wilkie Collins", birth_year=1824, death_year=1889)
+        db.add_all([author1, author2, author3])
+        db.flush()
+
+        profile = EntityProfile(entity_type="author", entity_id=author1.id)
+        db.add(profile)
+
+        # Add two AI connections in canonical order
+        for target, rel, sub, conf, ev in [
+            (author2, "scandal", "AFFAIR", 0.85, "Secret relationship with Ellen Ternan"),
+            (author3, "friendship", "CLOSE_FRIENDS", 0.95, "Lifelong friends and collaborators"),
+        ]:
+            src_key = f"author:{author1.id}"
+            tgt_key = f"author:{target.id}"
+            if src_key > tgt_key:
+                s_type, s_id, t_type, t_id = "author", target.id, "author", author1.id
+            else:
+                s_type, s_id, t_type, t_id = "author", author1.id, "author", target.id
+            db.add(
+                AIConnection(
+                    source_type=s_type,
+                    source_id=s_id,
+                    target_type=t_type,
+                    target_id=t_id,
+                    relationship=rel,
+                    sub_type=sub,
+                    confidence=conf,
+                    evidence=ev,
+                )
+            )
+        db.commit()
+
+        source = _make_graph_node(
+            f"author:{author1.id}",
+            author1.id,
+            "Charles Dickens",
+            era="victorian",
+            birth_year=1812,
+        )
+        target1 = _make_graph_node(
+            f"author:{author2.id}",
+            author2.id,
+            "Ellen Ternan",
+            era="victorian",
+            birth_year=1839,
+        )
+        target2 = _make_graph_node(
+            f"author:{author3.id}",
+            author3.id,
+            "Wilkie Collins",
+            era="victorian",
+            birth_year=1824,
+        )
+
+        graph = MagicMock()
+        graph.nodes = [source, target1, target2]
+        graph.edges = []
+        mock_graph.return_value = graph
+
+        connections = _build_connections(db, "author", author1.id, profile, graph=graph)
+
+        conn_types = {c.connection_type for c in connections}
+        assert "scandal" in conn_types, "Scandal connection should appear"
+        assert "friendship" in conn_types, "Friendship connection should appear"
+        assert len(connections) == 2
+
+
+class TestNodeToProfileEntity:
+    """Tests for _node_to_profile_entity helper (#1840)."""
+
+    def test_node_to_profile_entity_includes_image_url(self):
+        """_node_to_profile_entity should propagate image_url from graph node (#1840)."""
+        from app.schemas.social_circles import NodeType, SocialCircleNode
+        from app.services.entity_profile import _node_to_profile_entity
+
+        node = SocialCircleNode(
+            id="author:42",
+            entity_id=42,
+            name="Charles Dickens",
+            type=NodeType.author,
+            birth_year=1812,
+            death_year=1870,
+            tier="A",
+            image_url="https://cdn.example.com/images/dickens.jpg",
+            book_count=5,
+            book_ids=[1, 2, 3],
+        )
+        result = _node_to_profile_entity(node)
+        assert result.id == 42
+        assert result.name == "Charles Dickens"
+        assert result.image_url == "https://cdn.example.com/images/dickens.jpg"
+
+    def test_node_to_profile_entity_none_image_url(self):
+        """_node_to_profile_entity should handle None image_url gracefully."""
+        from app.schemas.social_circles import NodeType, SocialCircleNode
+        from app.services.entity_profile import _node_to_profile_entity
+
+        node = SocialCircleNode(
+            id="publisher:10",
+            entity_id=10,
+            name="Smith Elder",
+            type=NodeType.publisher,
+            tier="B",
+            book_count=3,
+            book_ids=[1, 2],
+        )
+        result = _node_to_profile_entity(node)
+        assert result.id == 10
+        assert result.image_url is None

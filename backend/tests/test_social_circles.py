@@ -1,7 +1,7 @@
 """Tests for social circles graph builder AI edge merging."""
 
 from app.models import Author, Book, Publisher
-from app.models.entity_profile import EntityProfile
+from app.models.ai_connection import AIConnection
 from app.services.social_circles import build_social_circles_graph
 
 
@@ -9,7 +9,7 @@ class TestAIEdgeMerge:
     """Tests for AI-discovered edges merged into social circles graph."""
 
     def test_ai_edges_appear_in_graph(self, db):
-        """AI connections stored in entity_profiles appear as edges in the graph."""
+        """AI connections in the ai_connections table appear as edges in the graph."""
         author1 = Author(name="Elizabeth Barrett Browning", birth_year=1806, death_year=1861)
         author2 = Author(name="Robert Browning", birth_year=1812, death_year=1889)
         db.add_all([author1, author2])
@@ -23,24 +23,26 @@ class TestAIEdgeMerge:
         db.add_all([book1, book2])
         db.flush()
 
-        # Store AI connection on one of the profiles
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author1.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author1.id,
-                    "target_type": "author",
-                    "target_id": author2.id,
-                    "relationship": "family",
-                    "sub_type": "MARRIAGE",
-                    "confidence": 0.95,
-                    "evidence": "Married in 1846",
-                }
-            ],
+        # Store AI connection in canonical table (lower node ID first)
+        src_key = f"author:{author1.id}"
+        tgt_key = f"author:{author2.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "author", author2.id, "author", author1.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author1.id, "author", author2.id
+
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="family",
+                sub_type="MARRIAGE",
+                confidence=0.95,
+                evidence="Married in 1846",
+            )
         )
-        db.add(profile)
         db.commit()
 
         result = build_social_circles_graph(db)
@@ -58,7 +60,7 @@ class TestAIEdgeMerge:
         assert family_edge.evidence == "Married in 1846"
 
     def test_ai_edge_dedup_against_existing(self, db):
-        """AI edges are skipped if the same node pair already has a book-derived edge."""
+        """AI edges co-exist with book-derived edges for different relationship types."""
         author = Author(name="Test Author", birth_year=1820, death_year=1880)
         publisher = Publisher(name="Test Publisher")
         db.add_all([author, publisher])
@@ -75,23 +77,25 @@ class TestAIEdgeMerge:
         db.add(book)
         db.flush()
 
-        # AI connection for same pair
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author.id,
-                    "target_type": "publisher",
-                    "target_id": publisher.id,
-                    "relationship": "friendship",
-                    "confidence": 0.8,
-                    "evidence": "Were friends",
-                }
-            ],
+        # AI connection for same pair but different type
+        src_key = f"author:{author.id}"
+        tgt_key = f"publisher:{publisher.id}"
+        if src_key > tgt_key:
+            s_type, s_id, t_type, t_id = "publisher", publisher.id, "author", author.id
+        else:
+            s_type, s_id, t_type, t_id = "author", author.id, "publisher", publisher.id
+
+        db.add(
+            AIConnection(
+                source_type=s_type,
+                source_id=s_id,
+                target_type=t_type,
+                target_id=t_id,
+                relationship="friendship",
+                confidence=0.8,
+                evidence="Were friends",
+            )
         )
-        db.add(profile)
         db.commit()
 
         result = build_social_circles_graph(db)
@@ -115,22 +119,17 @@ class TestAIEdgeMerge:
         db.flush()
 
         # AI connection to non-existent author ID 9999
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author.id,
-            ai_connections=[
-                {
-                    "source_type": "author",
-                    "source_id": author.id,
-                    "target_type": "author",
-                    "target_id": 9999,
-                    "relationship": "friendship",
-                    "confidence": 0.7,
-                    "evidence": "Were friends",
-                }
-            ],
+        db.add(
+            AIConnection(
+                source_type="author",
+                source_id=author.id,
+                target_type="author",
+                target_id=9999,
+                relationship="friendship",
+                confidence=0.7,
+                evidence="Were friends",
+            )
         )
-        db.add(profile)
         db.commit()
 
         result = build_social_circles_graph(db)
@@ -143,21 +142,13 @@ class TestAIEdgeMerge:
         assert len(ai_edges) == 0
 
     def test_empty_ai_connections_handled(self, db):
-        """Profiles with empty ai_connections don't cause errors."""
+        """No AI connections in table doesn't cause errors."""
         author = Author(name="Empty AI Author", birth_year=1840, death_year=1900)
         db.add(author)
         db.flush()
 
         book = Book(title="Empty AI Book", author_id=author.id, status="ON_HAND", year_start=1880)
         db.add(book)
-        db.flush()
-
-        profile = EntityProfile(
-            entity_type="author",
-            entity_id=author.id,
-            ai_connections=[],
-        )
-        db.add(profile)
         db.commit()
 
         result = build_social_circles_graph(db)

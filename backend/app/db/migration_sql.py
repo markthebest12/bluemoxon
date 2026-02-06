@@ -735,7 +735,91 @@ MIGRATION_Z4567890KLMN_SQL = [
 ]
 
 MIGRATION_E9A5101C8557_SQL = [
-    "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS ai_connections JSONB",
+    "ALTER TABLE entity_profiles ADD COLUMN IF NOT EXISTS ai_connections JSON",
+]
+
+# Migration SQL for 2843f260f764_add_ai_connections_table
+# Creates canonical relational table for AI-discovered personal connections (#1813)
+MIGRATION_2843F260F764_SQL = [
+    """CREATE TABLE IF NOT EXISTS ai_connections (
+        id SERIAL PRIMARY KEY,
+        source_type VARCHAR(20) NOT NULL,
+        source_id INTEGER NOT NULL,
+        target_type VARCHAR(20) NOT NULL,
+        target_id INTEGER NOT NULL,
+        relationship VARCHAR(20) NOT NULL,
+        sub_type VARCHAR(50),
+        confidence FLOAT NOT NULL DEFAULT 0.5,
+        evidence TEXT,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )""",
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'uq_ai_connection'
+        ) THEN
+            ALTER TABLE ai_connections
+            ADD CONSTRAINT uq_ai_connection
+            UNIQUE (source_type, source_id, target_type, target_id, relationship);
+        END IF;
+    END $$""",
+    "CREATE INDEX IF NOT EXISTS ix_ai_connections_source ON ai_connections (source_type, source_id)",
+    "CREATE INDEX IF NOT EXISTS ix_ai_connections_target ON ai_connections (target_type, target_id)",
+    # Data migration: copy existing JSON into the new table.
+    # Uses DISTINCT ON to deduplicate A→B / B→A pairs that resolve to the
+    # same canonical key, keeping the row with the highest confidence.
+    """INSERT INTO ai_connections (
+        source_type, source_id, target_type, target_id,
+        relationship, sub_type, confidence, evidence
+    )
+    SELECT DISTINCT ON (source_type, source_id, target_type, target_id, relationship)
+        source_type, source_id, target_type, target_id,
+        relationship, sub_type, confidence, evidence
+    FROM (
+        SELECT
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN ep.entity_type
+                 ELSE c.target_type
+            END AS source_type,
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN ep.entity_id
+                 ELSE c.target_id
+            END AS source_id,
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN c.target_type
+                 ELSE ep.entity_type
+            END AS target_type,
+            CASE WHEN (ep.entity_type || ':' || CAST(ep.entity_id AS TEXT))
+                      <= (c.target_type || ':' || CAST(c.target_id AS TEXT))
+                 THEN c.target_id
+                 ELSE ep.entity_id
+            END AS target_id,
+            c.relationship,
+            c.sub_type,
+            COALESCE(c.confidence, 0.5) AS confidence,
+            c.evidence
+        FROM entity_profiles ep,
+             jsonb_to_recordset(ep.ai_connections::jsonb) AS c(
+                 target_type text,
+                 target_id integer,
+                 relationship text,
+                 sub_type text,
+                 confidence float,
+                 evidence text
+             )
+        WHERE ep.ai_connections IS NOT NULL
+          AND c.relationship IS NOT NULL
+          AND c.target_type IS NOT NULL
+          AND c.target_id IS NOT NULL
+    ) AS raw
+    ORDER BY source_type, source_id, target_type, target_id, relationship,
+             confidence DESC
+    ON CONFLICT (source_type, source_id, target_type, target_id, relationship)
+    DO NOTHING""",
 ]
 
 MIGRATIONS: list[MigrationDef] = [
@@ -1014,5 +1098,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "e9a5101c8557",
         "name": "add_ai_connections_column",
         "sql_statements": MIGRATION_E9A5101C8557_SQL,
+    },
+    {
+        "id": "2843f260f764",
+        "name": "add_ai_connections_table",
+        "sql_statements": MIGRATION_2843F260F764_SQL,
     },
 ]

@@ -12,10 +12,8 @@ from datetime import UTC, datetime
 from itertools import combinations
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import load_only
-
 from app.enums import OWNED_STATUSES
-from app.models.entity_profile import EntityProfile
+from app.models.ai_connection import AIConnection
 from app.schemas.social_circles import (
     ConnectionType,
     Era,
@@ -157,6 +155,7 @@ def build_social_circles_graph(
             death_year=author.death_year,
             era=era,
             tier=author.tier,
+            image_url=getattr(author, "image_url", None),
             book_count=len(book_ids),
             book_ids=book_ids[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
@@ -176,6 +175,7 @@ def build_social_circles_graph(
             name=publisher.name,
             type=NodeType.publisher,
             tier=publisher.tier,
+            image_url=getattr(publisher, "image_url", None),
             book_count=len(book_ids_set),
             book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
         )
@@ -196,6 +196,7 @@ def build_social_circles_graph(
                 name=binder.name,
                 type=NodeType.binder,
                 tier=binder.tier,
+                image_url=getattr(binder, "image_url", None),
                 book_count=len(book_ids_set),
                 book_ids=list(book_ids_set)[:MAX_BOOK_IDS_PER_NODE],  # Limit for response size
             )
@@ -315,81 +316,52 @@ def build_social_circles_graph(
                     shared_book_ids=shared_books,
                 )
 
-    # Merge AI-discovered edges from entity profiles
-    profiles_with_ai = (
-        db.query(EntityProfile)
-        .options(load_only(EntityProfile.ai_connections))
-        .filter(EntityProfile.ai_connections.isnot(None))
-        .all()
+    # Merge AI-discovered edges from canonical table (#1813)
+    # Filter to entity types present in the graph to avoid loading the entire table.
+    node_types = {k.split(":")[0] for k in nodes}
+    ai_query = db.query(AIConnection).filter(
+        AIConnection.source_type.in_(node_types),
+        AIConnection.target_type.in_(node_types),
     )
-    for profile in profiles_with_ai:
-        for connection in profile.ai_connections or []:
-            source_type = connection.get("source_type")
-            source_id = connection.get("source_id")
-            target_type = connection.get("target_type")
-            target_id = connection.get("target_id")
-            relationship = connection.get("relationship")
+    for row in ai_query:
+        source_node_id = f"{row.source_type}:{row.source_id}"
+        target_node_id = f"{row.target_type}:{row.target_id}"
 
-            # Skip connections with missing required fields (explicit None checks
-            # to avoid falsiness of 0 from all())
-            if (
-                source_type is None
-                or source_id is None
-                or target_type is None
-                or target_id is None
-                or relationship is None
-            ):
-                logger.warning(
-                    "Skipping AI connection with missing fields, keys=%s",
-                    list(connection.keys()),
+        # Skip if either node is not in the current graph
+        if source_node_id not in nodes or target_node_id not in nodes:
+            continue
+
+        try:
+            conn_type = ConnectionType(row.relationship)
+        except ValueError:
+            logger.warning("Skipping AI connection with invalid relationship %r", row.relationship)
+            continue
+        strength = max(2, min(int(row.confidence * 10), 10))
+        edge_id = f"e:{source_node_id}:{target_node_id}:{row.relationship}"
+
+        # If this edge already exists, keep the higher-confidence version
+        if edge_id in edges:
+            if strength > edges[edge_id].strength:
+                edges[edge_id] = SocialCircleEdge(
+                    id=edge_id,
+                    source=source_node_id,
+                    target=target_node_id,
+                    type=conn_type,
+                    strength=strength,
+                    evidence=row.evidence,
+                    shared_book_ids=None,
                 )
-                continue
+            continue
 
-            source_node_id = f"{source_type}:{source_id}"
-            target_node_id = f"{target_type}:{target_id}"
-
-            # Skip if either node is not in the current graph
-            if source_node_id not in nodes or target_node_id not in nodes:
-                continue
-
-            # Canonical ordering: lower node ID first (by string comparison)
-            if source_node_id > target_node_id:
-                source_node_id, target_node_id = target_node_id, source_node_id
-            edge_id = f"e:{source_node_id}:{target_node_id}:{relationship}"
-
-            try:
-                conn_type = ConnectionType(relationship)
-            except ValueError:
-                logger.warning("Skipping AI connection with invalid type: %s", relationship)
-                continue
-
-            # Map confidence to strength (2-10 range)
-            confidence = connection.get("confidence", 0.5)
-            ai_strength = max(2, min(int(confidence * 10), 10))
-
-            # If this edge already exists, keep the higher-confidence version
-            if edge_id in edges:
-                if ai_strength > edges[edge_id].strength:
-                    edges[edge_id] = SocialCircleEdge(
-                        id=edge_id,
-                        source=source_node_id,
-                        target=target_node_id,
-                        type=conn_type,
-                        strength=ai_strength,
-                        evidence=connection.get("evidence"),
-                        shared_book_ids=None,
-                    )
-                continue
-
-            edges[edge_id] = SocialCircleEdge(
-                id=edge_id,
-                source=source_node_id,
-                target=target_node_id,
-                type=conn_type,
-                strength=ai_strength,
-                evidence=connection.get("evidence"),
-                shared_book_ids=None,
-            )
+        edges[edge_id] = SocialCircleEdge(
+            id=edge_id,
+            source=source_node_id,
+            target=target_node_id,
+            type=conn_type,
+            strength=strength,
+            evidence=row.evidence,
+            shared_book_ids=None,
+        )
 
     # Calculate date range (with outlier filtering)
     years: list[int] = []

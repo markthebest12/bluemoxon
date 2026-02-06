@@ -512,6 +512,13 @@ function handleNodeSelect(nodeId: string | null) {
     const hiddenCount = hubMode.hiddenNeighborCounts.value.get(nodeId as NodeId) ?? 0;
     if (hiddenCount > 0) {
       hubMode.expandNode(nodeId as NodeId);
+      // After expansion re-renders the graph, select on next tick so it sticks (#1826)
+      void nextTick(() => {
+        selectNode(nodeId);
+        const node = nodeMap.value.get(nodeId);
+        if (node) analytics.trackNodeSelect(node as ApiNode);
+      });
+      return;
     }
 
     toggleSelectNode(nodeId);

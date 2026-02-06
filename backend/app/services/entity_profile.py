@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.config import get_settings
 from app.enums import OWNED_STATUSES
+from app.models.ai_connection import AIConnection
 from app.models.author import Author
 from app.models.binder import Binder
 from app.models.book import Book
@@ -29,7 +31,7 @@ from app.schemas.entity_profile import (
     ProfileStats,
     RelationshipNarrative,
 )
-from app.schemas.social_circles import SocialCirclesResponse
+from app.schemas.social_circles import SocialCircleNode, SocialCirclesResponse
 from app.services.ai_profile_generator import (
     GeneratorConfig,
     generate_ai_connections,
@@ -70,6 +72,148 @@ _MAX_SHARED_BOOKS_PER_CONNECTION = 5
 
 # Maximum connections to include in AI prompts to control token cost (#1654).
 _MAX_PROMPT_CONNECTIONS = 15
+
+# Maximum connections that receive narrative generation to cap Lambda runtime (#1718).
+_MAX_NARRATIVE_CONNECTIONS = 8
+
+
+def _store_ai_connections(db: Session, connections: list[dict]) -> int:
+    """Store validated AI connections to canonical table (upsert).
+
+    Uses canonical ordering (lower node ID string first) to prevent
+    duplicate A→B / B→A storage.  On conflict, keeps the higher-confidence
+    version.  Returns the number of rows written/updated.
+
+    On PostgreSQL, uses a single ``INSERT … ON CONFLICT DO UPDATE`` for the
+    entire batch.  On other dialects (SQLite in tests) falls back to
+    per-row upsert.
+    """
+    rows: list[dict] = []
+    for conn in connections:
+        src_type = conn.get("source_type")
+        src_id = conn.get("source_id")
+        tgt_type = conn.get("target_type")
+        tgt_id = conn.get("target_id")
+        relationship = conn.get("relationship")
+
+        if not all(v is not None for v in (src_type, src_id, tgt_type, tgt_id, relationship)):
+            continue
+
+        # Canonical ordering — lower node ID string first
+        src_key = f"{src_type}:{src_id}"
+        tgt_key = f"{tgt_type}:{tgt_id}"
+        if src_key > tgt_key:
+            src_type, tgt_type = tgt_type, src_type
+            src_id, tgt_id = tgt_id, src_id
+
+        confidence = max(0.0, min(float(conn.get("confidence", 0.5)), 1.0))
+
+        rows.append(
+            {
+                "source_type": src_type,
+                "source_id": src_id,
+                "target_type": tgt_type,
+                "target_id": tgt_id,
+                "relationship": relationship,
+                "sub_type": conn.get("sub_type"),
+                "confidence": confidence,
+                "evidence": conn.get("evidence"),
+            }
+        )
+
+    if not rows:
+        return 0
+
+    # Deduplicate by canonical key, keeping highest-confidence entry.
+    # Without this, PG ON CONFLICT fails when the same key appears twice
+    # in a single INSERT statement.
+    seen: dict[tuple, dict] = {}
+    for row in rows:
+        key = (
+            row["source_type"],
+            row["source_id"],
+            row["target_type"],
+            row["target_id"],
+            row["relationship"],
+        )
+        if key not in seen or row["confidence"] > seen[key]["confidence"]:
+            seen[key] = row
+    rows = list(seen.values())
+
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        count = _batch_upsert_pg(db, rows)
+    else:
+        count = _upsert_fallback(db, rows)
+
+    if count:
+        db.flush()
+    return count
+
+
+def _batch_upsert_pg(db: Session, rows: list[dict]) -> int:
+    """PostgreSQL fast path: single INSERT … ON CONFLICT DO UPDATE.
+
+    Only updates evidence/sub_type when the incoming confidence is higher,
+    matching the semantics of ``_upsert_fallback``.
+    """
+    from sqlalchemy.dialects.postgresql import insert
+
+    stmt = insert(AIConnection).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_ai_connection",
+        set_={
+            "confidence": func.greatest(
+                stmt.excluded.confidence,
+                func.coalesce(AIConnection.confidence, 0.0),
+            ),
+            "evidence": case(
+                (
+                    stmt.excluded.confidence > func.coalesce(AIConnection.confidence, 0.0),
+                    stmt.excluded.evidence,
+                ),
+                else_=AIConnection.evidence,
+            ),
+            "sub_type": case(
+                (
+                    stmt.excluded.confidence > func.coalesce(AIConnection.confidence, 0.0),
+                    stmt.excluded.sub_type,
+                ),
+                else_=AIConnection.sub_type,
+            ),
+        },
+    )
+    result = db.execute(stmt)
+    return result.rowcount  # type: ignore[return-value]
+
+
+def _upsert_fallback(db: Session, rows: list[dict]) -> int:
+    """Per-row upsert for non-PostgreSQL dialects (SQLite in tests)."""
+    count = 0
+    for row in rows:
+        existing = (
+            db.query(AIConnection)
+            .filter(
+                AIConnection.source_type == row["source_type"],
+                AIConnection.source_id == row["source_id"],
+                AIConnection.target_type == row["target_type"],
+                AIConnection.target_id == row["target_id"],
+                AIConnection.relationship == row["relationship"],
+            )
+            .first()
+        )
+
+        if existing:
+            if row["confidence"] > existing.confidence:
+                existing.confidence = row["confidence"]
+                existing.evidence = row["evidence"]
+                existing.sub_type = row["sub_type"]
+                count += 1
+        else:
+            db.add(AIConnection(**row))
+            count += 1
+
+    return count
 
 
 def _get_all_collection_entities(db: Session) -> list[dict]:
@@ -133,6 +277,29 @@ def _build_profile_entity(entity: Author | Publisher | Binder, entity_type: str)
     )
 
 
+def _node_to_profile_entity(node: SocialCircleNode) -> ProfileEntity:
+    """Convert a graph node to ProfileEntity schema.
+
+    Unlike _build_profile_entity (which takes a DB model), this takes
+    a SocialCircleNode from the cached graph.  Both produce identical
+    ProfileEntity objects including image_url (#1840).
+    """
+    type_str = node.type.value if hasattr(node.type, "value") else str(node.type)
+    return ProfileEntity(
+        id=node.entity_id,
+        type=EntityType(type_str),
+        name=node.name,
+        birth_year=node.birth_year,
+        death_year=node.death_year,
+        founded_year=node.founded_year,
+        closed_year=node.closed_year,
+        era=_era_str(node),
+        tier=node.tier,
+        # isinstance guard: test mocks pass MagicMock for image_url
+        image_url=node.image_url if isinstance(node.image_url, str) else None,
+    )
+
+
 def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookImage]:
     """Batch-load primary images for books, returning {book_id: BookImage}.
 
@@ -160,7 +327,7 @@ def _get_primary_image_map(db: Session, book_ids: list[int]) -> dict[int, BookIm
 def _image_url(book_id: int, image: BookImage, *, is_lambda: bool) -> str:
     """Build image URL for a BookImage, using CloudFront in Lambda or relative URL locally."""
     if is_lambda:
-        from app.api.v1.images import get_cloudfront_url
+        from app.utils.cdn import get_cloudfront_url
 
         return get_cloudfront_url(image.s3_key)
     return f"/api/v1/books/{book_id}/images/{image.id}/file"
@@ -219,48 +386,43 @@ def _build_stats(books: list[Book]) -> ProfileStats:
     )
 
 
-def _check_staleness(
+def is_profile_stale(
     db: Session,
-    profile: EntityProfile | None,
     entity_type: str,
     entity_id: int,
+    *,
+    profile: EntityProfile | None = None,
 ) -> bool:
-    """Check if profile is stale by comparing against book updates."""
-    if not profile or not profile.generated_at:
-        return False
-
-    fk_column = _ENTITY_FK_MAP.get(entity_type)
-    if fk_column is None:
-        return False
-
-    filters = [Book.status.in_(OWNED_STATUSES), fk_column == entity_id]
-    latest_update = db.query(func.max(Book.updated_at)).filter(*filters).scalar()
-    if latest_update and latest_update > profile.generated_at:
-        return True
-    return False
-
-
-def is_profile_stale(db: Session, entity_type: str, entity_id: int) -> bool:
     """Check if entity needs profile (re)generation.
 
     Returns True if:
       - No profile exists for this entity
       - Profile exists but books have been updated since generation
 
-    Public API for profile_worker and any future staleness checks.
+    Pass an already-fetched *profile* to avoid a duplicate query.
     """
-    profile = (
-        db.query(EntityProfile)
-        .filter(
-            EntityProfile.entity_type == entity_type,
-            EntityProfile.entity_id == entity_id,
+    if profile is None:
+        profile = (
+            db.query(EntityProfile)
+            .filter(
+                EntityProfile.entity_type == entity_type,
+                EntityProfile.entity_id == entity_id,
+            )
+            .first()
         )
-        .first()
-    )
     if not profile or not profile.generated_at:
         return True
 
-    return _check_staleness(db, profile, entity_type, entity_id)
+    fk_column = _ENTITY_FK_MAP.get(entity_type)
+    if fk_column is None:
+        return False
+
+    latest_update = (
+        db.query(func.max(Book.updated_at))
+        .filter(Book.status.in_(OWNED_STATUSES), fk_column == entity_id)
+        .scalar()
+    )
+    return bool(latest_update and latest_update > profile.generated_at)
 
 
 def _era_str(node) -> str | None:
@@ -364,7 +526,7 @@ def _build_connections(
         rel_stories = profile.relationship_stories
 
     connections: list[ProfileConnection] = []
-    for type_str, _eid, _name, other_node, edge in connected:
+    for _type_str, _eid, _name, other_node, edge in connected:
         other_id = edge.target if edge.source == node_id else edge.source
         narrative_key = f"{node_id}:{other_id}"
         narrative_key_rev = f"{other_id}:{node_id}"
@@ -416,17 +578,7 @@ def _build_connections(
 
         connections.append(
             ProfileConnection(
-                entity=ProfileEntity(
-                    id=other_node.entity_id,
-                    type=EntityType(type_str),
-                    name=other_node.name,
-                    birth_year=other_node.birth_year,
-                    death_year=other_node.death_year,
-                    founded_year=other_node.founded_year,
-                    closed_year=other_node.closed_year,
-                    era=era_value,
-                    tier=other_node.tier,
-                ),
+                entity=_node_to_profile_entity(other_node),
                 connection_type=conn_type_str,
                 strength=edge.strength,
                 shared_book_count=len(edge.shared_book_ids) if edge.shared_book_ids else 0,
@@ -438,8 +590,18 @@ def _build_connections(
             )
         )
 
-    # Merge AI-discovered connections from cached profile (#1803)
-    if profile and profile.ai_connections:
+    # Merge AI-discovered connections from canonical table (#1813)
+    ai_rows = (
+        db.query(AIConnection)
+        .filter(
+            or_(
+                (AIConnection.source_type == entity_type) & (AIConnection.source_id == entity_id),
+                (AIConnection.target_type == entity_type) & (AIConnection.target_id == entity_id),
+            )
+        )
+        .all()
+    )
+    if ai_rows:
         # Build set of existing (target, relationship) pairs to avoid duplicates
         existing_edges = {
             (
@@ -448,15 +610,16 @@ def _build_connections(
             )
             for c in connections
         }
-        for ai_conn in profile.ai_connections:
-            target_type = ai_conn.get("target_type")
-            target_id = ai_conn.get("target_id")
-            if not target_type or target_id is None:
-                continue
+        for row in ai_rows:
+            # Determine which end is the "other" entity
+            if row.source_type == entity_type and row.source_id == entity_id:
+                other_type, other_id = row.target_type, row.target_id
+            else:
+                other_type, other_id = row.source_type, row.source_id
 
-            target_key = f"{target_type}:{target_id}"
-            ai_relationship = ai_conn.get("relationship", "friendship")
-            edge_key = (target_key, ai_relationship)
+            target_key = f"{other_type}:{other_id}"
+            strength = max(2, min(int(row.confidence * 10), 10))
+            edge_key = (target_key, row.relationship)
 
             # Skip if same target+relationship already exists
             if edge_key in existing_edges:
@@ -468,54 +631,46 @@ def _build_connections(
                         else conn.entity.type
                     )
                     if (
-                        et == target_type
-                        and conn.entity.id == target_id
-                        and conn.connection_type == ai_relationship
+                        et == other_type
+                        and conn.entity.id == other_id
+                        and conn.connection_type == row.relationship
                     ):
                         conn.is_ai_discovered = True
-                        conn.sub_type = ai_conn.get("sub_type")
-                        conn.confidence = ai_conn.get("confidence")
+                        conn.sub_type = row.sub_type
+                        conn.confidence = row.confidence
                         break
                 continue
 
-            # Look up target entity in graph nodes
-            target_node_id = f"{target_type}:{target_id}"
-            if graph is None:
-                continue
-            target_node = next((n for n in graph.nodes if n.id == target_node_id), None)
-            if not target_node:
-                continue
-
-            type_str = (
-                target_node.type.value
-                if hasattr(target_node.type, "value")
-                else str(target_node.type)
+            # Look up target entity — prefer graph nodes (richer metadata),
+            # fall back to DB so AI connections aren't silently dropped when
+            # the target is missing from the cached graph (#1827).
+            target_node_id = f"{other_type}:{other_id}"
+            target_node = (
+                next((n for n in graph.nodes if n.id == target_node_id), None)
+                if graph is not None
+                else None
             )
-            era_value = _era_str(target_node)
-            confidence = ai_conn.get("confidence", 0.5)
-            strength = max(2, min(int(confidence * 10), 10))
+
+            if target_node:
+                entity_data = _node_to_profile_entity(target_node)
+            else:
+                # Graph miss — resolve from DB so the connection still appears
+                db_entity = _get_entity(db, other_type, other_id)
+                if not db_entity:
+                    continue
+                entity_data = _build_profile_entity(db_entity, other_type)
 
             connections.append(
                 ProfileConnection(
-                    entity=ProfileEntity(
-                        id=target_node.entity_id,
-                        type=EntityType(type_str),
-                        name=target_node.name,
-                        birth_year=target_node.birth_year,
-                        death_year=target_node.death_year,
-                        founded_year=target_node.founded_year,
-                        closed_year=target_node.closed_year,
-                        era=era_value,
-                        tier=target_node.tier,
-                    ),
-                    connection_type=ai_conn.get("relationship", "friendship"),
+                    entity=entity_data,
+                    connection_type=row.relationship,
                     strength=strength,
                     shared_book_count=0,
-                    narrative=ai_conn.get("evidence"),
+                    narrative=row.evidence,
                     is_key=False,
                     is_ai_discovered=True,
-                    sub_type=ai_conn.get("sub_type"),
-                    confidence=confidence,
+                    sub_type=row.sub_type,
+                    confidence=row.confidence,
                 )
             )
             existing_edges.add(edge_key)
@@ -580,7 +735,7 @@ def get_entity_profile(
         .first()
     )
 
-    is_stale = _check_staleness(db, cached, entity_type, entity_id)
+    is_stale = is_profile_stale(db, entity_type, entity_id, profile=cached)
 
     profile_data = ProfileData(
         bio_summary=cached.bio_summary if cached else None,
@@ -611,6 +766,8 @@ def generate_and_cache_profile(
     all_entities: list[dict] | None = None,
 ) -> EntityProfile:
     """Generate AI profile and cache in DB."""
+    t_total = time.monotonic()
+
     entity = _get_entity(db, entity_type, entity_id)
     if not entity:
         raise ValueError(f"Entity {entity_type}:{entity_id} not found")
@@ -621,8 +778,14 @@ def generate_and_cache_profile(
     # Resolve config ONCE for all AI calls in this profile generation
     config = GeneratorConfig.resolve(db)
 
+    # Resolve narrative cap: explicit param overrides the constant (#1718)
+    effective_max_narratives = (
+        max_narratives if max_narratives is not None else _MAX_NARRATIVE_CONNECTIONS
+    )
+
     # Build graph and connection list for cross-link markers (#1618)
     node_id = f"{entity_type}:{entity_id}"
+    t0 = time.monotonic()
     if graph is None:
         graph = get_or_build_graph(db)
 
@@ -643,8 +806,16 @@ def generate_and_cache_profile(
 
     # Cap connections in AI prompts to control token cost (#1654)
     prompt_connections = connection_list[:_MAX_PROMPT_CONNECTIONS]
+    logger.info(
+        "profile[%s:%d] graph+connections built in %.1fs (%d connections)",
+        entity_type,
+        entity_id,
+        time.monotonic() - t0,
+        len(connected),
+    )
 
     # Discover AI connections BEFORE bio generation so bios can reference them (#1803)
+    t0 = time.monotonic()
     if all_entities is None:
         all_entities = _get_all_collection_entities(db)
     ai_connections = generate_ai_connections(
@@ -654,8 +825,24 @@ def generate_and_cache_profile(
         all_entities=all_entities,
         config=config,
     )
+    # Persist AI connections to canonical table (#1813)
+    if ai_connections:
+        stored = _store_ai_connections(db, ai_connections)
+        logger.info(
+            "profile[%s:%d] stored %d AI connections to table",
+            entity_type,
+            entity_id,
+            stored,
+        )
+    logger.info(
+        "profile[%s:%d] AI connection discovery took %.1fs",
+        entity_type,
+        entity_id,
+        time.monotonic() - t0,
+    )
 
     # Generate bio + personal stories
+    t0 = time.monotonic()
     bio_data = generate_bio_and_stories(
         name=entity.name,
         entity_type=entity_type,
@@ -665,6 +852,13 @@ def generate_and_cache_profile(
         book_titles=book_titles,
         connections=prompt_connections,
         config=config,
+    )
+
+    logger.info(
+        "profile[%s:%d] bio+stories generation took %.1fs",
+        entity_type,
+        entity_id,
+        time.monotonic() - t0,
     )
 
     if not bio_data.get("biography"):
@@ -682,11 +876,12 @@ def generate_and_cache_profile(
             story["text"] = strip_invalid_markers(story["text"], valid_entity_ids)
 
     # Generate connection narratives using trigger-based selection (#1553)
+    t0 = time.monotonic()
     narratives: dict[str, str] = {}
     rel_stories: dict[str, dict] = {}
     narrated_count = 0
     for other_type_str, _eid, _name, other_node, edge in connected:
-        if max_narratives and narrated_count >= max_narratives:
+        if narrated_count >= effective_max_narratives:
             break
 
         other_id = edge.target if edge.source == node_id else edge.source
@@ -751,6 +946,14 @@ def generate_and_cache_profile(
                 narratives[key] = strip_invalid_markers(narrative, valid_entity_ids)
                 narrated_count += 1
 
+    logger.info(
+        "profile[%s:%d] narrative generation took %.1fs (%d narratives)",
+        entity_type,
+        entity_id,
+        time.monotonic() - t0,
+        narrated_count,
+    )
+
     model_version = config.model_id
 
     # Upsert profile — unique constraint on (entity_type, entity_id).
@@ -789,5 +992,18 @@ def generate_and_cache_profile(
         )
         db.add(profile)
 
+    t0 = time.monotonic()
     db.commit()
+    logger.info(
+        "profile[%s:%d] DB upsert+commit took %.1fs",
+        entity_type,
+        entity_id,
+        time.monotonic() - t0,
+    )
+    logger.info(
+        "profile[%s:%d] total generation took %.1fs",
+        entity_type,
+        entity_id,
+        time.monotonic() - t_total,
+    )
     return profile

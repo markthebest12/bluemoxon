@@ -520,6 +520,25 @@ jobs:
             })
 
   # ============================================
+  # Uplift (Release Config) Validation
+  # ============================================
+
+  uplift-check:
+    name: Uplift Config Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Uplift
+        run: |
+          curl -sSL https://raw.githubusercontent.com/gembaadvantage/uplift/main/scripts/install | bash
+
+      - name: Validate Uplift Config
+        run: uplift release --dry-run --no-push
+
+  # ============================================
   # Security Scanning - BLOCKING GATES
   # ============================================
 
@@ -727,6 +746,7 @@ jobs:
       - frontend-test
       - frontend-build
       - build-layer-cache
+      - uplift-check
       # Security scans always run
       - sast-scan
       - dependency-scan

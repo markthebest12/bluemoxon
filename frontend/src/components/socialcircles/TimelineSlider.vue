@@ -72,6 +72,15 @@ function updateYear(year: number) {
   emit("year-change", year);
 }
 
+const sliderPercent = computed(() => {
+  const range = props.maxYear - props.minYear;
+  if (range === 0) return 0;
+  return ((localYear.value - props.minYear) / range) * 100;
+});
+
+const showMinLabel = computed(() => sliderPercent.value > 10);
+const showMaxLabel = computed(() => sliderPercent.value < 90);
+
 const yearLabel = computed(() => {
   return props.mode === "point" ? `${localYear.value}` : `${props.minYear} - ${localYear.value}`;
 });
@@ -109,7 +118,7 @@ function handlePlay() {
     </div>
 
     <div class="timeline-slider__track">
-      <span class="timeline-slider__label">{{ minYear }}</span>
+      <span v-show="showMinLabel" class="timeline-slider__label">{{ minYear }}</span>
       <div class="timeline-slider__input-wrapper">
         <input
           v-model.number="localYear"
@@ -122,7 +131,7 @@ function handlePlay() {
         />
         <TimelineMarkers :min-year="minYear" :max-year="maxYear" :slider-year="localYear" />
       </div>
-      <span class="timeline-slider__label">{{ maxYear }}</span>
+      <span v-show="showMaxLabel" class="timeline-slider__label">{{ maxYear }}</span>
     </div>
 
     <div class="timeline-slider__current">
