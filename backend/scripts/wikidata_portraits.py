@@ -379,29 +379,20 @@ def process_publisher_entity(
         result["status"] = "no_results"
         return result
 
-    # For publishers, we do a simpler name-based match
-    # since organizations don't have birth/death years in the same way
+    # Group results and score candidates
+    from app.utils.wikidata_scoring import name_similarity
+
+    grouped = group_sparql_results(bindings)
     best_candidate = None
     best_score = 0.0
 
-    for row in bindings:
-        label = row.get("itemLabel", {}).get("value", "")
-        image_url = row.get("image", {}).get("value")
-
-        # Simple name similarity check for organizations
-        from app.utils.wikidata_scoring import name_similarity
-
-        ns = name_similarity(entity.name, label)
-        # Boost if has image
-        score = ns * 0.8 + (0.2 if image_url else 0.0)
+    for _uri, candidate in grouped.items():
+        ns = max(name_similarity(v, candidate["label"]) for v in name_variants)
+        score = ns * 0.8 + (0.2 if candidate.get("image_url") else 0.0)
 
         if score > best_score:
             best_score = score
-            best_candidate = {
-                "uri": row.get("item", {}).get("value", ""),
-                "label": label,
-                "image_url": image_url,
-            }
+            best_candidate = candidate
 
     result["score"] = round(best_score, 4)
 
@@ -410,6 +401,7 @@ def process_publisher_entity(
         return result
 
     result["wikidata_uri"] = best_candidate["uri"]
+    result["wikidata_label"] = best_candidate["label"]
 
     if not best_candidate.get("image_url"):
         result["status"] = "no_portrait"

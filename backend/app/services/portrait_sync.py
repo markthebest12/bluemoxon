@@ -135,7 +135,10 @@ def _escape_sparql_string(value: str) -> str:
 
 
 # Parenthetical markers that indicate a description, not a person alias
-_DESCRIPTIVE_PARENS = re.compile(r"\b(?:of |est\.|translated|editor|compiler|ed\b)", re.IGNORECASE)
+_DESCRIPTIVE_PARENS = re.compile(
+    r"\b(?:of |est\.|fl\.|translated|editor|compiler|ed\b|printer|bookseller|binder)",
+    re.IGNORECASE,
+)
 
 
 def extract_parenthetical_alias(name: str) -> str | None:
@@ -186,21 +189,20 @@ def prepare_name_variants(entity_name: str, entity_type: str) -> list[str]:
     variants: list[str] = [entity_name]
 
     stripped = _strip_parenthetical(entity_name)
-    if stripped and stripped != entity_name:
+    if stripped:
         variants.append(stripped)
 
     if entity_type == "author":
         normalized = normalize_author_name(entity_name)
-        if normalized and normalized not in variants:
+        if normalized:
             variants.append(normalized)
 
         alias = extract_parenthetical_alias(entity_name)
-        if alias and alias not in variants:
+        if alias:
             variants.append(alias)
 
         spaced = _normalize_initial_spacing(stripped or entity_name)
-        if spaced not in variants:
-            variants.append(spaced)
+        variants.append(spaced)
 
     # Deduplicate preserving order, cap at 4
     seen: set[str] = set()
@@ -869,16 +871,20 @@ def _process_person_entity(
     best_candidate = None
 
     for _uri, candidate in candidates.items():
-        score = score_candidate(
-            entity_name=entity_name,
-            entity_birth=entity_birth,
-            entity_death=entity_death,
-            entity_book_titles=book_titles,
-            candidate_label=candidate["label"],
-            candidate_birth=candidate["birth"],
-            candidate_death=candidate["death"],
-            candidate_works=candidate["works"],
-            candidate_occupations=candidate["occupations"],
+        # Score with each name variant and take the best match
+        score = max(
+            score_candidate(
+                entity_name=variant,
+                entity_birth=entity_birth,
+                entity_death=entity_death,
+                entity_book_titles=book_titles,
+                candidate_label=candidate["label"],
+                candidate_birth=candidate["birth"],
+                candidate_death=candidate["death"],
+                candidate_works=candidate["works"],
+                candidate_occupations=candidate["occupations"],
+            )
+            for variant in name_variants
         )
         if score > best_score:
             best_score = score
@@ -931,7 +937,7 @@ def _process_org_entity(
     best_score = 0.0
 
     for _uri, candidate in grouped.items():
-        ns = name_similarity(entity.name, candidate["label"])
+        ns = max(name_similarity(v, candidate["label"]) for v in name_variants)
         score = ns * 0.8 + (0.2 if candidate.get("image_url") else 0.0)
 
         if score > best_score:
