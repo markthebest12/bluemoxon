@@ -420,7 +420,7 @@ def get_book_social_circles_summary(
         entity_node_ids.append(f"binder:{book.binder_id}")
 
     if not entity_node_ids:
-        return {"entity_count": 0, "connection_count": 0, "highlights": []}
+        return {"entity_count": 0, "connection_count": 0, "highlights": [], "entity_node_ids": []}
 
     # Use cached graph to avoid rebuilding
     from app.services.social_circles_cache import get_or_build_graph
@@ -458,15 +458,12 @@ def get_book_social_circles_summary(
                 }
             )
 
-    # Collect all unique connected entity IDs for the link filter
-    connected_entity_ids: list[str] = []
-    for nid in entity_node_ids:
-        if nid in node_map:
-            connected_entity_ids.append(nid)
+    # Only return entity IDs that are actually present in the graph
+    connected_entity_ids = [nid for nid in entity_node_ids if nid in node_map]
 
     return {
-        "entity_count": len([nid for nid in entity_node_ids if nid in node_map]),
+        "entity_count": len(connected_entity_ids),
         "connection_count": len(relevant_edges),
         "highlights": highlights,
-        "entity_node_ids": entity_node_ids,
+        "entity_node_ids": connected_entity_ids,
     }

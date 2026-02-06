@@ -22,6 +22,7 @@ from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.aws_clients import get_s3_client
 from app.services.entity_profile import (
     _get_all_collection_entities,
+    _get_entity_books,
     get_entity_profile,
 )
 from app.services.sqs import send_profile_generation_jobs
@@ -237,6 +238,14 @@ def regenerate_profile(
     if not entity:
         raise HTTPException(
             status_code=404, detail=f"Entity {entity_type.value}:{entity_id} not found"
+        )
+
+    # Guard: only regenerate profiles for entities with qualifying books
+    qualifying_books = _get_entity_books(db, entity_type.value, entity_id)
+    if not qualifying_books:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Entity {entity_type.value}:{entity_id} has no qualifying books (IN_TRANSIT/ON_HAND)",
         )
 
     # Enqueue async regeneration via SQS first — if this fails, the old
