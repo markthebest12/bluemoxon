@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, toRef } from "vue";
 import type { ProfileConnection } from "@/types/entityProfile";
+import { useAnalytics } from "@/composables/socialcircles/useAnalytics";
 import ConnectionGossipPanel from "./ConnectionGossipPanel.vue";
 import ConditionBadge from "./ConditionBadge.vue";
 import EntityLinkedText from "./EntityLinkedText.vue";
@@ -10,6 +11,7 @@ const props = defineProps<{
   connections: ProfileConnection[];
 }>();
 
+const analytics = useAnalytics();
 const expandedCards = ref<Record<string, boolean>>({});
 
 // Reset expanded state when connections change (navigating between profiles)
@@ -19,7 +21,15 @@ watch(toRef(props, "connections"), () => {
 
 function toggleCard(conn: ProfileConnection) {
   const key = `${conn.entity.type}:${conn.entity.id}`;
-  expandedCards.value[key] = !expandedCards.value[key];
+  const willExpand = !expandedCards.value[key];
+  expandedCards.value[key] = willExpand;
+  if (willExpand) {
+    analytics.trackGossipExpanded(conn.entity.id, conn.entity.name);
+  }
+}
+
+function handleConnectionClick(conn: ProfileConnection) {
+  analytics.trackConnectionClicked(conn.connection_type, conn.entity.id, conn.entity.name);
 }
 
 function isExpanded(conn: ProfileConnection): boolean {
@@ -40,6 +50,7 @@ function isExpanded(conn: ProfileConnection): boolean {
           <router-link
             :to="entityProfileRoute(conn.entity.type, conn.entity.id)"
             class="key-connections__name"
+            @click="handleConnectionClick(conn)"
           >
             {{ conn.entity.name }}
           </router-link>
