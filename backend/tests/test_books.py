@@ -75,7 +75,10 @@ class TestCreateBook:
 
     def test_create_book_missing_title(self, client):
         """Test that title is required."""
-        response = client.post("/api/v1/books", json={})
+        response = client.post(
+            "/api/v1/books",
+            json={"category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         assert response.status_code == 422
 
     def test_create_book_missing_category(self, client):
@@ -94,19 +97,24 @@ class TestCreateBook:
         )
         assert response.status_code == 422
 
-    def test_create_book_missing_images(self, client):
-        """Test that listing_s3_keys is required."""
+    def test_create_book_whitespace_category_stripped(self, client):
+        """Test that category whitespace is stripped on creation."""
         response = client.post(
             "/api/v1/books",
-            json={"title": "Test", "category": "Victorian Poetry"},
+            json={
+                "title": "Test",
+                "category": "  Victorian Poetry  ",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
-        assert response.status_code == 422
+        assert response.status_code == 201
+        assert response.json()["category"] == "Victorian Poetry"
 
-    def test_create_book_empty_images_list(self, client):
-        """Test that empty listing_s3_keys list is rejected."""
+    def test_create_book_blank_s3_keys_rejected(self, client):
+        """Test that blank strings in listing_s3_keys are rejected."""
         response = client.post(
             "/api/v1/books",
-            json={"title": "Test", "category": "Victorian Poetry", "listing_s3_keys": []},
+            json={"title": "Test", "category": "Test", "listing_s3_keys": ["", "test/img.jpg"]},
         )
         assert response.status_code == 422
 

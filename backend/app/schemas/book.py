@@ -194,21 +194,20 @@ class BookCreate(BookInputBase):
     binder_id: int | None = None
 
     # S3 keys from listing import (images will be copied to book's folder)
-    # At least one image is required when creating a book
-    listing_s3_keys: list[str]
+    listing_s3_keys: list[str] = []
 
     @field_validator("category")
     @classmethod
     def category_not_empty(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("category must not be empty")
-        return v
+        return v.strip()
 
     @field_validator("listing_s3_keys")
     @classmethod
-    def at_least_one_image(cls, v: list[str]) -> list[str]:
-        if not v:
-            raise ValueError("at least one image is required")
+    def listing_s3_keys_no_blanks(cls, v: list[str]) -> list[str]:
+        if any(not key.strip() for key in v):
+            raise ValueError("listing_s3_keys must not contain empty strings")
         return v
 
 

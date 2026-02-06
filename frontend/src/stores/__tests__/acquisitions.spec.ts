@@ -313,6 +313,8 @@ describe("Acquisitions Store", () => {
       const payload = {
         title: "Test Book",
         author_id: 1,
+        category: "Victorian Poetry",
+        listing_s3_keys: ["listings/123/image_0.jpg"],
       };
       const result = await store.addToWatchlist(payload);
 
