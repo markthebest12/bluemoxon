@@ -17,12 +17,37 @@ import type {
 
 /** Historical events displayed on the timeline (covers full collection era, not just Victorian) */
 export const VICTORIAN_EVENTS = [
+  // Pre-Romantic
+  { year: 1710, label: "Statute of Anne", type: "political" },
+  { year: 1719, label: "Robinson Crusoe", type: "literary" },
+  { year: 1726, label: "Gulliver's Travels", type: "literary" },
+  { year: 1755, label: "Johnson's Dictionary", type: "cultural" },
+  { year: 1764, label: "Castle of Otranto", type: "literary" },
+  { year: 1776, label: "American Independence", type: "political" },
+  { year: 1789, label: "French Revolution", type: "political" },
+  // Romantic
+  { year: 1798, label: "Lyrical Ballads", type: "literary" },
+  { year: 1813, label: "Pride and Prejudice", type: "literary" },
+  { year: 1814, label: "Steam-Powered Press", type: "cultural" },
+  { year: 1818, label: "Frankenstein", type: "literary" },
+  { year: 1832, label: "Reform Act", type: "political" },
+  // Victorian
   { year: 1837, label: "Victoria's Coronation", type: "political" },
+  { year: 1843, label: "A Christmas Carol", type: "literary" },
+  { year: 1847, label: "Jane Eyre", type: "literary" },
+  { year: 1848, label: "Pre-Raphaelites Founded", type: "cultural" },
   { year: 1851, label: "Great Exhibition", type: "cultural" },
   { year: 1859, label: "Origin of Species", type: "literary" },
   { year: 1865, label: "Alice in Wonderland", type: "literary" },
+  { year: 1867, label: "Second Reform Act", type: "political" },
+  { year: 1870, label: "Education Act", type: "political" },
+  { year: 1886, label: "Jekyll and Hyde", type: "literary" },
   { year: 1891, label: "Kelmscott Press", type: "cultural" },
+  { year: 1895, label: "Trial of Oscar Wilde", type: "cultural" },
+  { year: 1897, label: "Dracula", type: "literary" },
+  // Edwardian
   { year: 1901, label: "Victoria Dies", type: "political" },
+  { year: 1908, label: "Wind in the Willows", type: "literary" },
   { year: 1914, label: "World War I", type: "political" },
 ] as const satisfies readonly HistoricalEvent[];
 

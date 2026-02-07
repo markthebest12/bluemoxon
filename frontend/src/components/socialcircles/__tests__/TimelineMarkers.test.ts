@@ -559,7 +559,7 @@ describe("TimelineMarkers - tooltip ID uniqueness", () => {
 describe("TimelineMarkers - default events", () => {
   it("uses VICTORIAN_EVENTS as default when no events prop is provided", () => {
     const wrapper = mountMarkers({
-      minYear: 1780,
+      minYear: 1700,
       maxYear: 1920,
     });
     const markers = wrapper.findAll(".timeline-markers__marker");
@@ -575,6 +575,16 @@ describe("TimelineMarkers - default events", () => {
         expect.objectContaining({ year: 1901, type: "political" }),
       ])
     );
+  });
+
+  it("VICTORIAN_EVENTS contains 28 curated events", () => {
+    expect(VICTORIAN_EVENTS).toHaveLength(28);
+  });
+
+  it("VICTORIAN_EVENTS are sorted by year in ascending order", () => {
+    for (let i = 1; i < VICTORIAN_EVENTS.length; i++) {
+      expect(VICTORIAN_EVENTS[i].year).toBeGreaterThanOrEqual(VICTORIAN_EVENTS[i - 1].year);
+    }
   });
 });
 
