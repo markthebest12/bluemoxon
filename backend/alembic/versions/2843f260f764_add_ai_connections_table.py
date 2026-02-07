@@ -100,7 +100,12 @@ def upgrade() -> None:
                 c.sub_type,
                 COALESCE(c.confidence, 0.5) AS confidence,
                 c.evidence
-            FROM entity_profiles ep,
+            FROM (
+                    SELECT entity_type, entity_id, ai_connections
+                    FROM entity_profiles
+                    WHERE ai_connections IS NOT NULL
+                      AND jsonb_typeof(ai_connections::jsonb) = 'array'
+                 ) ep,
                  jsonb_to_recordset(ep.ai_connections::jsonb) AS c(
                      target_type text,
                      target_id integer,
@@ -109,8 +114,7 @@ def upgrade() -> None:
                      confidence float,
                      evidence text
                  )
-            WHERE ep.ai_connections IS NOT NULL
-              AND c.relationship IS NOT NULL
+            WHERE c.relationship IS NOT NULL
               AND c.target_type IS NOT NULL
               AND c.target_id IS NOT NULL
         ) AS raw
