@@ -2214,7 +2214,9 @@ class TestScandalConnectionsAppear:
         db.flush()
 
         # Both entities need qualifying books for the DB fallback to include them (#1866)
-        book1 = Book(title="The Importance of Being Earnest", author_id=author1.id, status="ON_HAND")
+        book1 = Book(
+            title="The Importance of Being Earnest", author_id=author1.id, status="ON_HAND"
+        )
         book2 = Book(title="Bosie's Poems", author_id=author2.id, status="ON_HAND")
         db.add_all([book1, book2])
 
