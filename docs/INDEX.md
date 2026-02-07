@@ -52,23 +52,33 @@ See [Features](FEATURES.md#whats-new-in-bmx-30--social-circles) for full details
 
 ## Infrastructure Modules
 
-Terraform modules in `infra/terraform/modules/`:
+Terraform modules in `infra/terraform/modules/` (23 modules):
 
 | Module | Purpose |
 |--------|---------|
-| [api-gateway](../infra/terraform/modules/api-gateway/README.md) | HTTP API + custom domain |
-| [cloudfront](../infra/terraform/modules/cloudfront/README.md) | CDN distributions |
-| [cognito](../infra/terraform/modules/cognito/README.md) | User authentication |
-| [lambda](../infra/terraform/modules/lambda/README.md) | API function + IAM |
-| [rds](../infra/terraform/modules/rds/README.md) | Aurora Serverless v2 |
-| [s3](../infra/terraform/modules/s3/README.md) | Storage buckets |
-| [vpc-networking](../infra/terraform/modules/vpc-networking/README.md) | VPC endpoints, NAT |
-
-## Session Documentation
-
-Active work sessions with artifacts:
-
-- [2025-12-21 Documentation Review](session-2025-12-21-documentation-review/README.md) - This review
+| [analysis-worker](../infra/terraform/modules/analysis-worker/) | Napoleon analysis Lambda |
+| [api-gateway](../infra/terraform/modules/api-gateway/) | HTTP API + custom domain |
+| [cleanup-lambda](../infra/terraform/modules/cleanup-lambda/) | Orphan resource cleanup |
+| [cloudfront](../infra/terraform/modules/cloudfront/) | CDN distributions |
+| [cognito](../infra/terraform/modules/cognito/) | User authentication |
+| [db-sync-lambda](../infra/terraform/modules/db-sync-lambda/) | Prod-to-staging data sync |
+| [dns](../infra/terraform/modules/dns/) | Route 53 DNS records |
+| [elasticache](../infra/terraform/modules/elasticache/) | Redis caching |
+| [eval-runbook-worker](../infra/terraform/modules/eval-runbook-worker/) | Eval runbook generation |
+| [github-oidc](../infra/terraform/modules/github-oidc/) | GitHub Actions OIDC auth |
+| [image-processor](../infra/terraform/modules/image-processor/) | AI image processing Lambda |
+| [lambda](../infra/terraform/modules/lambda/) | API function + IAM |
+| [lambda-layer](../infra/terraform/modules/lambda-layer/) | Shared Python dependencies |
+| [landing-site](../infra/terraform/modules/landing-site/) | Marketing site hosting |
+| [notifications](../infra/terraform/modules/notifications/) | SNS notifications |
+| [profile-worker](../infra/terraform/modules/profile-worker/) | Entity profile generation |
+| [rds](../infra/terraform/modules/rds/) | Aurora Serverless v2 |
+| [retry-queue-failed-worker](../infra/terraform/modules/retry-queue-failed-worker/) | Failed job retry |
+| [s3](../infra/terraform/modules/s3/) | Storage buckets |
+| [scraper-lambda](../infra/terraform/modules/scraper-lambda/) | eBay scraper (Docker) |
+| [secrets](../infra/terraform/modules/secrets/) | Secrets Manager |
+| [tracking-worker](../infra/terraform/modules/tracking-worker/) | Shipment tracking |
+| [vpc-networking](../infra/terraform/modules/vpc-networking/) | VPC endpoints, NAT |
 
 ## Quick Links
 

@@ -43,8 +43,8 @@ BlueMoxon is a serverless book collection management application deployed on AWS
         │                             │                            │
         │                   ┌─────────▼─────────┐          ┌───────▼───────┐
         │                   │  Secrets Manager   │          │   Bedrock     │
-        │                   │  (DB Credentials)  │          │ (Claude 4.5)  │
-        │                   └───────────────────┘          │ Napoleon AI   │
+        │                   │  (DB Credentials)  │          │(Opus/Sonnet/  │
+        │                   └───────────────────┘          │ Haiku)        │
         │                                                  └───────────────┘
         │                   ┌───────────────────┐
         │                   │  ElastiCache      │
@@ -77,11 +77,11 @@ Both environments are deployed via Terraform with isolated resources (separate C
 
 ## Terraform Modules
 
-Infrastructure is managed via 15 Terraform modules in `infra/terraform/modules/`:
+Infrastructure is managed via 23 Terraform modules in `infra/terraform/modules/`:
 
 ```mermaid
 flowchart TD
-    subgraph Modules["Terraform Modules (15)"]
+    subgraph Modules["Terraform Modules (23)"]
         VPC["vpc-networking<br/>VPC endpoints, NAT Gateway"]
         DNS["dns<br/>Route 53 records"]
         ACM["(ACM certs imported)"]
@@ -98,6 +98,15 @@ flowchart TD
         Lambda["lambda<br/>API function + IAM"]
         APIGW["api-gateway<br/>HTTP API + routes"]
         DBSync["db-sync-lambda<br/>Prod→Staging sync"]
+        AnalysisW["analysis-worker<br/>Napoleon analysis"]
+        EvalW["eval-runbook-worker<br/>Eval runbook gen"]
+        ProfileW["profile-worker<br/>Entity profiles"]
+        ImageProc["image-processor<br/>AI background removal"]
+        ScraperL["scraper-lambda<br/>eBay Playwright"]
+        TrackingW["tracking-worker<br/>Shipment tracking"]
+        CleanupL["cleanup-lambda<br/>DB maintenance"]
+        RetryQ["retry-queue-failed-worker<br/>DLQ retry"]
+        Notif["notifications<br/>SNS notifications"]
 
         OIDC["github-oidc<br/>GitHub Actions auth"]
     end
@@ -122,23 +131,29 @@ flowchart TD
 
 | Module | Resources Created |
 |--------|-------------------|
+| `analysis-worker` | Napoleon analysis worker Lambda + SQS |
 | `api-gateway` | HTTP API, custom domain, routes |
+| `cleanup-lambda` | Database maintenance Lambda + EventBridge |
 | `cloudfront` | Distribution, OAC, cache policies |
 | `cognito` | User pool, app client, domain |
 | `db-sync-lambda` | Lambda for prod→staging data sync |
 | `dns` | Route 53 A/AAAA records |
 | `elasticache` | Redis Serverless cache, security group |
+| `eval-runbook-worker` | Eval runbook generation Lambda + SQS |
 | `github-oidc` | OIDC provider, IAM role for GitHub Actions |
-| `lambda` | Function, IAM role, VPC config |
+| `image-processor` | AI background removal Lambda (container) + SQS |
+| `lambda` | API function, IAM role, VPC config |
+| `lambda-layer` | Shared Python dependencies layer |
 | `landing-site` | S3 + CloudFront for marketing site |
+| `notifications` | SNS notification resources |
+| `profile-worker` | Entity profile generation Lambda + SQS |
 | `rds` | Aurora cluster, subnet group, security group |
+| `retry-queue-failed-worker` | DLQ retry Lambda |
 | `s3` | Buckets for frontend, images, logs |
+| `scraper-lambda` | eBay Playwright scraper Lambda (container) |
 | `secrets` | Secrets Manager secret + IAM policy |
+| `tracking-worker` | Shipment tracking dispatcher + worker + SQS |
 | `vpc-networking` | VPC endpoints, NAT gateway, route tables |
-| `lambda-layers` | Shared Python dependencies layer |
-| `sqs` | Analysis and eval runbook job queues |
-| `cleanup-lambda` | Database maintenance Lambda |
-| `eval-worker-lambda` | Async analysis/eval processing |
 
 ## Lambda Architecture
 
@@ -152,9 +167,15 @@ flowchart TB
 
     subgraph Lambdas["Lambda Functions"]
         api["API Lambda<br/>(FastAPI + Mangum)"]
-        worker["Eval Worker Lambda<br/>(SQS Consumer)"]
+        analysis["Analysis Worker<br/>(SQS Consumer)"]
+        eval["Eval Runbook Worker<br/>(SQS Consumer)"]
+        profile["Profile Worker<br/>(SQS Consumer)"]
+        imgproc["Image Processor<br/>(Container, SQS)"]
+        scraper["Scraper Lambda<br/>(Container)"]
+        tracking["Tracking Workers<br/>(SQS)"]
         cleanup["Cleanup Lambda<br/>(Scheduled)"]
         dbsync["DB Sync Lambda<br/>(Manual Trigger)"]
+        retry["Retry Queue Failed<br/>(Manual/Scheduled)"]
     end
 
     subgraph Triggers["Triggers"]
@@ -164,11 +185,18 @@ flowchart TB
     end
 
     deps --> api
-    deps --> worker
+    deps --> analysis
+    deps --> eval
+    deps --> profile
     deps --> cleanup
+    deps --> tracking
 
     apigw --> api
-    sqs --> worker
+    sqs --> analysis
+    sqs --> eval
+    sqs --> profile
+    sqs --> imgproc
+    sqs --> tracking
     eventbridge --> cleanup
 ```
 
@@ -177,9 +205,15 @@ flowchart TB
 | Function | Purpose | Trigger | Memory | Timeout |
 |----------|---------|---------|--------|---------|
 | **API** | FastAPI REST endpoints | API Gateway | 512 MB | 30s |
-| **Eval Worker** | Napoleon analysis generation | SQS | 1024 MB | 10 min |
+| **Analysis Worker** | Napoleon analysis generation | SQS | 1024 MB | 10 min |
+| **Eval Runbook Worker** | Eval runbook generation | SQS | 1024 MB | 10 min |
 | **Profile Worker** | Entity profile generation (BMX 3.0) | SQS | 1024 MB | 10 min |
+| **Image Processor** | AI background removal (container) | SQS | 7168 MB | 5 min |
+| **Scraper** | eBay Playwright scraping (container) | API invocation | 1024 MB | 2 min |
+| **Tracking Dispatcher** | Dispatch tracking checks | Scheduled/API | 256 MB | 1 min |
+| **Tracking Worker** | Process individual tracking checks | SQS | 256 MB | 2 min |
 | **Cleanup** | Database maintenance, orphan cleanup | EventBridge (daily) | 256 MB | 5 min |
+| **Retry Queue Failed** | Move DLQ messages back to main queue | Manual/API | 256 MB | 1 min |
 | **DB Sync** | Copy prod data to staging | Manual | 512 MB | 15 min |
 
 ### Lambda Layers
@@ -250,6 +284,8 @@ flowchart LR
 | `analysis-jobs` | Napoleon analysis generation | 5 min | 3 |
 | `eval-runbook-jobs` | Evaluation runbook generation | 5 min | 3 |
 | `profile-generation` | Entity profile generation (BMX 3.0) | 5 min | 3 |
+| `image-processor` | AI background removal processing | 10 min | 3 |
+| `tracking` | Shipment tracking checks | 2 min | 3 |
 
 ### Job States
 
@@ -287,8 +323,10 @@ flowchart TB
 
     subgraph Async["Async Processing"]
         SQS_Analysis["SQS<br/>(Analysis Queue)"]
+        SQS_EvalRunbook["SQS<br/>(Eval Runbook Queue)"]
         SQS_Profile["SQS<br/>(Profile Queue)"]
-        Worker["Eval Worker Lambda"]
+        AnalysisWorker["Analysis Worker Lambda"]
+        EvalWorker["Eval Runbook Worker Lambda"]
         ProfileWorker["Profile Worker Lambda"]
     end
 
@@ -315,12 +353,16 @@ flowchart TB
     Lambda --> Cognito
     Lambda -->|Napoleon Framework| Bedrock
     Lambda -->|Queue Analysis| SQS_Analysis
+    Lambda -->|Queue Eval| SQS_EvalRunbook
     Lambda -->|Queue Profile| SQS_Profile
-    SQS_Analysis --> Worker
+    SQS_Analysis --> AnalysisWorker
+    SQS_EvalRunbook --> EvalWorker
     SQS_Profile --> ProfileWorker
-    Worker --> Bedrock
+    AnalysisWorker --> Bedrock
+    EvalWorker --> Bedrock
     ProfileWorker --> Bedrock
-    Worker --> Aurora
+    AnalysisWorker --> Aurora
+    EvalWorker --> Aurora
     ProfileWorker --> Aurora
     Vue -->|Auth| Cognito
 ```
@@ -505,9 +547,11 @@ erDiagram
         string name
         int birth_year
         int death_year
+        string era
+        date first_acquired_date
+        int priority_score
         string tier
         boolean preferred
-        int priority_score
         string image_url
     }
 
@@ -526,6 +570,7 @@ erDiagram
         boolean preferred
         string full_name
         string image_url
+        int founded_year
     }
 
     IMAGES {

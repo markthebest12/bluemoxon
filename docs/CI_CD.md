@@ -161,6 +161,7 @@ flowchart TB
     subgraph "Stage 4: Deploy Lambdas (Parallel)"
         DW[deploy-worker-lambda<br/>Analysis]
         DE[deploy-eval-worker-lambda<br/>Eval Runbook]
+        DPW[deploy-profile-worker-lambda<br/>Entity Profiles]
         DC[deploy-cleanup-lambda<br/>Cleanup]
         DTD[deploy-tracking-dispatcher<br/>Tracking Dispatcher]
         DTW[deploy-tracking-worker<br/>Tracking Worker]
@@ -184,11 +185,11 @@ flowchart TB
     CFG --> BL & BB & BF & BS
     BL --> DA
     BB --> DA
-    DA --> DW & DE & DC & DTD & DTW
+    DA --> DW & DE & DPW & DC & DTD & DTW
     BS --> DSC
     BF --> DF
     DA --> MIG
-    DW & DE & DC & DTD & DTW & DSC & DF & MIG --> SM
+    DW & DE & DPW & DC & DTD & DTW & DSC & DF & MIG --> SM
     SM -->|production only| TAG
 ```
 
@@ -474,7 +475,13 @@ Updates flow: Dependabot PR → staging → test → promote to main
 │   ├── ci.yml              # CI checks with path filtering
 │   ├── deploy.yml          # Unified deploy (staging + production)
 │   ├── deploy-site.yml     # Marketing site deploy
-│   └── terraform.yml       # Infrastructure plan
+│   ├── drift-detection.yml # Daily Terraform drift checks
+│   ├── e2e.yml             # End-to-end Playwright tests
+│   ├── e2e-suite.yml       # Extended E2E test suite
+│   ├── integration-tests.yml # API integration tests
+│   ├── pr-title.yml        # PR title convention enforcement
+│   ├── release.yml         # Uplift semantic version release
+│   └── terraform.yml       # Infrastructure plan/apply
 ├── dependabot.yml          # Dependency updates (targets staging)
 ```
 

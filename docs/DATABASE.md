@@ -17,17 +17,23 @@ Tier 1 publishers are pre-seeded (Moxon, Murray, Smith Elder, Macmillan, Chapman
 | tier | VARCHAR(10) | TIER_1, TIER_2, TIER_3, OTHER |
 | founded_year | INTEGER | Year founded |
 | description | TEXT | Publisher description |
+| preferred | BOOLEAN | Preferred entity (+10 scoring bonus) |
+| image_url | VARCHAR(500) | Portrait image URL (CDN) |
 
 ### authors
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | SERIAL | Primary key |
-| name | VARCHAR(200) | Author name |
+| name | VARCHAR(200) | Author name (unique) |
 | birth_year | INTEGER | Birth year |
 | death_year | INTEGER | Death year |
 | era | VARCHAR(50) | Victorian, Romantic, etc. |
 | first_acquired_date | DATE | When first book by author was acquired |
+| priority_score | INTEGER | Acquisition priority (default 0) |
+| tier | VARCHAR(10) | TIER_1, TIER_2, TIER_3 |
+| preferred | BOOLEAN | Preferred entity (+10 scoring bonus) |
+| image_url | VARCHAR(500) | Portrait image URL (CDN) |
 
 ### binders
 
@@ -36,9 +42,14 @@ Authenticated binding houses (Zaehnsdorf, Rivière, Sangorski, Bayntun).
 | Column | Type | Description |
 |--------|------|-------------|
 | id | SERIAL | Primary key |
-| name | VARCHAR(50) | Short name (unique) |
+| name | VARCHAR(100) | Short name (unique) |
 | full_name | VARCHAR(200) | Full business name |
 | authentication_markers | TEXT | How to identify authentic bindings |
+| tier | VARCHAR(20) | TIER_1, TIER_2 |
+| preferred | BOOLEAN | Preferred entity (+10 scoring bonus) |
+| image_url | VARCHAR(500) | Portrait image URL (CDN) |
+| founded_year | INTEGER | Year founded |
+| closed_year | INTEGER | Year closed (null if still operating) |
 
 ### books
 
@@ -71,7 +82,22 @@ Main entity - represents a single book or set.
 | purchase_source | VARCHAR(200) | Seller/source |
 | discount_pct | DECIMAL(5,2) | Discount from market |
 | roi_pct | DECIMAL(5,2) | Return on investment |
-| status | VARCHAR(20) | ON_HAND, IN_TRANSIT, SOLD, DONATED |
+| status | VARCHAR(20) | EVALUATING, IN_TRANSIT, ON_HAND, SOLD, REMOVED, CANCELED |
+| source_url | VARCHAR(500) | Original listing URL |
+| source_item_id | VARCHAR(100) | Source item identifier |
+| estimated_delivery | DATE | Estimated delivery date |
+| tracking_active | BOOLEAN | Whether tracking is actively polling |
+| tracking_delivered_at | TIMESTAMP | When package was delivered |
+| scoring_snapshot | JSON | Investment scores at acquisition time |
+| archive_status | VARCHAR(20) | Wayback archive status (pending, success, failed) |
+| source_archived_url | VARCHAR(500) | Wayback Machine URL |
+| investment_grade | INTEGER | Computed investment grade (0-100) |
+| overall_score | INTEGER | Computed overall score |
+| is_first_edition | BOOLEAN | Whether book is a first edition (from analysis) |
+| has_provenance | BOOLEAN | Whether provenance is documented |
+| provenance_tier | VARCHAR(20) | Provenance quality tier |
+| is_complete | BOOLEAN | Whether set has all volumes (default true) |
+| acquisition_cost | DECIMAL(10,2) | Total cost including shipping/tax |
 | notes | TEXT | General notes |
 | provenance | TEXT | Ownership history |
 | search_vector | TSVECTOR | Full-text search vector |
@@ -92,8 +118,11 @@ Detailed analysis documents linked to books.
 | market_analysis | JSONB | Comparable sales data |
 | historical_significance | TEXT | Historical context |
 | recommendations | TEXT | Action items |
-| risk_factors | TEXT[] | Array of risks |
+| risk_factors | JSON | Array of risks |
 | full_markdown | TEXT | Original markdown |
+| source_filename | VARCHAR(500) | Original filename |
+| extraction_status | VARCHAR(20) | success, degraded, failed, null (legacy) |
+| model_id | VARCHAR(100) | Bedrock model ID that generated this analysis |
 | search_vector | TSVECTOR | Full-text search |
 | created_at | TIMESTAMP | Record creation |
 | updated_at | TIMESTAMP | Last update |
@@ -108,9 +137,12 @@ Image metadata (actual images stored in S3).
 | book_id | INTEGER | FK to books (CASCADE delete) |
 | s3_key | VARCHAR(500) | S3 object key |
 | cloudfront_url | VARCHAR(500) | CDN URL |
+| original_filename | VARCHAR(255) | Original upload filename |
+| content_hash | VARCHAR(64) | SHA-256 hash for duplicate detection |
 | image_type | VARCHAR(50) | cover, spine, interior, binding_detail |
 | display_order | INTEGER | Sort order |
 | is_primary | BOOLEAN | Primary display image |
+| is_background_processed | BOOLEAN | Whether AI background removal was applied |
 | caption | TEXT | Image caption |
 
 ### users
@@ -200,6 +232,56 @@ Tracks batch entity profile generation jobs (BMX 3.0).
 | error_log | TEXT | Error details if failed |
 | created_at | TIMESTAMP | Job creation |
 | updated_at | TIMESTAMP | Last update |
+| completed_at | TIMESTAMP | Job completion |
+
+### eval_runbooks
+
+Lightweight evaluation reports for acquisition decisions.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| book_id | INTEGER | FK to books (CASCADE delete, unique) |
+| total_score | INTEGER | Composite evaluation score |
+| score_breakdown | JSON | Detailed score components |
+| recommendation | VARCHAR(20) | PASS or ACQUIRE |
+| fmv_low | DECIMAL(10,2) | Fair market value low estimate |
+| fmv_high | DECIMAL(10,2) | Fair market value high estimate |
+| recommended_price | DECIMAL(10,2) | Suggested offer price |
+| condition_grade | VARCHAR(20) | AI-assessed condition grade |
+| analysis_narrative | TEXT | Full eval narrative |
+| generated_at | TIMESTAMP | When report was generated |
+| created_at | TIMESTAMP | Record creation |
+| updated_at | TIMESTAMP | Last update |
+
+### notifications
+
+In-app notifications for tracking updates and other events.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| user_id | INTEGER | FK to users (CASCADE delete) |
+| book_id | INTEGER | FK to books (SET NULL on delete) |
+| message | TEXT | Notification message |
+| read | BOOLEAN | Whether notification has been read |
+| created_at | TIMESTAMP | Record creation |
+
+### image_processing_jobs
+
+Tracks async AI image processing (background removal) jobs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| book_id | INTEGER | FK to books (CASCADE delete) |
+| source_image_id | INTEGER | FK to book_images (source) |
+| processed_image_id | INTEGER | FK to book_images (result) |
+| status | VARCHAR(20) | pending, processing, completed, failed |
+| attempt_count | INTEGER | Number of processing attempts |
+| model_used | VARCHAR(50) | AI model used (u2net, isnet) |
+| failure_reason | TEXT | Error details if failed |
+| created_at | TIMESTAMP | Job creation |
 | completed_at | TIMESTAMP | Job completion |
 
 ### app_config

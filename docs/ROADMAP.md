@@ -157,6 +157,9 @@ An interactive period map of London with actual publisher addresses plotted, sho
 | **Victorian Social Circles Phase 1** | Interactive Cytoscape.js network graph — nodes, edges, filters, timeline, tooltips, detail panel | ✅ #1316 |
 | **AI-Discovered Connections** | Personal connections (family, friendship, influence, collaboration, scandal) via AI discovery | ✅ #1803 |
 | **Entity Profiles & AI Bios** | AI-generated entity profiles with bios, stories, and connection narratives | ✅ Complete |
+| **Portrait Sync Pipeline** | Wikidata portrait images for authors, publishers, and binders (#1851) | ✅ #1851 |
+| **Entity Enrichment Worker** | Async entity metadata enrichment via Bedrock Haiku (#1864) | ✅ #1864 |
+| **Model Registry Unification** | Admin-configurable AI model selection per workflow (#1855, #1856) | ✅ #1855, #1856 |
 | **Model Configuration UI** | Per-flow AI model selectors on admin config page (#1571, #1570, #1714) | ✅ #1774, #1775 |
 | **Toast Notification System** | User-friendly error/success notifications with hover-to-pause, duplicate suppression | ✅ #855 |
 | **Shared Constants Extraction** | Centralized book status and dropdown constants in `frontend/src/constants/` | ✅ #854 |
@@ -218,7 +221,7 @@ CloudFront → S3 (Frontend)
 CloudFront → API Gateway → Lambda → Aurora Serverless v2
                                   → AWS Bedrock (Opus/Sonnet/Haiku)
                                   → S3 (Images + Prompts + Portraits)
-                                  → SQS (Analysis + Profile Generation)
+                                  → SQS (Analysis + Eval + Profile + Image + Tracking)
 ```
 
 **Dual Environment:** Production (`app.bluemoxon.com`) and Staging (`staging.app.bluemoxon.com`) with isolated Cognito pools, databases, and S3 buckets.
