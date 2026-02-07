@@ -190,8 +190,9 @@ function handlePlay() {
   align-items: center;
   gap: 1rem;
   /* Reserve space for TimelineMarkers year labels positioned below the slider.
-     Markers container is 32px tall + 4px top offset = 36px needed. */
-  padding-bottom: 36px;
+     Markers container is 40px tall + 4px top offset = 44px needed.
+     Extra height ensures hover animation (line grows 12px→16px) keeps labels visible. */
+  padding-bottom: 44px;
 }
 
 .timeline-slider__input-wrapper {

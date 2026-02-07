@@ -199,7 +199,8 @@ function handleKeydown(e: KeyboardEvent, id: string) {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  height: 32px;
+  height: 40px;
+  overflow: visible;
 }
 
 .timeline-markers__marker {
