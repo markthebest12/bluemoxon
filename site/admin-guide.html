@@ -105,6 +105,22 @@
             color: var(--accent-blue-light);
         }
 
+        .btn-login {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
         /* Layout */
         .container {
             max-width: 1400px;
@@ -454,6 +470,23 @@
             transform: rotate(-45deg) translate(6px, -6px);
         }
 
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover {
+            color: var(--accent-blue-light);
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
@@ -605,7 +638,7 @@
     <!-- Navigation -->
     <nav>
         <div class="nav-content">
-            <a href="index.html" class="logo">
+            <a href="/" class="logo">
                 <img src="/images/bluemoxon-logo.png" alt="BlueMoxon" height="40">
             </a>
             <button class="hamburger" aria-label="Toggle menu" onclick="toggleMenu()">
@@ -614,14 +647,13 @@
                 <span></span>
             </button>
             <ul class="nav-links">
-                <li><a href="index.html#about">About</a></li>
-                <li><a href="features.html">Features</a></li>
-                <li><a href="index.html#screenshots">Screenshots</a></li>
-                <li><a href="admin-guide.html" style="color: var(--accent-blue-light);">Admin Guide</a></li>
-                <li><a href="releases.html">Releases</a></li>
-                <li><a href="index.html#architecture">Architecture</a></li>
-                <li><a href="index.html#api">API</a></li>
+                <li><a href="/#whats-new">What's New</a></li>
+                <li><a href="/#features">Features</a></li>
+                <li><a href="/#screenshots">Screenshots</a></li>
+                <li><a href="/#about">About</a></li>
+                <li><a href="/tech.html">How It's Built</a></li>
             </ul>
+            <a href="https://app.bluemoxon.com" class="btn-login" target="_blank">Login</a>
         </div>
     </nav>
 
@@ -1983,6 +2015,17 @@ aws cognito-idp admin-add-user-to-group \
 
         </main>
     </div>
+
+    <footer>
+        <div class="footer-links">
+            <a href="/">Home</a>
+            <a href="/features.html">Features</a>
+            <a href="/admin-guide.html">Admin Guide</a>
+            <a href="/releases.html">Releases</a>
+            <a href="/tech.html">How It's Built</a>
+        </div>
+        <p>&copy; 2026 BlueMoxon</p>
+    </footer>
 
     <script>
         // Highlight current section in sidebar
