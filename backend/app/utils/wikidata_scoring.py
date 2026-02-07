@@ -118,7 +118,16 @@ def occupation_match(occupations: list[str]) -> float:
     Returns 1.0 if any occupation contains a book-trade-relevant term, else 0.
     The weight parameter in score_candidate controls the contribution.
     """
-    relevant = {"writer", "poet", "novelist", "publisher", "author", "printer", "bookbinder"}
+    relevant = {
+        "writer",
+        "poet",
+        "novelist",
+        "publisher",
+        "author",
+        "printer",
+        "bookbinder",
+        "bookseller",
+    }
     for occ in occupations:
         if any(r in occ.lower() for r in relevant):
             return 1.0

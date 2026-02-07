@@ -574,3 +574,184 @@ class TestBinderUsesOrgQuery:
         # Verify the org query was used (not person query)
         sparql_arg = mock_query.call_args[0][0]
         assert "Q2085381" in sparql_arg or "Q7275" in sparql_arg
+        # Org success means no fallback — should only call query_wikidata once
+        assert mock_query.call_count == 1
+
+
+class TestExtractPersonName:
+    """Tests for _extract_person_name helper."""
+
+    @staticmethod
+    def _fn(name: str) -> str | None:
+        from app.services.portrait_sync import _extract_person_name
+
+        return _extract_person_name(name)
+
+    def test_strips_and_son(self):
+        assert self._fn("Rivière & Son") == "Rivière"
+
+    def test_strips_and_sons(self):
+        assert self._fn("Rivière & Sons") == "Rivière"
+
+    def test_strips_and_co(self):
+        assert self._fn("Edward Moxon and Co.") == "Edward Moxon"
+
+    def test_strips_ampersand_co(self):
+        assert self._fn("Smith & Co.") == "Smith"
+
+    def test_strips_comma_ampersand_co(self):
+        assert self._fn("Longmans, Green & Co.") == "Longmans, Green"
+
+    def test_strips_and_bros(self):
+        assert self._fn("Harper & Bros.") == "Harper"
+
+    def test_strips_and_brothers(self):
+        assert self._fn("Harper and Brothers") == "Harper"
+
+    def test_no_suffix_returns_none(self):
+        assert self._fn("Bernard Quaritch") is None
+
+    def test_empty_string_returns_none(self):
+        assert self._fn("") is None
+
+    def test_suffix_only_returns_none(self):
+        # "& Son" alone leaves empty string after stripping
+        assert self._fn("& Son") is None
+
+
+class TestPersonSparqlFallback:
+    """Tests for person SPARQL fallback in process_org_entity."""
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_falls_back_to_person_when_org_empty(self, mock_query, mock_sleep, db: Session):
+        """When org SPARQL returns nothing, should try person SPARQL."""
+        from app.services.portrait_sync import process_org_entity
+
+        publisher = Publisher(name="Bernard Quaritch")
+        db.add(publisher)
+        db.flush()
+
+        person_bindings = [
+            {
+                "item": {"value": "http://wd/Q119818"},
+                "itemLabel": {"value": "Bernard Quaritch"},
+                "image": {
+                    "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Bernard%20Quaritch.jpg"
+                },
+            }
+        ]
+
+        # First call (org) returns empty, second call (person) returns match
+        mock_query.side_effect = [[], person_bindings]
+
+        result = process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
+
+        assert result["status"] == "dry_run_match"
+        assert result["wikidata_label"] == "Bernard Quaritch"
+        assert result["match_source"] == "person_exact"
+        assert mock_query.call_count == 2
+        # Second call should be a person query (Q5 = human)
+        person_sparql = mock_query.call_args_list[1][0][0]
+        assert "Q5" in person_sparql
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_falls_back_to_stripped_name(self, mock_query, mock_sleep, db: Session):
+        """When org and exact person fail, should try stripped name."""
+        from app.services.portrait_sync import process_org_entity
+
+        publisher = Publisher(name="Edward Moxon and Co.")
+        db.add(publisher)
+        db.flush()
+
+        person_bindings = [
+            {
+                "item": {"value": "http://wd/Q5341"},
+                "itemLabel": {"value": "Edward Moxon"},
+                "image": {
+                    "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Edward_Moxon.jpg"
+                },
+            }
+        ]
+
+        # org=empty, person-exact=empty, person-stripped=match
+        mock_query.side_effect = [[], [], person_bindings]
+
+        result = process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
+
+        assert result["status"] == "dry_run_match"
+        assert result["wikidata_label"] == "Edward Moxon"
+        assert result["match_source"] == "person_stripped"
+        assert mock_query.call_count == 3
+        # Second call: person query with original name "Edward Moxon and Co."
+        assert "Edward Moxon and Co." in mock_query.call_args_list[1][0][0]
+        # Third call: person query with stripped name "Edward Moxon"
+        third_sparql = mock_query.call_args_list[2][0][0]
+        assert "Edward Moxon" in third_sparql
+        assert "and Co." not in third_sparql
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_no_results_when_all_queries_empty(self, mock_query, mock_sleep, db: Session):
+        """When all SPARQL queries return nothing, status should be no_results."""
+        from app.services.portrait_sync import process_org_entity
+
+        publisher = Publisher(name="Longmans, Green & Co.")
+        db.add(publisher)
+        db.flush()
+
+        # All queries return empty
+        mock_query.return_value = []
+
+        result = process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
+
+        assert result["status"] == "no_results"
+        # Comma in stripped name ("Longmans, Green") should skip stripped query
+        # So only org + person-exact = 2 calls
+        assert mock_query.call_count == 2
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_rate_limits_between_fallback_queries(self, mock_query, mock_sleep, db: Session):
+        """Should sleep between org and person queries for rate limiting."""
+        from app.services.portrait_sync import process_org_entity
+
+        publisher = Publisher(name="Bernard Quaritch")
+        db.add(publisher)
+        db.flush()
+
+        # All queries return empty to exercise full fallback path
+        mock_query.return_value = []
+
+        process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
+
+        # Should have slept for rate limiting (at least once for the fallback)
+        assert mock_sleep.call_count >= 1
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_org_success_skips_fallback(self, mock_query, mock_sleep, db: Session):
+        """When org SPARQL succeeds, should NOT try person fallback."""
+        from app.services.portrait_sync import process_org_entity
+
+        publisher = Publisher(name="Macmillan Publishers")
+        db.add(publisher)
+        db.flush()
+
+        org_bindings = [
+            {
+                "item": {"value": "http://wd/Q1234"},
+                "itemLabel": {"value": "Macmillan Publishers"},
+                "image": {
+                    "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Macmillan.jpg"
+                },
+            }
+        ]
+        mock_query.return_value = org_bindings
+
+        result = process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
+
+        assert result["status"] == "dry_run_match"
+        assert result["match_source"] == "org"
+        assert mock_query.call_count == 1
