@@ -822,6 +822,26 @@ MIGRATION_2843F260F764_SQL = [
     DO NOTHING""",
 ]
 
+# Migration SQL for 7a3a9a604ccf_null_broken_portrait_image_urls
+# After S3 portrait cleanup (2026-02-06), ~106 publishers+binders still had
+# image_url pointing to deleted S3 files. NULL them out so frontend falls back
+# to placeholder images. Only keep image_url for entities with verified portraits.
+# IDs derived from manual S3 audit: publishers with verified Wikidata matches or
+# manually curated images, binders with verified Wikidata matches.
+# Scoped to CDN portrait URLs to avoid re-nulling future manual uploads.
+MIGRATION_7A3A9A604CCF_SQL = [
+    """UPDATE publishers
+    SET image_url = NULL
+    WHERE id NOT IN (12, 32, 33, 166, 167, 168, 175, 193, 197, 231, 243, 244, 254)
+      AND image_url IS NOT NULL
+      AND image_url LIKE '%/entities/publisher/%/portrait.jpg'""",
+    """UPDATE binders
+    SET image_url = NULL
+    WHERE id NOT IN (49, 69, 76)
+      AND image_url IS NOT NULL
+      AND image_url LIKE '%/entities/binder/%/portrait.jpg'""",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -1103,5 +1123,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "2843f260f764",
         "name": "add_ai_connections_table",
         "sql_statements": MIGRATION_2843F260F764_SQL,
+    },
+    {
+        "id": "7a3a9a604ccf",
+        "name": "null_broken_portrait_image_urls",
+        "sql_statements": MIGRATION_7A3A9A604CCF_SQL,
     },
 ]
