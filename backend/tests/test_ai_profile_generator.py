@@ -664,3 +664,19 @@ class TestStripInvalidMarkers:
         text = "{{entity:author:32|RB}} and {{entity:author:32|Robert Browning}}."
         valid_ids = {"author:32"}
         assert strip_invalid_markers(text, valid_ids) == text
+
+    def test_unwrapped_entity_reference_stripped(self):
+        text = "Thomas Hardy and entity:author:Rudyard Kipling were connected."
+        assert (
+            strip_invalid_markers(text, set()) == "Thomas Hardy and Rudyard Kipling were connected."
+        )
+
+    def test_unwrapped_entity_reference_with_valid_wrapped(self):
+        text = "{{entity:author:32|Robert}} met entity:author:Rudyard Kipling."
+        valid_ids = {"author:32"}
+        result = strip_invalid_markers(text, valid_ids)
+        assert result == "{{entity:author:32|Robert}} met Rudyard Kipling."
+
+    def test_multiple_unwrapped_references(self):
+        text = "entity:author:Thomas Hardy and entity:publisher:Macmillan worked together."
+        assert strip_invalid_markers(text, set()) == "Thomas Hardy and Macmillan worked together."

@@ -189,8 +189,9 @@ function handlePlay() {
   display: flex;
   align-items: center;
   gap: 1rem;
-  /* Reserve space for TimelineMarkers year labels positioned below the slider */
-  padding-bottom: 24px;
+  /* Reserve space for TimelineMarkers year labels positioned below the slider.
+     Markers container is 32px tall + 4px top offset = 36px needed. */
+  padding-bottom: 36px;
 }
 
 .timeline-slider__input-wrapper {

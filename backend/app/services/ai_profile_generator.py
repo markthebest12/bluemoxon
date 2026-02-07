@@ -141,6 +141,14 @@ Connection list (ONLY use markers for entities in this list — never invent IDs
 
 _ENTITY_MARKER_RE = re.compile(r"\{\{entity:(\w+):(\d+)\|([^}]+)\}\}")
 
+# Catches unwrapped entity references the AI sometimes produces:
+# "entity:author:Rudyard Kipling" → "Rudyard Kipling"
+# Name: one or more capitalized words, connected by spaces (with optional
+# lowercase joiners like "and", "of", "de"). Stops at non-name words.
+_UNWRAPPED_ENTITY_RE = re.compile(
+    r"entity:\w+:([A-Z][a-zA-Z''\-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][a-zA-Z''\-]*)*)"
+)
+
 
 def strip_invalid_markers(text: str, valid_entity_ids: set[str]) -> str:
     """Strip entity markers whose IDs are not in the valid set.
@@ -158,7 +166,10 @@ def strip_invalid_markers(text: str, valid_entity_ids: set[str]) -> str:
             return match.group(0)  # preserve valid marker
         return display_name  # strip to plain text
 
-    return _ENTITY_MARKER_RE.sub(_replace, text)
+    result = _ENTITY_MARKER_RE.sub(_replace, text)
+    # Second pass: strip unwrapped entity references (no braces, no ID)
+    result = _UNWRAPPED_ENTITY_RE.sub(lambda m: m.group(1), result)
+    return result
 
 
 _BIO_SYSTEM_PROMPT = (
