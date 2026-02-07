@@ -5,6 +5,11 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.6.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.1) - 2026-02-07
+
+- [`58d7910`](https://github.com/markthebest12/bluemoxon/commit/58d7910efa92b1fb384e596d92912bded4fc14cf) fix: address code review findings (#1896, #1897, #1899, #1900) (#1902)
+- [`4c3f969`](https://github.com/markthebest12/bluemoxon/commit/4c3f9692fd837c01f809dfdc13ae3cb24d08432d) fix: null broken portrait image_url and add frontend error fallback (#1901)
+
 ## [v3.6.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.0) - 2026-02-06
 
 - [`26b555b`](https://github.com/markthebest12/bluemoxon/commit/26b555b721174349ae2690f470d7ec1b9e41592a) feat: BMX 3.0 website announcement and feature documentation (#1863) (#1895)
