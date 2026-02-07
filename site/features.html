@@ -102,6 +102,26 @@
             color: var(--accent-blue-light);
         }
 
+        nav .nav-links a.nav-highlight {
+            color: var(--accent-blue-light);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
         .btn {
             padding: 0.75rem 1.5rem;
             border-radius: 8px;
@@ -314,6 +334,23 @@
             text-decoration: none;
         }
 
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover {
+            color: var(--accent-blue-light);
+        }
+
         /* Hamburger button */
         .hamburger {
             display: none;
@@ -441,14 +478,13 @@
                 <span></span>
             </button>
             <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/features.html" style="color: var(--accent-blue-light);">Features</a></li>
+                <li><a href="/#whats-new">What's New</a></li>
+                <li><a href="/features.html" class="nav-highlight">Features</a></li>
                 <li><a href="/#screenshots">Screenshots</a></li>
-                <li><a href="/admin-guide.html">Admin Guide</a></li>
-                <li><a href="/releases.html">Releases</a></li>
-                <li><a href="/#architecture">Architecture</a></li>
-                <li><a href="/#api">API</a></li>
+                <li><a href="/#about">About</a></li>
+                <li><a href="/tech.html">How It's Built</a></li>
             </ul>
+            <a href="https://app.bluemoxon.com" class="btn-login" target="_blank">Login</a>
         </div>
     </nav>
 
@@ -477,22 +513,22 @@
             <div class="feature-grid">
                 <div class="feature-card highlight-card">
                     <h3><span class="icon">&#x1f310;</span> Interactive Network Graph</h3>
-                    <p>Cytoscape.js visualization of your collection's social network. Era filtering via timeline scrubber, connection highlighting on hover, and distinct color-coded edges for publishers, binders, and AI-discovered personal connections.</p>
+                    <p>Interactive network visualization of your collection's social world. Filter by era with the timeline scrubber, highlight connections on hover, and explore color-coded relationships between publishers, binders, and AI-discovered personal connections.</p>
                     <span class="tag new">New in 3.0</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">&#x1f9e0;</span> AI Entity Profiles</h3>
-                    <p>Biographical summaries, personal stories, and connection narratives generated for every author, publisher, and binder. AI-generated biographical data enriches each entity with historical context.</p>
+                    <p>Each entity gets AI-generated biographical narratives and connection stories. Discover the personal histories, rivalries, and collaborations behind every author, publisher, and binder in your collection.</p>
                     <span class="tag new">New in 3.0</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">&#x1f517;</span> AI-Discovered Connections</h3>
-                    <p>Family, friendship, influence, collaboration, and scandal edges discovered by Claude. Each connection includes confidence scoring and evidence citations from historical sources.</p>
+                    <p>Family, friendship, influence, collaboration, and scandal connections discovered by AI. Each connection includes confidence scoring and evidence citations from historical sources.</p>
                     <span class="tag new">New in 3.0</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">&#x1f5bc;</span> Portrait Auto-Sync</h3>
-                    <p>Automated Wikidata portrait matching for authors, publishers, and binders. Entity photos discovered and synced from Wikimedia Commons via SPARQL queries with NLS historical map fallback.</p>
+                    <p>Each entity gets a portrait automatically discovered from historical archives. Photos are matched from Wikimedia Commons and other historical sources, giving faces to the authors, publishers, and binders in your collection.</p>
                     <span class="tag new">New in 3.0</span>
                 </div>
                 <div class="feature-card">
@@ -502,7 +538,7 @@
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">&#x2699;</span> Model Registry</h3>
-                    <p>Admin-configurable AI model selection per workflow. Choose Opus for deep analysis, Sonnet for evaluation runbooks, or Haiku for entity profiles. Override defaults via the admin dashboard.</p>
+                    <p>Choose the right AI model for each task. Use the most powerful models for deep valuations and lighter models for quick profile generation. Configure defaults from the admin dashboard.</p>
                     <span class="tag new">New in 3.0</span>
                 </div>
             </div>
@@ -530,7 +566,7 @@
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">📷</span> Image Gallery</h3>
-                    <p>Upload multiple high-resolution images per book. Drag-and-drop reordering, automatic CDN delivery, and full-screen lightbox viewing.</p>
+                    <p>Upload multiple high-resolution images per book. Drag-and-drop reordering, fast image loading worldwide, and full-screen lightbox viewing.</p>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">💰</span> Value Tracking</h3>
@@ -542,7 +578,7 @@
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">🏷️</span> Reference Library</h3>
-                    <p>Full CRUD for authors, publishers, and binders with tier classifications. Reassign books between entities, mark preferred entries for +10 scoring bonus.</p>
+                    <p>Full management interface for authors, publishers, and binders with tier classifications. Reassign books between entities, mark preferred entries for +10 scoring bonus.</p>
                     <span class="tag new">Enhanced</span>
                 </div>
             </div>
@@ -716,7 +752,7 @@
             <div class="feature-grid">
                 <div class="feature-card">
                     <h3><span class="icon">🔐</span> Secure Authentication</h3>
-                    <p>AWS Cognito-powered login with MFA support. JWT tokens for API access. Session management built in.</p>
+                    <p>Secure cloud-based login with multi-factor authentication support. Your collection data is protected with enterprise-grade security and automatic session management.</p>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">👥</span> Role-Based Access</h3>
@@ -740,19 +776,10 @@
                 <h2>Theming & Accessibility</h2>
             </div>
             <div class="feature-grid">
-                <div class="feature-card highlight-card">
-                    <h3><span class="icon">🌙</span> Victorian Dark Mode</h3>
-                    <p>Elegant dark theme inspired by Victorian-era aesthetics. Deep burgundy backgrounds, parchment text, and gold accents create a distinguished reading experience. Toggle with one click, syncs with system preference.</p>
-                    <span class="tag new">New</span>
-                </div>
                 <div class="feature-card">
-                    <h3><span class="icon">✨</span> Animation System</h3>
-                    <p>Subtle micro-interactions enhance the experience: button feedback, card hovers, smooth transitions. Respects prefers-reduced-motion for accessibility.</p>
-                    <span class="tag new">New</span>
-                </div>
-                <div class="feature-card">
-                    <h3><span class="icon">🎨</span> Theme Persistence</h3>
-                    <p>Your theme preference is saved locally. Dark mode applies instantly on page load - no flash of light mode. Works across all pages.</p>
+                    <h3><span class="icon">&#x1f3a8;</span> Theming</h3>
+                    <p>Victorian dark mode with deep burgundy backgrounds and aged parchment accents. Respects system preferences and persists your choice. Smooth transitions between themes.</p>
+                    <span class="tag">Visual</span>
                 </div>
             </div>
         </section>
@@ -760,13 +787,14 @@
 
     <!-- Footer -->
     <footer>
-        <p>
-            <a href="https://app.bluemoxon.com" target="_blank">app.bluemoxon.com</a> &bull;
-            <a href="/">Documentation</a>
-        </p>
-        <p style="margin-top: 1rem;">
-            Built with Vue 3, FastAPI, Aurora PostgreSQL &bull; Powered by Claude
-        </p>
+        <div class="footer-links">
+            <a href="/">Home</a>
+            <a href="/features.html">Features</a>
+            <a href="/admin-guide.html">Admin Guide</a>
+            <a href="/releases.html">Releases</a>
+            <a href="/tech.html">How It's Built</a>
+        </div>
+        <p>&copy; 2026 BlueMoxon</p>
     </footer>
 
     <!-- Hamburger menu toggle -->
