@@ -9,6 +9,7 @@ endpoint and the CLI script (scripts/wikidata_portraits.py) delegate to this mod
 
 import io
 import logging
+import re
 import time
 from urllib.parse import quote, unquote
 
@@ -47,11 +48,20 @@ WIKIDATA_REQUEST_INTERVAL = 1.5
 USER_AGENT = "BlueMoxonBot/1.0 (https://bluemoxon.com; contact@bluemoxon.com)"
 
 # Max entities per request to fit within API Gateway 30s timeout.
-# Each entity needs ~2s (1.5s rate limit + HTTP round-trip).
+# Each entity needs ~2s (1.5s rate limit + HTTP round-trip), but
+# publishers/binders may fire up to 3 queries (org + person fallback).
+# For publisher-heavy batches, use smaller batches or entity_ids.
 MAX_ENTITIES_PER_REQUEST = 10
 
 # Max entity IDs that can be passed in a single request
 MAX_ENTITY_IDS = 50
+
+# Regex to strip common business suffixes for person-name extraction.
+# Matches patterns like "& Son", "& Sons", "& Co.", "and Co."
+_BUSINESS_SUFFIXES_RE = re.compile(
+    r",?\s*(?:&|and)\s+(?:Sons?|Co\.?|Company)\.?\s*$",
+    re.IGNORECASE,
+)
 
 # Entity type to model mapping
 ENTITY_MODELS = {
@@ -106,6 +116,20 @@ def _escape_sparql_string(value: str) -> str:
         .replace("\r", "\\r")
         .replace("\t", "\\t")
     )
+
+
+def _extract_person_name(entity_name: str) -> str | None:
+    """Strip common business suffixes to extract a potential founder name.
+
+    Many Victorian publishers/binders are named after their founders
+    (e.g. "Rivière & Son" → "Rivière", "Edward Moxon and Co." → "Edward Moxon").
+
+    Returns the stripped name if different from original, else None.
+    """
+    stripped = _BUSINESS_SUFFIXES_RE.sub("", entity_name).strip().rstrip(",").strip()
+    if stripped and stripped != entity_name:
+        return stripped
+    return None
 
 
 def build_sparql_query_person(entity_name: str) -> str:
@@ -393,7 +417,7 @@ def process_person_entity(
     entity_birth = getattr(entity, "birth_year", None)
     entity_death = getattr(entity, "death_year", None)
 
-    # For binders, use founded_year as rough birth proxy
+    # For binders, use founded_year/closed_year as rough year proxies
     if entity_type == "binder":
         entity_birth = getattr(entity, "founded_year", None)
         entity_death = getattr(entity, "closed_year", None)
@@ -449,6 +473,47 @@ def process_person_entity(
     return _download_process_upload(db, entity, entity_type, best_candidate, result)
 
 
+def _try_person_sparql_fallback(entity_name: str) -> list[dict]:
+    """Try person SPARQL queries as fallback for org entities.
+
+    Many Victorian publishers/binders are named after their founders
+    who exist on Wikidata as persons (Q5), not organizations.
+
+    Tries the original name first, then strips business suffixes
+    (e.g. "Rivière & Son" → "Rivière", "Edward Moxon and Co." → "Edward Moxon").
+
+    Returns SPARQL bindings list (may be empty).
+    """
+    # Rate-limit: caller already fired an org query, respect Wikidata interval
+    time.sleep(WIKIDATA_REQUEST_INTERVAL)
+
+    # Try original name as a person (e.g. "Bernard Quaritch")
+    person_sparql = build_sparql_query_person(entity_name)
+    bindings = query_wikidata(person_sparql)
+    if bindings:
+        logger.info(
+            "Org SPARQL empty for '%s', found person match via exact name",
+            entity_name,
+        )
+        return bindings
+
+    # Try with business suffixes stripped (e.g. "Edward Moxon and Co." → "Edward Moxon")
+    stripped_name = _extract_person_name(entity_name)
+    if stripped_name:
+        time.sleep(WIKIDATA_REQUEST_INTERVAL)
+        person_sparql = build_sparql_query_person(stripped_name)
+        bindings = query_wikidata(person_sparql)
+        if bindings:
+            logger.info(
+                "Org SPARQL empty for '%s', found person match via stripped name '%s'",
+                entity_name,
+                stripped_name,
+            )
+            return bindings
+
+    return []
+
+
 def process_org_entity(
     db: Session,
     entity,
@@ -459,6 +524,9 @@ def process_org_entity(
     """Process an organizational entity (publisher or binder firm).
 
     Uses organization SPARQL query with name-similarity scoring.
+    Falls back to person SPARQL when org query returns no results,
+    since many Victorian publishers/binders are named after their
+    founders who exist as persons on Wikidata.
 
     Returns:
         Result dict with status, score, and optional upload details.
@@ -469,6 +537,12 @@ def process_org_entity(
     bindings = query_wikidata(sparql)
 
     if not bindings:
+        # Fallback: try person SPARQL — many Victorian publishers/binders
+        # are named after their founders (e.g. "Bernard Quaritch",
+        # "Edward Moxon and Co." → "Edward Moxon").
+        bindings = _try_person_sparql_fallback(entity.name)
+
+    if not bindings:
         return result
 
     # Group results to handle multiple rows per entity
@@ -476,6 +550,11 @@ def process_org_entity(
     best_candidate = None
     best_score = 0.0
 
+    # Intentionally use org-style scoring (name + image bonus) even for
+    # person-fallback results. Full score_candidate() is worse here because
+    # publisher founded_year ≠ founder birth_year, and publisher book
+    # associations ≠ Wikidata notable works. SPARQL exact-label matching
+    # already constrains false positives sufficiently.
     for _uri, candidate in grouped.items():
         ns = name_similarity(entity.name, candidate["label"])
         score = ns * 0.8 + (0.2 if candidate.get("image_url") else 0.0)
