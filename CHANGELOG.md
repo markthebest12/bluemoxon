@@ -5,6 +5,14 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.6.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.0) - 2026-02-06
+
+- [`26b555b`](https://github.com/markthebest12/bluemoxon/commit/26b555b721174349ae2690f470d7ec1b9e41592a) feat: BMX 3.0 website announcement and feature documentation (#1863) (#1895)
+- [`428802e`](https://github.com/markthebest12/bluemoxon/commit/428802ed84dad5108bfddb594a4875afda9e80ef) refactor: decompose portrait_sync + auto-trigger after enrichment (#1858, #1888) (#1893)
+- [`26b555b`](https://github.com/markthebest12/bluemoxon/commit/26b555b721174349ae2690f470d7ec1b9e41592a) feat: BMX 3.0 website announcement and feature documentation (#1863) (#1895)
+- [`428802e`](https://github.com/markthebest12/bluemoxon/commit/428802ed84dad5108bfddb594a4875afda9e80ef) refactor: decompose portrait_sync + auto-trigger after enrichment (#1858, #1888) (#1893)
+- [`428802e`](https://github.com/markthebest12/bluemoxon/commit/428802ed84dad5108bfddb594a4875afda9e80ef) refactor: decompose portrait_sync + auto-trigger after enrichment (#1858, #1888) (#1893)
+
 ## [v3.5.6](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.6) - 2026-02-06
 
 - [`722b24a`](https://github.com/markthebest12/bluemoxon/commit/722b24ad05014940cb48db045db93f6cc701b399) docs: comprehensive documentation sweep for BMX 3.0 (#1862) (#1894)
