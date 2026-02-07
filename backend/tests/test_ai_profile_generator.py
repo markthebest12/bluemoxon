@@ -680,3 +680,12 @@ class TestStripInvalidMarkers:
     def test_multiple_unwrapped_references(self):
         text = "entity:author:Thomas Hardy and entity:publisher:Macmillan worked together."
         assert strip_invalid_markers(text, set()) == "Thomas Hardy and Macmillan worked together."
+
+    def test_unwrapped_reference_curly_apostrophe(self):
+        """U+2019 RIGHT SINGLE QUOTATION MARK — common in book metadata."""
+        text = "Met entity:author:O\u2019Brien at a salon."
+        assert strip_invalid_markers(text, set()) == "Met O\u2019Brien at a salon."
+
+    def test_unwrapped_reference_joiner_particle(self):
+        text = "Published by entity:publisher:Pierre du Pont in Paris."
+        assert strip_invalid_markers(text, set()) == "Published by Pierre du Pont in Paris."

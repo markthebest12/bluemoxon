@@ -26,9 +26,11 @@ const MARKER_RE = /\{\{(?:entity:)?(\w+):(\d+)\|([^}]+)\}\}/g;
 const LEFTOVER_RE = /\{\{([^}]+)\}\}/g;
 
 /** Matches unwrapped entity references: entity:TYPE:Name (no braces, no ID).
- *  Synced with backend/app/services/ai_profile_generator.py _UNWRAPPED_ENTITY_RE */
+ *  Companion regex: backend/app/services/ai_profile_generator.py _UNWRAPPED_ENTITY_RE
+ *  (Python uses \w for Unicode letters; JS uses \p{L} explicitly).
+ *  Includes straight apostrophe, curly apostrophe (U+2019), and hyphen. */
 const UNWRAPPED_RE =
-  /entity:\w+:([A-Z][\p{L}\w''-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][\p{L}\w''-]*)*)\b/gu;
+  /entity:\w+:([A-Z][\p{L}\w''\u2019-]*(?:\s+(?:(?:and|of|the|de|du|da|di|le|la|von|van)\s+)?[A-Z][\p{L}\w''\u2019-]*)*)\b/gu;
 
 /**
  * Extract a display name from the inner content of a leftover {{...}} marker.

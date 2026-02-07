@@ -138,6 +138,25 @@ describe("parseEntityMarkers", () => {
     ]);
   });
 
+  it("handles unwrapped reference with curly apostrophe", () => {
+    // U+2019 RIGHT SINGLE QUOTATION MARK — common in book metadata
+    const result = parseEntityMarkers("Met entity:author:O\u2019Brien at a salon.");
+    expect(result).toEqual([
+      { type: "text", content: "Met " },
+      { type: "text", content: "O\u2019Brien" },
+      { type: "text", content: " at a salon." },
+    ]);
+  });
+
+  it("handles unwrapped reference with joiner particle", () => {
+    const result = parseEntityMarkers("Published by entity:publisher:Pierre du Pont in Paris.");
+    expect(result).toEqual([
+      { type: "text", content: "Published by " },
+      { type: "text", content: "Pierre du Pont" },
+      { type: "text", content: " in Paris." },
+    ]);
+  });
+
   it("handles mixed valid and malformed markers", () => {
     const text =
       "{{entity:author:32|Robert Browning}} knew {{Elizabeth Barrett Browning}} and published with {{publisher:7|Smith, Elder & Co.}}.";

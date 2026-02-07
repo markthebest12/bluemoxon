@@ -145,9 +145,12 @@ _ENTITY_MARKER_RE = re.compile(r"\{\{entity:(\w+):(\d+)\|([^}]+)\}\}")
 # "entity:author:Rudyard Kipling" → "Rudyard Kipling"
 # Name: one or more capitalized words (Unicode-aware via \w), connected by
 # spaces (with optional lowercase joiners). Word boundary prevents over-matching.
-# Synced with frontend/src/utils/entityMarkers.ts UNWRAPPED_RE
+# Character class includes straight apostrophe ('), curly apostrophe (U+2019 '),
+# and hyphen for names like O'Brien, Brontë, Malet-Prevost.
+# Companion regex: frontend/src/utils/entityMarkers.ts UNWRAPPED_RE
+# (JS uses \p{L} for Unicode letters; Python \w already includes them)
 _UNWRAPPED_ENTITY_RE = re.compile(
-    r"entity:\w+:([A-Z][\w''\-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][\w''\-]*)*)\b"
+    r"entity:\w+:([A-Z][\w''\u2019\-]*(?:\s+(?:(?:and|of|the|de|du|da|di|le|la|von|van)\s+)?[A-Z][\w''\u2019\-]*)*)\b"
 )
 
 
