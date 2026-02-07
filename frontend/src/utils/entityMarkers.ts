@@ -25,9 +25,10 @@ const MARKER_RE = /\{\{(?:entity:)?(\w+):(\d+)\|([^}]+)\}\}/g;
 /** Matches any remaining {{...}} patterns after the primary pass. */
 const LEFTOVER_RE = /\{\{([^}]+)\}\}/g;
 
-/** Matches unwrapped entity references: entity:TYPE:Name (no braces, no ID). */
+/** Matches unwrapped entity references: entity:TYPE:Name (no braces, no ID).
+ *  Synced with backend/app/services/ai_profile_generator.py _UNWRAPPED_ENTITY_RE */
 const UNWRAPPED_RE =
-  /entity:\w+:([A-Z][a-zA-Z''-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][a-zA-Z''-]*)*)/g;
+  /entity:\w+:([A-Z][\p{L}\w''-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][\p{L}\w''-]*)*)\b/gu;
 
 /**
  * Extract a display name from the inner content of a leftover {{...}} marker.

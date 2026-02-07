@@ -143,10 +143,11 @@ _ENTITY_MARKER_RE = re.compile(r"\{\{entity:(\w+):(\d+)\|([^}]+)\}\}")
 
 # Catches unwrapped entity references the AI sometimes produces:
 # "entity:author:Rudyard Kipling" → "Rudyard Kipling"
-# Name: one or more capitalized words, connected by spaces (with optional
-# lowercase joiners like "and", "of", "de"). Stops at non-name words.
+# Name: one or more capitalized words (Unicode-aware via \w), connected by
+# spaces (with optional lowercase joiners). Word boundary prevents over-matching.
+# Synced with frontend/src/utils/entityMarkers.ts UNWRAPPED_RE
 _UNWRAPPED_ENTITY_RE = re.compile(
-    r"entity:\w+:([A-Z][a-zA-Z''\-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][a-zA-Z''\-]*)*)"
+    r"entity:\w+:([A-Z][\w''\-]*(?:\s+(?:(?:and|of|the|de|von|van)\s+)?[A-Z][\w''\-]*)*)\b"
 )
 
 
