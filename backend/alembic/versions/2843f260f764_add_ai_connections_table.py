@@ -110,6 +110,7 @@ def upgrade() -> None:
                      evidence text
                  )
             WHERE ep.ai_connections IS NOT NULL
+              AND jsonb_typeof(ep.ai_connections::jsonb) = 'array'
               AND c.relationship IS NOT NULL
               AND c.target_type IS NOT NULL
               AND c.target_id IS NOT NULL

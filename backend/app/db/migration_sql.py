@@ -812,6 +812,7 @@ MIGRATION_2843F260F764_SQL = [
                  evidence text
              )
         WHERE ep.ai_connections IS NOT NULL
+          AND jsonb_typeof(ep.ai_connections::jsonb) = 'array'
           AND c.relationship IS NOT NULL
           AND c.target_type IS NOT NULL
           AND c.target_id IS NOT NULL
