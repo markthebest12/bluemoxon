@@ -161,9 +161,10 @@ AWS_PROFILE=bmx-staging aws lambda get-function-configuration --function-name bl
 | Function | Purpose | Timeout |
 |----------|---------|---------|
 | `bluemoxon-api` / `bluemoxon-staging-api` | Main API | 30s |
-| `bluemoxon-analysis-worker` | Async Bedrock analysis | 600s |
+| `bluemoxon-analysis-worker` | Async Napoleon analysis | 600s |
 | `bluemoxon-eval-runbook-worker` | Async eval runbook generation | 600s |
 | `bluemoxon-profile-worker` | Entity profile generation (BMX 3.0) | 600s |
+| `bluemoxon-enrichment-worker` | Entity metadata enrichment (BMX 3.0, not yet deployed as standalone Lambda) | 300s |
 | `bluemoxon-image-processor` | AI background removal (container) | 300s |
 | `bluemoxon-retry-queue-failed` | Retry failed image processing jobs | 60s |
 | `bluemoxon-scraper` | eBay Playwright scraping | 120s |
@@ -270,6 +271,44 @@ AWS_PROFILE=bmx-staging aws sqs get-queue-attributes \
   --queue-url https://sqs.us-west-2.amazonaws.com/ACCOUNT/bluemoxon-staging-profile-generation \
   --attribute-names ApproximateNumberOfMessages
 ```
+
+### Portrait Sync (BMX 3.0)
+
+Portrait sync fetches entity portraits from Wikidata/Wikimedia Commons, resizes to 400x400 JPEG, uploads to S3, and updates entity `image_url`.
+
+**Trigger portrait sync for all entities:**
+
+```bash
+bmx-api POST /admin/portrait-sync
+```
+
+**Sync a single entity:**
+
+```bash
+bmx-api POST /admin/portrait-sync/author/5
+```
+
+**Troubleshooting portrait sync:**
+
+- **Wikidata throttling (429/503):** The sync service has built-in rate limiting (1.5s between requests). If throttled, wait and retry.
+- **Wrong portrait matched:** Portraits are matched using Wikidata SPARQL queries with name similarity scoring. Manual portrait upload via `PUT /entity/{type}/{id}/portrait` overrides automatic matching.
+- **Portrait not found:** Not all entities have Wikidata entries. Use manual upload for missing portraits.
+
+### Entity Enrichment Worker (BMX 3.0)
+
+The enrichment worker populates entity metadata (birth/death years, founded/closed years, era) via Bedrock Haiku. Only updates NULL fields to avoid overwriting user-provided data. Enrichment runs inline within the API Lambda (triggered by SQS message to the main API), not as a standalone Lambda.
+
+**View enrichment logs** (in the main API Lambda logs):
+
+```bash
+AWS_PROFILE=bmx-staging aws logs tail /aws/lambda/bluemoxon-staging-api --since 10m --filter-pattern "enrichment"
+```
+
+**Enrichment is triggered automatically** when new entities are created. It enriches:
+
+- **Authors:** birth_year, death_year, era
+- **Publishers:** founded_year, description
+- **Binders:** founded_year, closed_year, full_name
 
 ### Social Circles Health Check (BMX 3.0)
 

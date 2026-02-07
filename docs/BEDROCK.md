@@ -12,7 +12,7 @@ BlueMoxon uses AWS Bedrock to generate Napoleon framework analyses for antiquari
 |------|----------|----------|
 | Sonnet | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | Eval runbooks, FMV lookup, listing extraction, Napoleon analysis (optional) |
 | Opus | `us.anthropic.claude-opus-4-6-v1` | Napoleon analysis (default) |
-| Haiku | `anthropic.claude-3-5-haiku-20241022-v1:0` | Entity profiles, order extraction |
+| Haiku | `anthropic.claude-3-5-haiku-20241022-v1:0` | Entity profiles, entity enrichment, order extraction |
 
 Models are configured in `backend/app/services/bedrock.py`.
 
@@ -277,6 +277,8 @@ If Claude 4.5 requests hang indefinitely:
 - `backend/app/services/bedrock.py` - Bedrock client, model IDs, and invocation logic
 - `backend/app/services/ai_profile_generator.py` - Entity profile and AI connection generation
 - `backend/app/services/entity_profile.py` - Profile retrieval and caching
+- `backend/app/services/entity_enrichment_worker.py` - Entity metadata enrichment via Bedrock
+- `backend/app/services/portrait_sync.py` - Wikidata portrait sync service
 - `backend/app/services/app_config.py` - Model registry configuration
 - `backend/app/api/v1/books.py` - Analysis generation endpoint
 - `backend/app/api/v1/entity_profile.py` - Entity profile endpoints

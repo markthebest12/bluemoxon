@@ -48,6 +48,16 @@ X-API-Key: <api_key>
 | `GET /admin/config` | Admin |
 | `GET /admin/system-info` | Admin |
 | `GET /admin/costs` | Admin |
+| `GET /users/me/notifications` | Viewer |
+| `POST /users/me/notifications/*/read` | Viewer |
+| `PATCH /users/me/preferences` | Viewer |
+| `POST /listings/extract` | Editor |
+| `POST /listings/extract-async` | Editor |
+| `GET /listings/extract/*/status` | Viewer |
+| `GET /books/*/eval-runbook` | Editor |
+| `PATCH /books/*/eval-runbook/price` | Editor |
+| `POST /books/*/eval-runbook/refresh` | Editor |
+| `POST /orders/extract` | Editor |
 | `GET /health/*` | None (public) |
 
 ---
@@ -2536,6 +2546,337 @@ Error Responses:
 
 - 404 Not Found - Unknown flow key
 - 400 Bad Request - Invalid model name
+
+---
+
+## Notifications API
+
+### List Notifications
+
+```text
+GET /users/me/notifications
+```
+
+Returns paginated list of notifications for the current user, ordered by most recent first.
+
+Query Parameters:
+
+- `limit` (int, default: 20) - Maximum notifications to return
+- `offset` (int, default: 0) - Offset for pagination
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "user_id": 5,
+      "book_id": 407,
+      "message": "Your book 'Vanity Fair' has been delivered",
+      "read": false,
+      "created_at": "2026-01-15T10:30:00"
+    }
+  ],
+  "unread_count": 3
+}
+```
+
+---
+
+### Mark Notification as Read
+
+```text
+POST /users/me/notifications/{notification_id}/read
+```
+
+Only the notification owner can mark it as read.
+
+Response: Returns the updated notification object.
+
+Error Responses:
+
+- 404 Not Found - Notification not found or not owned by user
+
+---
+
+### Update Notification Preferences
+
+```text
+PATCH /users/me/preferences
+```
+
+Update notification preferences for the current user. Supports partial updates.
+
+Request Body:
+
+```json
+{
+  "notify_tracking_email": true,
+  "notify_tracking_sms": false,
+  "phone_number": "+14155551234"
+}
+```
+
+Fields:
+
+- `notify_tracking_email` (bool, optional) - Enable email notifications for tracking updates
+- `notify_tracking_sms` (bool, optional) - Enable SMS notifications for tracking updates
+- `phone_number` (string, optional) - Phone number in E.164 format (e.g., `+14155551234`)
+
+Response:
+
+```json
+{
+  "notify_tracking_email": true,
+  "notify_tracking_sms": false,
+  "phone_number": "+14155551234"
+}
+```
+
+---
+
+## Listings API
+
+### Extract Listing Data (Sync)
+
+```text
+POST /listings/extract
+```
+
+**Authentication Required:** Editor or Admin role
+
+Scrapes an eBay listing, extracts structured book data using AI, uploads images to S3, and matches against existing authors/publishers/binders.
+
+Request Body:
+
+```json
+{
+  "url": "https://www.ebay.com/itm/123456789"
+}
+```
+
+Response:
+
+```json
+{
+  "ebay_url": "https://www.ebay.com/itm/123456789",
+  "ebay_item_id": "123456789",
+  "listing_data": {
+    "title": "Vanity Fair by Thackeray",
+    "author": "Thackeray",
+    "publisher": "Bradbury & Evans",
+    "price": 150.00
+  },
+  "images": [
+    {
+      "s3_key": "listings/123456789/image_00.webp",
+      "presigned_url": "https://..."
+    }
+  ],
+  "image_urls": ["https://i.ebayimg.com/..."],
+  "matches": {
+    "author": {"id": 5, "name": "William Makepeace Thackeray", "similarity": 0.95}
+  }
+}
+```
+
+Error Responses:
+
+- 400 Bad Request - Invalid eBay URL
+- 422 Unprocessable Entity - Failed to extract listing data
+- 429 Too Many Requests - eBay rate limit
+
+---
+
+### Extract Listing Data (Async)
+
+```text
+POST /listings/extract-async
+```
+
+**Authentication Required:** Editor or Admin role
+
+Starts async extraction by invoking the scraper Lambda asynchronously. Returns immediately. Poll the status endpoint for results. Does not support short URLs (`ebay.us`).
+
+Request Body:
+
+```json
+{
+  "url": "https://www.ebay.com/itm/123456789"
+}
+```
+
+Response (202 Accepted):
+
+```json
+{
+  "item_id": "123456789",
+  "status": "started",
+  "message": "Scraper started. Poll /extract/{item_id}/status for results."
+}
+```
+
+---
+
+### Get Extraction Status
+
+```text
+GET /listings/extract/{item_id}/status
+```
+
+Returns status of an async extraction job.
+
+Response:
+
+```json
+{
+  "item_id": "123456789",
+  "status": "ready",
+  "ebay_url": "https://www.ebay.com/itm/123456789",
+  "listing_data": { ... },
+  "images": [ ... ],
+  "matches": { ... }
+}
+```
+
+Status values: `pending` (scraper still running), `scraped` (images exist, not extracted), `ready` (extraction complete), `error`.
+
+---
+
+## Eval Runbook API
+
+### Get Eval Runbook
+
+```text
+GET /books/{book_id}/eval-runbook
+```
+
+**Authentication Required:** Editor or Admin role
+
+Returns the evaluation runbook for a book, including AI-generated scoring breakdown and acquisition recommendation.
+
+Error Responses:
+
+- 404 Not Found - Book or eval runbook not found
+
+---
+
+### Update Eval Runbook Price
+
+```text
+PATCH /books/{book_id}/eval-runbook/price
+```
+
+**Authentication Required:** Editor or Admin role
+
+Update the asking price and recalculate the acquisition score. Creates a price history record for tracking negotiations.
+
+Request Body:
+
+```json
+{
+  "new_price": 120.00,
+  "discount_code": "SAVE10",
+  "notes": "Seller accepted counteroffer"
+}
+```
+
+Response:
+
+```json
+{
+  "previous_price": 150.00,
+  "new_price": 120.00,
+  "score_before": 72,
+  "score_after": 85,
+  "recommendation_before": "PASS",
+  "recommendation_after": "ACQUIRE",
+  "runbook": { ... }
+}
+```
+
+---
+
+### Get Price History
+
+```text
+GET /books/{book_id}/eval-runbook/history
+```
+
+**Authentication Required:** Editor or Admin role
+
+Returns price change history for an eval runbook, ordered by most recent first.
+
+---
+
+### Refresh Eval Runbook
+
+```text
+POST /books/{book_id}/eval-runbook/refresh
+```
+
+**Authentication Required:** Editor or Admin role
+
+Re-runs full AI analysis and FMV lookup for an existing eval runbook. May take 30-60 seconds.
+
+Response:
+
+```json
+{
+  "status": "completed",
+  "score_before": 65,
+  "score_after": 82,
+  "message": "Full AI analysis and FMV lookup completed successfully",
+  "runbook": { ... }
+}
+```
+
+---
+
+## Order Extraction API
+
+### Extract Order Details
+
+```text
+POST /orders/extract
+```
+
+**Authentication Required:** Editor or Admin role
+
+Extract order details from pasted order confirmation text (typically from eBay emails). Uses regex extraction first, falls back to Bedrock Haiku for low-confidence results.
+
+Request Body:
+
+```json
+{
+  "text": "Order #12-345-678\nItem: Vanity Fair\nTotal: $150.00 USD\n..."
+}
+```
+
+Response:
+
+```json
+{
+  "order_number": "12-345-678",
+  "item_price": 130.00,
+  "shipping": 20.00,
+  "total": 150.00,
+  "currency": "USD",
+  "total_usd": 150.00,
+  "purchase_date": "2026-01-15",
+  "platform": "eBay",
+  "estimated_delivery": "Jan 20-25",
+  "tracking_number": null,
+  "confidence": 0.92,
+  "used_llm": false,
+  "field_confidence": {
+    "order_number": 0.95,
+    "total": 0.90,
+    "currency": 0.85
+  }
+}
+```
 
 ---
 

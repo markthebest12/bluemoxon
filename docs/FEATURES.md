@@ -62,6 +62,26 @@ Entity profiles are generated asynchronously via SQS to avoid blocking the API.
 - **Enqueue-before-delete safety** — New profile is enqueued to SQS before old profile is deleted, preventing data loss
 - **Cancel support** — Running batch jobs can be cancelled via API
 
+### Portrait Sync
+
+Automatic portrait discovery from Wikidata/Wikimedia Commons for entity profiles.
+
+- **SPARQL queries** -- Searches Wikidata for entities matching collection names
+- **Scoring algorithm** -- Name similarity and candidate scoring prevents incorrect matches
+- **400x400 JPEG** -- Portraits resized and uploaded to S3 via CloudFront CDN
+- **Manual override** -- Admin can upload custom portraits via `PUT /entity/{type}/{id}/portrait`
+- **Rate limiting** -- 1.5s interval between Wikidata requests to avoid throttling
+
+### Entity Enrichment
+
+Automatic metadata population for newly created entities via Bedrock Haiku.
+
+- **Authors** -- Populates birth_year, death_year, and era classification
+- **Publishers** -- Populates founded_year and description
+- **Binders** -- Populates founded_year, closed_year, and full_name
+- **NULL-only updates** -- Only fills in missing fields, never overwrites user-provided data
+- **SQS-triggered** -- Runs asynchronously when entities are created
+
 ### Narrative Classification
 
 The system classifies connections by narrative significance to determine content generation depth.

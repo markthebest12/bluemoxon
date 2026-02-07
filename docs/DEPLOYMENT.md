@@ -175,6 +175,33 @@ AWS_PROFILE=bmx-staging aws lambda update-function-code \
 
 **Note:** Image processor requires 7GB memory and 300s timeout for AI model loading.
 
+---
+
+### Deploy Other Worker Lambdas
+
+The following Lambdas share the same zip-based deployment as the API Lambda (using the shared Lambda layer):
+
+| Lambda | Function Name Pattern | Trigger |
+|--------|----------------------|---------|
+| Analysis Worker | `bluemoxon-{env}-analysis-worker` | SQS (analysis-jobs) |
+| Eval Runbook Worker | `bluemoxon-{env}-eval-runbook-worker` | SQS (eval-runbook-jobs) |
+| Cleanup Lambda | `bluemoxon-{env}-cleanup` | CloudWatch Events |
+| Tracking Dispatcher | `bluemoxon-{env}-tracking-dispatcher` | CloudWatch Events |
+| Tracking Worker | `bluemoxon-{env}-tracking-worker` | SQS (tracking) |
+| Profile Worker | `bluemoxon-{env}-profile-worker` | SQS (profile-generation) |
+| Retry Queue Failed | `bluemoxon-{env}-retry-queue-failed` | CloudWatch Events |
+| DB Sync | `bluemoxon-{env}-db-sync` | Manual invocation |
+
+```bash
+# Deploy any zip-based worker to staging (same package as API)
+AWS_PROFILE=bmx-staging aws lambda update-function-code \
+  --function-name bluemoxon-staging-analysis-worker \
+  --s3-bucket bluemoxon-staging-deploy \
+  --s3-key lambda/bluemoxon-api.zip
+```
+
+The **Scraper Lambda** is container-based (Docker) and follows the same ECR deployment pattern as the Image Processor.
+
 ## Infrastructure Changes (Terraform)
 
 ### Plan Changes

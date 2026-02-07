@@ -81,20 +81,30 @@ infra/terraform/
 ├── envs/
 │   ├── staging.tfvars   # Staging environment values
 │   └── prod.tfvars      # Production environment values
-└── modules/             # 15 reusable modules
-    ├── api-gateway/     # HTTP API + custom domain
-    ├── cloudfront/      # CDN distributions
-    ├── cognito/         # User pools + clients
-    ├── db-sync-lambda/  # Prod→Staging data sync
-    ├── dns/             # Route 53 records
-    ├── elasticache/     # Redis serverless cache
-    ├── github-oidc/     # GitHub Actions auth
-    ├── lambda/          # API function + IAM
-    ├── landing-site/    # Marketing site
-    ├── rds/             # Aurora Serverless v2
-    ├── s3/              # Buckets + policies
-    ├── secrets/         # DB credentials
-    └── vpc-networking/  # VPC endpoints, NAT
+└── modules/                      # 23 reusable modules
+    ├── analysis-worker/          # Napoleon analysis Lambda + SQS
+    ├── api-gateway/              # HTTP API + custom domain
+    ├── cleanup-lambda/           # DB maintenance Lambda + EventBridge
+    ├── cloudfront/               # CDN distributions
+    ├── cognito/                  # User pools + clients
+    ├── db-sync-lambda/           # Prod→Staging data sync
+    ├── dns/                      # Route 53 records
+    ├── elasticache/              # Redis serverless cache
+    ├── eval-runbook-worker/      # Eval runbook generation Lambda + SQS
+    ├── github-oidc/              # GitHub Actions auth
+    ├── image-processor/          # AI background removal (container)
+    ├── lambda/                   # API function + IAM
+    ├── lambda-layer/             # Shared Python dependencies
+    ├── landing-site/             # Marketing site
+    ├── notifications/            # SNS notification resources
+    ├── profile-worker/           # Entity profile generation Lambda + SQS
+    ├── rds/                      # Aurora Serverless v2
+    ├── retry-queue-failed-worker/ # DLQ retry Lambda
+    ├── s3/                       # Buckets + policies
+    ├── scraper-lambda/           # eBay Playwright scraper (container)
+    ├── secrets/                  # DB credentials
+    ├── tracking-worker/          # Shipment tracking dispatcher + worker
+    └── vpc-networking/           # VPC endpoints, NAT
 ```
 
 ## Lambda Layers
@@ -424,7 +434,7 @@ graph TB
 
         subgraph Compute["Compute Layer"]
             APIGW[API Gateway HTTP<br/>api.bluemoxon.com]
-            Lambda[Lambda: bluemoxon-api<br/>Python 3.11 / FastAPI]
+            Lambda[Lambda: bluemoxon-api<br/>Python 3.12 / FastAPI]
         end
 
         subgraph VPC["VPC: vpc-023f4b1dc7c2c4296 (10.0.0.0/16)"]
@@ -663,7 +673,7 @@ sequenceDiagram
 |----------|-------|
 | Function Name | `bluemoxon-api` |
 | Function ARN | `arn:aws:lambda:us-west-2:266672885920:function:bluemoxon-api` |
-| Runtime | Python 3.11 |
+| Runtime | Python 3.12 |
 | Handler | `app.main.handler` |
 | Memory | 512 MB |
 | Timeout | 30 seconds |
