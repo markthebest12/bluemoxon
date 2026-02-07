@@ -396,6 +396,10 @@
 
         /* Responsive */
         @media (max-width: 768px) {
+            .btn-login {
+                display: none;
+            }
+
             nav {
                 padding: 0.5rem 1rem;
             }
@@ -532,12 +536,32 @@
     <!-- Timeline -->
     <div class="timeline-container">
         <div class="timeline">
-            <!-- v2.1 -->
+            <!-- v3.0 -->
             <div class="timeline-item current">
                 <div class="timeline-node"></div>
                 <div class="release-card">
                     <div class="release-header">
-                        <span class="version-badge current">v2.1</span>
+                        <span class="version-badge current">v3.0</span>
+                        <span class="release-date">February 2026</span>
+                    </div>
+                    <div class="release-theme">"Social Circles"</div>
+                    <ul class="release-features">
+                        <li><strong>Social Circles Network</strong> — Interactive graph showing connections between authors, publishers, and binders across your collection</li>
+                        <li><strong>AI-Discovered Connections</strong> — Five relationship types (family, friendship, influence, collaboration, scandal) discovered automatically</li>
+                        <li><strong>Entity Profiles</strong> — AI-generated biographical stories with portraits for every person in your collection</li>
+                        <li><strong>Portrait Sync</strong> — Automated portrait discovery from Wikidata and Wikimedia Commons</li>
+                        <li><strong>Interactive Timeline</strong> — Explore your collection across eras with 28 curated historical events</li>
+                        <li><strong>Model Registry</strong> — Admin-configurable AI model selection per workflow</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- v2.1 -->
+            <div class="timeline-item">
+                <div class="timeline-node"></div>
+                <div class="release-card">
+                    <div class="release-header">
+                        <span class="version-badge past">v2.1</span>
                         <span class="release-date">January 2026</span>
                     </div>
                     <div class="release-theme">"Collection Intelligence"</div>
@@ -623,6 +647,7 @@
             <a href="/admin-guide.html">Admin Guide</a>
             <a href="/releases.html">Releases</a>
             <a href="/tech.html">How It's Built</a>
+            <a href="https://app.bluemoxon.com" target="_blank">Login</a>
         </div>
         <p>&copy; 2026 BlueMoxon</p>
     </footer>
