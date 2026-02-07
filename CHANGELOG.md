@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.6.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.2) - 2026-02-07
+
+- [`d1af8a7`](https://github.com/markthebest12/bluemoxon/commit/d1af8a75fbeeeab169a37960f83b036fc6907586) fix: guard ai_connections data migration against non-array JSON (#1910)
+
 ## [v3.6.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.1) - 2026-02-07
 
 - [`58d7910`](https://github.com/markthebest12/bluemoxon/commit/58d7910efa92b1fb384e596d92912bded4fc14cf) fix: address code review findings (#1896, #1897, #1899, #1900) (#1902)
