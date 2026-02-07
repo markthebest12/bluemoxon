@@ -10,6 +10,7 @@ import {
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 import { getErrorMessage, getHttpStatus } from "@/types/errors";
+import { BOOK_CATEGORIES } from "@/constants";
 
 const props = defineProps<{
   visible: boolean;
@@ -51,6 +52,7 @@ const form = ref({
   purchase_price: null as number | null,
   binding_type: "",
   condition_notes: "",
+  category: "",
 });
 
 const submitting = ref(false);
@@ -106,6 +108,7 @@ function resetState() {
     purchase_price: null,
     binding_type: "",
     condition_notes: "",
+    category: "",
   };
 }
 
@@ -352,6 +355,9 @@ function validate(): boolean {
   if (!form.value.author_id) {
     validationErrors.value.author = "Author is required";
   }
+  if (!form.value.category.trim()) {
+    validationErrors.value.category = "Category is required";
+  }
 
   return Object.keys(validationErrors.value).length === 0;
 }
@@ -385,6 +391,7 @@ async function handleSubmit() {
       purchase_price: form.value.purchase_price ?? undefined,
       binding_type: form.value.binding_type || undefined,
       condition_notes: form.value.condition_notes || undefined,
+      category: form.value.category.trim(),
       // Pass S3 keys so backend can copy images
       listing_s3_keys: extractedData.value?.images?.map((img) => img.s3_key) || [],
     };
@@ -708,6 +715,29 @@ function handleEntityError(err: unknown) {
                 class="input"
               />
             </div>
+          </div>
+
+          <!-- Category -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Category <span class="text-[var(--color-status-error-accent)]">*</span>
+            </label>
+            <select
+              v-model="form.category"
+              class="input w-full"
+              :class="{ 'border-[var(--color-status-error-accent)]': validationErrors.category }"
+            >
+              <option value="">-- Select Category --</option>
+              <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
+                {{ cat }}
+              </option>
+            </select>
+            <p
+              v-if="validationErrors.category"
+              class="mt-1 text-sm text-[var(--color-status-error-accent)]"
+            >
+              {{ validationErrors.category }}
+            </p>
           </div>
 
           <!-- Source URL (read-only with link) -->

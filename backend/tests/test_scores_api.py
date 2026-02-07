@@ -93,6 +93,8 @@ class TestAutoScoreOnCreate:
                 "purchase_price": 300,
                 "value_mid": 1000,
                 "status": "EVALUATING",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 

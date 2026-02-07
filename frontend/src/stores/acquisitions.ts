@@ -57,12 +57,14 @@ export interface AcquirePayload {
 export interface WatchlistPayload {
   title: string;
   author_id: number;
+  category: string;
   publisher_id?: number;
   binder_id?: number;
   publication_date?: string;
   volumes?: number;
   source_url?: string;
   purchase_price?: number; // This is the asking price for watchlist items
+  listing_s3_keys?: string[];
 }
 
 export interface UpdateWatchlistPayload {

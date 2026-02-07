@@ -17,7 +17,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.enums import (
     BookStatus,
@@ -186,12 +186,29 @@ BookBase = BookInputBase
 class BookCreate(BookInputBase):
     """Schema for creating a book."""
 
+    # Override category from mixin: required for creation
+    category: str
+
     author_id: int | None = None
     publisher_id: int | None = None
     binder_id: int | None = None
 
     # S3 keys from listing import (images will be copied to book's folder)
-    listing_s3_keys: list[str] | None = None
+    listing_s3_keys: list[str] = []
+
+    @field_validator("category")
+    @classmethod
+    def category_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("category must not be empty")
+        return v.strip()
+
+    @field_validator("listing_s3_keys")
+    @classmethod
+    def listing_s3_keys_no_blanks(cls, v: list[str]) -> list[str]:
+        if any(not key.strip() for key in v):
+            raise ValueError("listing_s3_keys must not contain empty strings")
+        return v
 
 
 class BookUpdate(BaseModel):

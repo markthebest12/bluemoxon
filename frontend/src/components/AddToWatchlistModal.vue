@@ -4,6 +4,7 @@ import { useReferencesStore } from "@/stores/references";
 import { useAcquisitionsStore } from "@/stores/acquisitions";
 import { useCurrencyConversion } from "@/composables/useCurrencyConversion";
 import { getErrorMessage } from "@/types/errors";
+import { BOOK_CATEGORIES } from "@/constants";
 import ComboboxWithAdd from "./ComboboxWithAdd.vue";
 import TransitionModal from "./TransitionModal.vue";
 
@@ -30,6 +31,7 @@ const form = ref({
   volumes: 1,
   source_url: "",
   purchase_price: null as number | null, // Asking price in selected currency
+  category: "" as string,
 });
 
 const submitting = ref(false);
@@ -52,6 +54,9 @@ function validate(): boolean {
   if (!form.value.author_id) {
     validationErrors.value.author = "Author is required";
   }
+  if (!form.value.category) {
+    validationErrors.value.category = "Category is required";
+  }
 
   return Object.keys(validationErrors.value).length === 0;
 }
@@ -66,6 +71,7 @@ async function handleSubmit() {
     const payload = {
       title: form.value.title.trim(),
       author_id: form.value.author_id!,
+      category: form.value.category,
       publisher_id: form.value.publisher_id || undefined,
       binder_id: form.value.binder_id || undefined,
       publication_date: form.value.publication_date || undefined,
@@ -226,6 +232,29 @@ function handleEntityError(err: unknown) {
               ≈ ${{ priceInUsd?.toFixed(2) }} USD
             </p>
           </div>
+        </div>
+
+        <!-- Category -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Category <span class="text-[var(--color-status-error-accent)]">*</span>
+          </label>
+          <select
+            v-model="form.category"
+            class="input w-full"
+            :class="{ 'border-[var(--color-status-error-accent)]': validationErrors.category }"
+          >
+            <option value="">-- Select Category --</option>
+            <option v-for="cat in BOOK_CATEGORIES" :key="cat" :value="cat">
+              {{ cat }}
+            </option>
+          </select>
+          <p
+            v-if="validationErrors.category"
+            class="mt-1 text-sm text-[var(--color-status-error-accent)]"
+          >
+            {{ validationErrors.category }}
+          </p>
         </div>
 
         <!-- Source URL -->

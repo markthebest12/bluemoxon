@@ -162,7 +162,10 @@ class TestThumbnailExtensionMismatch:
         Tests both normalization (.jpeg -> .jpg) and format mismatch correction.
         Both main image and thumbnail should have the corrected extension.
         """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         image_bytes = create_image_bytes(actual_format)
@@ -199,7 +202,10 @@ class TestThumbnailExtensionMismatch:
         thumbnail key (with corrected extension), not the original filename.
         """
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Upload with .jpeg extension
@@ -241,7 +247,10 @@ class TestThumbnailExtensionConsistency:
         The bug is that thumbnail_name is generated before fix_extension runs.
         This test ensures get_thumbnail_key is called on the CORRECTED name.
         """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create JPEG but upload as .png (wrong extension)
@@ -284,7 +293,10 @@ class TestSmallFileHandling:
         The detect_format function requires 12 bytes minimum. For smaller files,
         we should use the filename extension rather than crashing with ValueError.
         """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create a tiny file (smaller than 12 bytes)
@@ -320,7 +332,10 @@ class TestLocalDevPath:
 
         This tests the non-Lambda path where files are saved locally instead of S3.
         """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         response = client.post(
@@ -359,7 +374,10 @@ class TestUnrecognizedFormats:
         For formats like TIFF, BMP, HEIC that we don't recognize by magic bytes,
         we should use the filename extension as the fallback.
         """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Create fake TIFF-like content (we don't recognize TIFF)
@@ -386,7 +404,10 @@ class TestUnrecognizedFormats:
         When format detection fails and filename has no extension,
         we fall back to .jpg as the default.
         """
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Random garbage that doesn't match any known format

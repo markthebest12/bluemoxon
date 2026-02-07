@@ -35,7 +35,10 @@ The book is in very good condition.
 """
 
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Generate analysis
@@ -62,7 +65,10 @@ The book is in very good condition.
         mock_invoke.return_value = "# New Analysis\n\nReplacement content."
 
         # Create a book with existing analysis
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Add initial analysis
@@ -84,7 +90,10 @@ The book is in very good condition.
     def test_generate_analysis_model_selection(self, client):
         """Test model parameter is accepted."""
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Test with opus model (will fail without mock, but validates param handling)
@@ -121,7 +130,10 @@ The book is in very good condition.
         mock_invoke.return_value = "# Test Analysis\n\n## Executive Summary\nContent."
 
         # Create a book
-        response = client.post("/api/v1/books", json={"title": "Test Book"})
+        response = client.post(
+            "/api/v1/books",
+            json={"title": "Test Book", "category": "Test", "listing_s3_keys": ["test/img.jpg"]},
+        )
         book_id = response.json()["id"]
 
         # Generate analysis with opus model

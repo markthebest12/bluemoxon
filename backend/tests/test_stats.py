@@ -20,9 +20,33 @@ class TestStatsOverview:
     def test_overview_with_books(self, client):
         """Test overview counts books correctly."""
         # Create some books
-        client.post("/api/v1/books", json={"title": "Book 1", "inventory_type": "PRIMARY"})
-        client.post("/api/v1/books", json={"title": "Book 2", "inventory_type": "PRIMARY"})
-        client.post("/api/v1/books", json={"title": "Book 3", "inventory_type": "EXTENDED"})
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Book 1",
+                "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
+        )
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Book 2",
+                "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
+        )
+        client.post(
+            "/api/v1/books",
+            json={
+                "title": "Book 3",
+                "inventory_type": "EXTENDED",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
+        )
 
         response = client.get("/api/v1/stats/overview")
         assert response.status_code == 200
@@ -45,6 +69,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-12",  # 3 days ago
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book purchased 6 days ago - should be counted (within 7 days)
@@ -55,6 +81,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-09",  # 6 days ago
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book purchased exactly 7 days ago - should be counted (>= boundary)
@@ -65,6 +93,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-08",  # exactly 7 days ago
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book purchased 10 days ago - should NOT be counted
@@ -75,6 +105,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-05",  # 10 days ago
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book with no purchase_date - should NOT be counted
@@ -84,6 +116,8 @@ class TestStatsOverview:
                 "title": "No Date Book",
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Recent book but EXTENDED inventory type - should NOT be counted
@@ -93,6 +127,8 @@ class TestStatsOverview:
                 "title": "Extended Book",
                 "inventory_type": "EXTENDED",
                 "purchase_date": "2025-06-14",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Recent book but IN_TRANSIT status - should NOT be counted
@@ -103,6 +139,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "IN_TRANSIT",
                 "purchase_date": "2025-06-14",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -128,6 +166,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-12",
                 "volumes": 5,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book with default volumes (1) purchased recently
@@ -139,6 +179,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-13",
                 "volumes": 1,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book with NULL volumes (should default to 1)
@@ -149,6 +191,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-14",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Old book with many volumes - should NOT be included
@@ -160,6 +204,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-01",  # 14 days ago
                 "volumes": 24,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -185,6 +231,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-12",
                 "value_mid": 500.50,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Another valuable book
@@ -196,6 +244,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-13",
                 "value_mid": 250.25,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book with no value (NULL) - should contribute 0
@@ -206,6 +256,8 @@ class TestStatsOverview:
                 "inventory_type": "PRIMARY",
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-14",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Old valuable book - should NOT be included
@@ -217,6 +269,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-01",  # 14 days ago
                 "value_mid": 10000,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -250,6 +304,8 @@ class TestStatsOverview:
                 "purchase_date": "2025-06-12",
                 "binder_id": binder.id,
                 "binding_authenticated": True,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Another authenticated binding book
@@ -262,6 +318,8 @@ class TestStatsOverview:
                 "purchase_date": "2025-06-13",
                 "binder_id": binder.id,
                 "binding_authenticated": True,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Non-authenticated binding book purchased recently
@@ -273,6 +331,8 @@ class TestStatsOverview:
                 "status": "ON_HAND",
                 "purchase_date": "2025-06-14",
                 "binding_authenticated": False,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Old authenticated book - should NOT be included
@@ -285,6 +345,8 @@ class TestStatsOverview:
                 "purchase_date": "2025-06-01",  # 14 days ago
                 "binder_id": binder.id,
                 "binding_authenticated": True,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -320,6 +382,8 @@ class TestStatsMetrics:
                 "title": "Victorian Book 1",
                 "publication_date": "1850",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -328,6 +392,8 @@ class TestStatsMetrics:
                 "title": "Victorian Book 2",
                 "publication_date": "1880",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -336,6 +402,8 @@ class TestStatsMetrics:
                 "title": "Pre-Victorian Book",
                 "publication_date": "1750",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -344,6 +412,8 @@ class TestStatsMetrics:
                 "title": "Post-Victorian Book",
                 "publication_date": "1920",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -403,6 +473,8 @@ class TestStatsMetrics:
                 "inventory_type": "PRIMARY",
                 "discount_pct": 20.0,
                 "roi_pct": 50.0,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -412,6 +484,8 @@ class TestStatsMetrics:
                 "inventory_type": "PRIMARY",
                 "discount_pct": 30.0,
                 "roi_pct": 100.0,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book without discount/ROI - should not affect averages
@@ -420,6 +494,8 @@ class TestStatsMetrics:
             json={
                 "title": "Book 3",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -442,6 +518,8 @@ class TestStatsMetrics:
                 "inventory_type": "PRIMARY",
                 "purchase_price": 100.50,
                 "value_mid": 200.00,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -451,6 +529,8 @@ class TestStatsMetrics:
                 "inventory_type": "PRIMARY",
                 "purchase_price": 50.25,
                 "value_mid": 150.75,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Book without prices - should contribute 0 to totals
@@ -459,6 +539,8 @@ class TestStatsMetrics:
             json={
                 "title": "Book 3",
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -481,15 +563,27 @@ class TestStatsByCategory:
         # Create books with categories
         client.post(
             "/api/v1/books",
-            json={"title": "Poetry 1", "category": "Victorian Poetry"},
+            json={
+                "title": "Poetry 1",
+                "category": "Victorian Poetry",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "Poetry 2", "category": "Victorian Poetry"},
+            json={
+                "title": "Poetry 2",
+                "category": "Victorian Poetry",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "Bio 1", "category": "Victorian Biography"},
+            json={
+                "title": "Bio 1",
+                "category": "Victorian Biography",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-category")
@@ -517,15 +611,33 @@ class TestStatsByCondition:
         # Create books with different condition grades
         client.post(
             "/api/v1/books",
-            json={"title": "Fine Book 1", "condition_grade": "FINE", "value_mid": 100},
+            json={
+                "title": "Fine Book 1",
+                "condition_grade": "FINE",
+                "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "Fine Book 2", "condition_grade": "FINE", "value_mid": 200},
+            json={
+                "title": "Fine Book 2",
+                "condition_grade": "FINE",
+                "value_mid": 200,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "Good Book", "condition_grade": "GOOD", "value_mid": 50},
+            json={
+                "title": "Good Book",
+                "condition_grade": "GOOD",
+                "value_mid": 50,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-condition")
@@ -547,7 +659,12 @@ class TestStatsByCondition:
         """Test null condition_grade shows as 'Ungraded'."""
         client.post(
             "/api/v1/books",
-            json={"title": "No Condition Book", "value_mid": 75},
+            json={
+                "title": "No Condition Book",
+                "value_mid": 75,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-condition")
@@ -563,11 +680,23 @@ class TestStatsByCondition:
         """Test response includes value sum for each condition."""
         client.post(
             "/api/v1/books",
-            json={"title": "VG Book 1", "condition_grade": "VERY_GOOD", "value_mid": 100.50},
+            json={
+                "title": "VG Book 1",
+                "condition_grade": "VERY_GOOD",
+                "value_mid": 100.50,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "VG Book 2", "condition_grade": "VERY_GOOD", "value_mid": 50.25},
+            json={
+                "title": "VG Book 2",
+                "condition_grade": "VERY_GOOD",
+                "value_mid": 50.25,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-condition")
@@ -594,11 +723,21 @@ class TestPendingDeliveries:
         """Test with in-transit books."""
         client.post(
             "/api/v1/books",
-            json={"title": "In Transit Book", "status": "IN_TRANSIT"},
+            json={
+                "title": "In Transit Book",
+                "status": "IN_TRANSIT",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "On Hand Book", "status": "ON_HAND"},
+            json={
+                "title": "On Hand Book",
+                "status": "ON_HAND",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/pending-deliveries")
@@ -628,6 +767,8 @@ class TestAcquisitionsByMonth:
                 "purchase_date": "2025-11-15",
                 "value_mid": 100,
                 "purchase_price": 80,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -637,6 +778,8 @@ class TestAcquisitionsByMonth:
                 "purchase_date": "2025-11-20",
                 "value_mid": 200,
                 "purchase_price": 150,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -678,6 +821,8 @@ class TestBindingStats:
                 "binder_id": binder.id,
                 "binding_authenticated": True,
                 "value_mid": 500,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -687,6 +832,8 @@ class TestBindingStats:
                 "binder_id": binder.id,
                 "binding_authenticated": True,
                 "value_mid": 750,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -722,6 +869,8 @@ class TestBindingStats:
                 "binder_id": binder.id,
                 "binding_authenticated": True,
                 "value_mid": 800,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -753,6 +902,8 @@ class TestBindingStats:
                 "binder_id": binder.id,
                 "binding_authenticated": True,
                 "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -786,6 +937,8 @@ class TestBindingStats:
                     "binder_id": binder.id,
                     "binding_authenticated": True,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -820,6 +973,8 @@ class TestBindingStats:
                     "binder_id": binder_many.id,
                     "binding_authenticated": True,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -836,6 +991,8 @@ class TestBindingStats:
                     "binder_id": binder_few.id,
                     "binding_authenticated": True,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -874,6 +1031,8 @@ class TestBindingStats:
                     "binder_id": binder1.id,
                     "binding_authenticated": True,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -891,6 +1050,8 @@ class TestBindingStats:
                     "binder_id": binder2.id,
                     "binding_authenticated": True,
                     "value_mid": 200,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -952,6 +1113,8 @@ class TestByEra:
                 "publication_date": "1880",  # year_start is parsed from this
                 "value_mid": 100,
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response1.status_code == 201, response1.json()
@@ -963,6 +1126,8 @@ class TestByEra:
                 "publication_date": "1820",  # year_start is parsed from this
                 "value_mid": 200,
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response2.status_code == 201, response2.json()
@@ -993,6 +1158,8 @@ class TestByEra:
                 "publication_date": "1750",
                 "value_mid": 500,
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         assert response.status_code == 201, response.json()
@@ -1032,6 +1199,8 @@ class TestByEra:
                     "publication_date": year,
                     "value_mid": value,
                     "inventory_type": "PRIMARY",
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
             assert response.status_code == 201, f"Failed to create {title}: {response.json()}"
@@ -1113,11 +1282,23 @@ class TestByPublisher:
 
         client.post(
             "/api/v1/books",
-            json={"title": "C&H Book", "publisher_id": tier1.id, "value_mid": 500},
+            json={
+                "title": "C&H Book",
+                "publisher_id": tier1.id,
+                "value_mid": 500,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "Other Book", "publisher_id": tier2.id, "value_mid": 100},
+            json={
+                "title": "Other Book",
+                "publisher_id": tier2.id,
+                "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-publisher")
@@ -1148,7 +1329,13 @@ class TestByPublisher:
 
         client.post(
             "/api/v1/books",
-            json={"title": "Macmillan Book", "publisher_id": publisher.id, "value_mid": 300},
+            json={
+                "title": "Macmillan Book",
+                "publisher_id": publisher.id,
+                "value_mid": 300,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-publisher")
@@ -1174,7 +1361,13 @@ class TestByPublisher:
 
         client.post(
             "/api/v1/books",
-            json={"title": "Unknown Book", "publisher_id": publisher.id, "value_mid": 50},
+            json={
+                "title": "Unknown Book",
+                "publisher_id": publisher.id,
+                "value_mid": 50,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-publisher")
@@ -1217,6 +1410,8 @@ class TestByAuthor:
                 "author_id": author.id,
                 "volumes": 24,
                 "value_mid": 1000,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         client.post(
@@ -1226,6 +1421,8 @@ class TestByAuthor:
                 "author_id": author.id,
                 "volumes": 1,
                 "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1263,6 +1460,8 @@ class TestByAuthor:
                     "title": f"Book Number {i + 1}",
                     "author_id": author.id,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -1296,6 +1495,8 @@ class TestByAuthor:
                     "title": f"Many Book {i + 1}",
                     "author_id": author_many.id,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -1311,6 +1512,8 @@ class TestByAuthor:
                     "title": f"Few Book {i + 1}",
                     "author_id": author_few.id,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -1348,6 +1551,8 @@ class TestByAuthor:
                     "title": title,
                     "author_id": author1.id,
                     "value_mid": 100,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -1364,6 +1569,8 @@ class TestByAuthor:
                     "title": title,
                     "author_id": author2.id,
                     "value_mid": 200,
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -1426,6 +1633,8 @@ class TestByAuthor:
                 "title": "In Memoriam",
                 "author_id": author.id,
                 "value_mid": 500,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1457,6 +1666,8 @@ class TestByAuthor:
                 "title": "Anonymous Work",
                 "author_id": author.id,
                 "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1486,11 +1697,23 @@ class TestByAuthor:
 
         client.post(
             "/api/v1/books",
-            json={"title": "Modern Work", "author_id": author1.id, "value_mid": 100},
+            json={
+                "title": "Modern Work",
+                "author_id": author1.id,
+                "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
         client.post(
             "/api/v1/books",
-            json={"title": "Ancient Work", "author_id": author2.id, "value_mid": 200},
+            json={
+                "title": "Ancient Work",
+                "author_id": author2.id,
+                "value_mid": 200,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/by-author")
@@ -1536,12 +1759,19 @@ class TestValueByCategory:
                 "binder_id": binder.id,
                 "binding_authenticated": True,
                 "value_mid": 1000,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
         # Regular book
         client.post(
             "/api/v1/books",
-            json={"title": "Regular Book", "value_mid": 100},
+            json={
+                "title": "Regular Book",
+                "value_mid": 100,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
+            },
         )
 
         response = client.get("/api/v1/stats/value-by-category")
@@ -1597,6 +1827,8 @@ class TestDashboardBatch:
                 "status": "ON_HAND",
                 "purchase_date": "2026-01-01",
                 "value_mid": 500,
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1644,6 +1876,7 @@ class TestDashboardBatch:
                 "title": "Test Book",
                 "condition_grade": "FINE",
                 "category": "Victorian Poetry",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1723,6 +1956,8 @@ class TestDashboardBatch:
                     "binder_id": binder.id,
                     "binding_authenticated": True,
                     "value_mid": 100 * (i + 1),
+                    "category": "Test",
+                    "listing_s3_keys": ["test/img.jpg"],
                 },
             )
 
@@ -1913,6 +2148,7 @@ class TestStatsEdgeCases:
                 "category": unicode_category,
                 "value_mid": 300,
                 "inventory_type": "PRIMARY",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1935,6 +2171,7 @@ class TestStatsEdgeCases:
                 "category": injection_string,
                 "value_mid": 100,
                 "inventory_type": "PRIMARY",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -1957,6 +2194,7 @@ class TestStatsEdgeCases:
                 "category": xss_string,
                 "value_mid": 100,
                 "inventory_type": "PRIMARY",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 
@@ -2134,6 +2372,8 @@ class TestStatsEdgeCases:
                 "condition_grade": "GOOD",
                 "value_mid": 100,
                 "inventory_type": "PRIMARY",
+                "category": "Test",
+                "listing_s3_keys": ["test/img.jpg"],
             },
         )
 

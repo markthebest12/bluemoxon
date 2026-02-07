@@ -136,7 +136,7 @@ function prepareFormData() {
   if (form.value.binder_id) data.binder_id = form.value.binder_id;
   if (form.value.publication_date) data.publication_date = form.value.publication_date;
   if (form.value.edition) data.edition = form.value.edition;
-  if (form.value.category) data.category = form.value.category;
+  data.category = form.value.category || undefined;
   if (form.value.binding_type) data.binding_type = form.value.binding_type;
   if (form.value.binding_description) data.binding_description = form.value.binding_description;
   if (form.value.condition_grade) data.condition_grade = form.value.condition_grade;
@@ -291,7 +291,7 @@ function cancel() {
           <input v-model.number="form.volumes" type="number" min="1" class="input w-full" />
         </div>
 
-        <!-- Categories are frontend-only (no backend validation).
+        <!-- Category is required for book creation (backend validates non-empty).
              BOOK_CATEGORIES is the source of truth for valid values. -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
