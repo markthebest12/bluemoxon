@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlueMoxon 2.1 | Features</title>
-    <meta name="description" content="BlueMoxon 1.0 - AI-powered collection management for antiquarian books. Features include acquisition tracking, investment scoring, and automated valuations.">
+    <title>BlueMoxon 3.0 | Features</title>
+    <meta name="description" content="BlueMoxon 3.0 - AI-powered collection management for antiquarian books. Features include acquisition tracking, investment scoring, and automated valuations.">
 
     <!-- Favicons -->
     <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -455,7 +455,7 @@
     <!-- Hero -->
     <section class="hero">
         <div class="hero-content">
-            <span class="version-badge">Version 2.1</span>
+            <span class="version-badge">Version 3.0</span>
             <h1>BlueMoxon Features</h1>
             <p>AI-powered collection management for antiquarian books with investment scoring, automated valuations, and seamless acquisition tracking.</p>
         </div>
@@ -463,6 +463,51 @@
 
     <!-- Main Content -->
     <main>
+        <!-- Social Circles -->
+        <section class="feature-category">
+            <div class="category-header">
+                <div class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <h2>Social Circles</h2>
+                <p>Flagship feature in BMX 3.0</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card highlight-card">
+                    <h3><span class="icon">&#x1f310;</span> Interactive Network Graph</h3>
+                    <p>Cytoscape.js visualization of your collection's social network. Era filtering via timeline scrubber, connection highlighting on hover, and distinct color-coded edges for publishers, binders, and AI-discovered personal connections.</p>
+                    <span class="tag new">New in 3.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">&#x1f9e0;</span> AI Entity Profiles</h3>
+                    <p>Biographical summaries, personal stories, and connection narratives generated for every author, publisher, and binder. AI-generated biographical data enriches each entity with historical context.</p>
+                    <span class="tag new">New in 3.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">&#x1f517;</span> AI-Discovered Connections</h3>
+                    <p>Family, friendship, influence, collaboration, and scandal edges discovered by Claude. Each connection includes confidence scoring and evidence citations from historical sources.</p>
+                    <span class="tag new">New in 3.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">&#x1f5bc;</span> Portrait Auto-Sync</h3>
+                    <p>Automated Wikidata portrait matching for authors, publishers, and binders. Entity photos discovered and synced from Wikimedia Commons via SPARQL queries with NLS historical map fallback.</p>
+                    <span class="tag new">New in 3.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">&#x23f3;</span> Interactive Timeline</h3>
+                    <p>Animated timeline slider with 28 curated historical events spanning 1710&ndash;1914. Point and range modes for filtering the network by era, from the Augustan age to the Edwardian twilight.</p>
+                    <span class="tag new">New in 3.0</span>
+                </div>
+                <div class="feature-card">
+                    <h3><span class="icon">&#x2699;</span> Model Registry</h3>
+                    <p>Admin-configurable AI model selection per workflow. Choose Opus for deep analysis, Sonnet for evaluation runbooks, or Haiku for entity profiles. Override defaults via the admin dashboard.</p>
+                    <span class="tag new">New in 3.0</span>
+                </div>
+            </div>
+        </section>
+
         <!-- Collection Management -->
         <section class="feature-category">
             <div class="category-header">
@@ -480,8 +525,8 @@
                     <span class="tag new">New</span>
                 </div>
                 <div class="feature-card">
-                    <h3><span class="icon">📚</span> Comprehensive Catalog</h3>
-                    <p>Track every detail: title, author, publisher, binder, publication date, volumes, binding type, condition notes, and provenance. All searchable and filterable.</p>
+                    <h3><span class="icon">📚</span> Catalog & Search</h3>
+                    <p>Track every detail: title, author, publisher, binder, publication date, volumes, binding type, condition notes, and provenance. Find any book instantly with filters by status, author, publisher, binder, binding type, or date range. Sort by any field.</p>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">📷</span> Image Gallery</h3>
@@ -499,10 +544,6 @@
                     <h3><span class="icon">🏷️</span> Reference Library</h3>
                     <p>Full CRUD for authors, publishers, and binders with tier classifications. Reassign books between entities, mark preferred entries for +10 scoring bonus.</p>
                     <span class="tag new">Enhanced</span>
-                </div>
-                <div class="feature-card">
-                    <h3><span class="icon">🔍</span> Search & Filter</h3>
-                    <p>Find any book instantly. Filter by status, author, publisher, binder, binding type, or date range. Sort by any field.</p>
                 </div>
             </div>
         </section>
@@ -647,13 +688,9 @@
                     <p>Generate insurance valuation reports with collection summaries, volume counts, and estimate ranges. PDF-ready formatting.</p>
                 </div>
                 <div class="feature-card">
-                    <h3><span class="icon">📊</span> Collection Statistics</h3>
-                    <p>Dashboard with total items, volumes, estimated value, monthly metrics, and average discount achieved.</p>
-                </div>
-                <div class="feature-card">
-                    <h3><span class="icon">📈</span> Interactive Analytics</h3>
-                    <p>Click any chart segment to instantly filter your collection. Drill down from high-level statistics to individual books with a single click. Explore your collection by author, publisher, binder, binding type, or acquisition date.</p>
-                    <span class="tag new">New</span>
+                    <h3><span class="icon">📊</span> Statistics & Interactive Analytics</h3>
+                    <p>Dashboard with total items, volumes, estimated value, monthly metrics, and average discount achieved. Click any chart segment to instantly filter your collection and drill down from high-level statistics to individual books. Explore by author, publisher, binder, binding type, or acquisition date.</p>
+                    <span class="tag new">Enhanced</span>
                 </div>
                 <div class="feature-card">
                     <h3><span class="icon">📥</span> CSV Export</h3>
@@ -725,7 +762,6 @@
     <footer>
         <p>
             <a href="https://app.bluemoxon.com" target="_blank">app.bluemoxon.com</a> &bull;
-            <a href="https://github.com/markthebest12/bluemoxon" target="_blank">GitHub</a> &bull;
             <a href="/">Documentation</a>
         </p>
         <p style="margin-top: 1rem;">

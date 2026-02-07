@@ -108,6 +108,11 @@
             color: var(--accent-blue-light);
         }
 
+        nav .nav-links a.nav-highlight {
+            color: var(--accent-blue-light);
+            font-weight: 600;
+        }
+
         /* Hero Section */
         .hero {
             min-height: 100vh;
@@ -1065,6 +1070,7 @@
                 <span></span>
             </button>
             <ul class="nav-links">
+                <li><a href="#bmx3" class="nav-highlight">BMX 3.0</a></li>
                 <li><a href="#about">About</a></li>
                 <li><a href="features.html">Features</a></li>
                 <li><a href="#screenshots">Screenshots</a></li>
@@ -1085,9 +1091,6 @@
                 <a href="https://app.bluemoxon.com" class="btn btn-primary" target="_blank">
                     View Live Site
                 </a>
-                <a href="https://github.com/markthebest12/bluemoxon" class="btn btn-secondary" target="_blank">
-                    View on GitHub
-                </a>
             </div>
         </div>
     </section>
@@ -1103,10 +1106,16 @@
             <span class="announcement-badge">New in 3.0</span>
             <h3>Victorian Social Circles</h3>
             <p>
+                Your collection isn't just books &mdash; it's a map of Victorian intellectual London.
                 An interactive network graph showing who knew whom, who published whom, and who influenced
                 whom across your collection. Powered by Cytoscape.js with AI-discovered personal connections
-                via AWS Bedrock. Your books are not just inventory &mdash; they are a living map of the
-                relationships that shaped Victorian literature.
+                via AWS Bedrock, revealing the relationships that shaped Victorian literature.
+            </p>
+            <p>
+                Explore the timeline with 28 curated historical events spanning 1710&ndash;1914, from the
+                founding of the Gentleman's Magazine to the outbreak of the Great War. Every entity in your
+                collection gets an AI-generated biographical profile with personal stories, connection
+                narratives, and portraits automatically synced from Wikidata and Wikimedia Commons.
             </p>
 
             <div class="announcement-features">
@@ -1138,6 +1147,20 @@
                         <p>Admin-configurable AI model selection per workflow (Opus, Sonnet, Haiku)</p>
                     </div>
                 </div>
+                <div class="announcement-feature">
+                    <div class="feature-icon blue">&#x1f5bc;</div>
+                    <div>
+                        <h4>Portrait Sync</h4>
+                        <p>Automated Wikidata portrait matching for authors, publishers, and binders. Entity photos discovered and synced from Wikimedia Commons.</p>
+                    </div>
+                </div>
+                <div class="announcement-feature">
+                    <div class="feature-icon green">&#x23f3;</div>
+                    <div>
+                        <h4>Interactive Timeline</h4>
+                        <p>Animated timeline slider with 28 curated historical events. Point and range modes for filtering the network by era.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1150,6 +1173,12 @@
                         share <strong>zero publishers</strong>. Data-only analysis sees no relationship. AI-discovered
                         connections solve this: the most famous literary couple in Victorian England is now visible
                         as a <strong>family</strong> edge, with biographical context and confidence scoring.
+                    </p>
+                    <p>
+                        Data-only approaches miss the majority of Victorian literary relationships &mdash; figures
+                        connected through shared social circles, salons, and correspondence networks rather than
+                        commercial relationships. With BMX 3.0, enrichment is automatic &mdash; when new entities
+                        are added, AI enrichment and portrait sync trigger immediately with no manual intervention.
                     </p>
                     <p class="quote">
                         "Everyone knew everyone. Same publishers, same binderies, same social circles. Now you can see it."
@@ -1164,7 +1193,13 @@
                         <strong>influence</strong> (Ruskin on Morris),
                         <strong>collaboration</strong> (shared works),
                         and <strong>scandal</strong> (the soap opera layer). Each type gets distinct
-                        color-coded edges in the network graph.
+                        color-coded edges in the network graph. Connections include strength indicators
+                        &mdash; solid lines for strong evidence, dashed for moderate, and dotted for
+                        speculative &mdash; so you can read confidence at a glance.
+                    </p>
+                    <p>
+                        Hover over any node to highlight its direct connections and fade the rest of the
+                        graph, making it easy to explore individual networks within the larger social map.
                     </p>
                     <p class="quote">
                         "Green for publishers, blue for friendships, purple for binders, rose for scandal."
@@ -2157,9 +2192,6 @@ flowchart LR
             <a href="https://api.bluemoxon.com/docs" class="btn btn-primary" target="_blank">
                 View API Docs (Swagger)
             </a>
-            <a href="https://github.com/markthebest12/bluemoxon" class="btn btn-secondary" target="_blank" style="margin-left: 1rem;">
-                View Source on GitHub
-            </a>
         </div>
     </section>
 
@@ -2180,9 +2212,6 @@ flowchart LR
         <p>
             Built with Vue 3, FastAPI, Aurora PostgreSQL, and Terraform<br>
             <a href="https://www.bluemoxon.com">www.bluemoxon.com</a>
-        </p>
-        <p style="margin-top: 1rem;">
-            Open source under the <a href="https://github.com/markthebest12/bluemoxon/blob/main/LICENSE" target="_blank">Apache License 2.0</a>
         </p>
     </footer>
 
