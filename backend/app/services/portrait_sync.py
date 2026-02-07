@@ -5,52 +5,39 @@ uploads to S3, and updates entity.image_url.
 
 This is the canonical implementation for portrait sync logic. Both the admin API
 endpoint and the CLI script (scripts/wikidata_portraits.py) delegate to this module.
+
+SPARQL query building and Wikidata HTTP client live in wikidata_client.py.
+Image download/process/upload pipeline lives in app.utils.image_processing.
 """
 
-import io
 import logging
 import re
 import time
-from urllib.parse import quote, unquote
 
-import httpx
-from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.models.author import Author
 from app.models.binder import Binder
 from app.models.book import Book
 from app.models.publisher import Publisher
-from app.services.aws_clients import get_s3_client
-from app.utils.cdn import get_cloudfront_cdn_url
+from app.services.wikidata_client import (
+    WIKIDATA_REQUEST_INTERVAL,
+    WikidataThrottledError,  # noqa: F401 — re-exported for consumers
+    build_sparql_query_org,
+    build_sparql_query_person,
+    group_sparql_results,
+    query_wikidata,
+)
+from app.utils.image_processing import (
+    _download_process_upload,
+    build_cdn_url,  # noqa: F401 — re-exported for consumers
+    download_portrait,  # noqa: F401 — re-exported for consumers
+    process_portrait,  # noqa: F401 — re-exported for consumers
+    upload_to_s3,  # noqa: F401 — re-exported for consumers
+)
 from app.utils.wikidata_scoring import name_similarity, score_candidate
 
 logger = logging.getLogger(__name__)
-
-# Wikidata SPARQL endpoint
-WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
-
-
-class WikidataThrottledError(Exception):
-    """Raised when Wikidata returns 429 or 503 — do not retry immediately."""
-
-
-# Wikimedia Commons file URL template (400px wide)
-COMMONS_FILE_URL = "https://commons.wikimedia.org/wiki/Special:FilePath/{filename}?width=400"
-
-# Portrait dimensions and quality
-PORTRAIT_SIZE = (400, 400)
-PORTRAIT_QUALITY = 85
-
-# S3 prefix for entity portraits
-S3_ENTITIES_PREFIX = "entities/"
-
-# Rate limiting: Wikidata requests min interval in seconds
-WIKIDATA_REQUEST_INTERVAL = 1.5
-
-# User-Agent required by Wikimedia API policy
-USER_AGENT = "BlueMoxonBot/1.0 (https://bluemoxon.com; contact@bluemoxon.com)"
 
 # Max entities per request to fit within API Gateway 30s timeout.
 # Each entity needs ~2s (1.5s rate limit + HTTP round-trip), but
@@ -110,26 +97,11 @@ def make_result(
     }
 
 
-def _escape_sparql_string(value: str) -> str:
-    """Escape a value for use in a SPARQL string literal (double-quoted).
-
-    Handles backslashes, double quotes, newlines, carriage returns, and tabs
-    per the SPARQL 1.1 grammar for STRING_LITERAL2 (double-quoted strings).
-    """
-    return (
-        value.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
-
-
 def _extract_person_name(entity_name: str) -> str | None:
     """Strip common business suffixes to extract a potential founder name.
 
     Many Victorian publishers/binders are named after their founders
-    (e.g. "Rivière & Son" → "Rivière", "Edward Moxon and Co." → "Edward Moxon").
+    (e.g. "Riviere & Son" -> "Riviere", "Edward Moxon and Co." -> "Edward Moxon").
 
     Returns the stripped name if different from original, else None.
     """
@@ -137,147 +109,6 @@ def _extract_person_name(entity_name: str) -> str | None:
     if stripped and stripped != entity_name:
         return stripped
     return None
-
-
-def build_sparql_query_person(entity_name: str) -> str:
-    """Build SPARQL query for a human entity (author, binder person)."""
-    escaped_name = _escape_sparql_string(entity_name)
-    return f"""
-SELECT ?item ?itemLabel ?itemDescription ?birth ?death
-       ?image ?occupation ?occupationLabel ?work ?workLabel
-WHERE {{
-  ?item rdfs:label "{escaped_name}"@en .
-  ?item wdt:P31 wd:Q5 .
-  OPTIONAL {{ ?item wdt:P569 ?birth . }}
-  OPTIONAL {{ ?item wdt:P570 ?death . }}
-  OPTIONAL {{ ?item wdt:P18 ?image . }}
-  OPTIONAL {{
-    ?item wdt:P106 ?occupation .
-    ?occupation rdfs:label ?occupationLabel .
-    FILTER(LANG(?occupationLabel) = "en")
-  }}
-  OPTIONAL {{
-    ?item wdt:P800 ?work .
-    ?work rdfs:label ?workLabel .
-    FILTER(LANG(?workLabel) = "en")
-  }}
-  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" . }}
-}}
-LIMIT 10
-"""
-
-
-def build_sparql_query_org(entity_name: str) -> str:
-    """Build SPARQL query for an organizational entity (publisher, binder firm)."""
-    escaped_name = _escape_sparql_string(entity_name)
-    return f"""
-SELECT ?item ?itemLabel ?itemDescription ?image ?inception
-WHERE {{
-  ?item rdfs:label "{escaped_name}"@en .
-  {{ ?item wdt:P31 wd:Q2085381 . }}
-  UNION
-  {{ ?item wdt:P31 wd:Q7275 . }}
-  UNION
-  {{ ?item wdt:P31 wd:Q4830453 . }}
-  OPTIONAL {{ ?item wdt:P18 ?image . }}
-  OPTIONAL {{ ?item wdt:P571 ?inception . }}
-  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" . }}
-}}
-LIMIT 10
-"""
-
-
-def query_wikidata(sparql: str) -> list[dict]:
-    """Execute SPARQL query against Wikidata and return results.
-
-    Returns list of result bindings (dicts).
-    """
-    headers = {
-        "Accept": "application/sparql-results+json",
-        "User-Agent": USER_AGENT,
-    }
-    try:
-        resp = httpx.get(
-            WIKIDATA_SPARQL_URL,
-            params={"query": sparql},
-            headers=headers,
-            timeout=30,
-        )
-        if resp.status_code in (429, 503):
-            logger.warning("Wikidata throttled (HTTP %s)", resp.status_code)
-            raise WikidataThrottledError(f"Wikidata HTTP {resp.status_code}")
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("results", {}).get("bindings", [])
-    except WikidataThrottledError:
-        raise
-    except httpx.HTTPError:
-        logger.exception("Wikidata SPARQL query failed")
-        return []
-
-
-def parse_year_from_datetime(dt_str: str | None) -> int | None:
-    """Extract year from Wikidata datetime string (e.g. '1812-02-07T00:00:00Z')."""
-    if not dt_str:
-        return None
-    try:
-        return int(dt_str[:4])
-    except (ValueError, IndexError):
-        return None
-
-
-def extract_filename_from_commons_url(url: str) -> str:
-    """Extract filename from Wikimedia Commons URL.
-
-    Example: 'http://commons.wikimedia.org/wiki/Special:FilePath/Charles_Dickens.jpg'
-    -> 'Charles_Dickens.jpg'
-    """
-    if "Special:FilePath/" in url:
-        return url.split("Special:FilePath/")[-1]
-    # Fallback: last path segment
-    return url.rsplit("/", 1)[-1]
-
-
-def group_sparql_results(bindings: list[dict]) -> dict[str, dict]:
-    """Group SPARQL result bindings by Wikidata item URI.
-
-    Wikidata returns one row per (item, occupation, work) combination,
-    so we need to collapse them into one record per item.
-
-    Returns dict keyed by item URI with aggregated fields.
-    """
-    grouped: dict[str, dict] = {}
-    for row in bindings:
-        item_uri = row.get("item", {}).get("value", "")
-        if not item_uri:
-            continue
-
-        if item_uri not in grouped:
-            grouped[item_uri] = {
-                "uri": item_uri,
-                "label": row.get("itemLabel", {}).get("value", ""),
-                "description": row.get("itemDescription", {}).get("value", ""),
-                "birth": parse_year_from_datetime(row.get("birth", {}).get("value")),
-                "death": parse_year_from_datetime(row.get("death", {}).get("value")),
-                "image_url": row.get("image", {}).get("value"),
-                "occupations": set(),
-                "works": set(),
-            }
-
-        occ_label = row.get("occupationLabel", {}).get("value")
-        if occ_label:
-            grouped[item_uri]["occupations"].add(occ_label)
-
-        work_label = row.get("workLabel", {}).get("value")
-        if work_label:
-            grouped[item_uri]["works"].add(work_label)
-
-    # Convert sets to lists for downstream use
-    for item in grouped.values():
-        item["occupations"] = list(item["occupations"])
-        item["works"] = list(item["works"])
-
-    return grouped
 
 
 def get_entity_book_titles(db: Session, entity_type: str, entity_id: int) -> list[str]:
@@ -291,124 +122,6 @@ def get_entity_book_titles(db: Session, entity_type: str, entity_id: int) -> lis
     else:
         return []
     return [b.title for b in books]
-
-
-def download_portrait(image_url: str) -> bytes | None:
-    """Download portrait image from Wikimedia Commons.
-
-    Args:
-        image_url: Full Wikimedia Commons image URL.
-
-    Returns:
-        Image bytes or None on failure.
-    """
-    filename = extract_filename_from_commons_url(image_url)
-    # Decode first to avoid double-encoding (Wikidata returns pre-encoded URLs)
-    url = COMMONS_FILE_URL.format(filename=quote(unquote(filename), safe=""))
-
-    try:
-        resp = httpx.get(
-            url,
-            headers={"User-Agent": USER_AGENT},
-            timeout=30,
-            follow_redirects=True,
-        )
-        resp.raise_for_status()
-        return resp.content
-    except httpx.HTTPError:
-        logger.exception("Failed to download portrait from %s", url)
-        return None
-
-
-def process_portrait(image_bytes: bytes) -> bytes | None:
-    """Resize portrait to 400x400 JPEG.
-
-    Maintains aspect ratio via thumbnail, converts to RGB, applies EXIF rotation.
-
-    Returns:
-        JPEG bytes or None on failure.
-    """
-    try:
-        with Image.open(io.BytesIO(image_bytes)) as img:
-            # Apply EXIF orientation
-            img = ImageOps.exif_transpose(img)
-
-            # Convert to RGB if necessary
-            if img.mode in ("RGBA", "P", "LA"):
-                img = img.convert("RGB")
-
-            # Resize maintaining aspect ratio
-            img.thumbnail(PORTRAIT_SIZE, Image.Resampling.LANCZOS)
-
-            # Save to bytes
-            output = io.BytesIO()
-            img.save(output, "JPEG", quality=PORTRAIT_QUALITY, optimize=True)
-            return output.getvalue()
-    except Exception:
-        logger.exception("Failed to process portrait image")
-        return None
-
-
-def upload_to_s3(image_bytes: bytes, entity_type: str, entity_id: int) -> str:
-    """Upload portrait JPEG to S3. Returns the S3 key."""
-    settings = get_settings()
-    s3 = get_s3_client()
-    s3_key = f"{S3_ENTITIES_PREFIX}{entity_type}/{entity_id}/portrait.jpg"
-
-    s3.put_object(
-        Bucket=settings.images_bucket,
-        Key=s3_key,
-        Body=image_bytes,
-        ContentType="image/jpeg",
-        CacheControl="public, max-age=86400, stale-while-revalidate=3600",
-    )
-    return s3_key
-
-
-def build_cdn_url(s3_key: str) -> str:
-    """Build CDN URL for an entity portrait S3 key."""
-    cdn_base = get_cloudfront_cdn_url()
-    return f"{cdn_base}/{s3_key}"
-
-
-def _download_process_upload(
-    db: Session,
-    entity,
-    entity_type: str,
-    best_candidate: dict,
-    result: dict,
-) -> dict:
-    """Download, process, and upload portrait for a matched candidate.
-
-    Shared pipeline for both person and publisher entities.
-    """
-    image_bytes = download_portrait(best_candidate["image_url"])
-    if not image_bytes:
-        result["status"] = "download_failed"
-        return result
-
-    processed = process_portrait(image_bytes)
-    if not processed:
-        result["status"] = "processing_failed"
-        return result
-
-    try:
-        s3_key = upload_to_s3(processed, entity_type, entity.id)
-        cdn_url = build_cdn_url(s3_key)
-
-        entity.image_url = cdn_url
-        db.flush()
-
-        result["status"] = "uploaded"
-        result["image_uploaded"] = True
-        result["s3_key"] = s3_key
-        result["cdn_url"] = cdn_url
-    except Exception:
-        logger.exception("S3 upload failed for %s/%s", entity_type, entity.id)
-        result["status"] = "upload_failed"
-        result["error"] = "S3 upload failed"
-
-    return result
 
 
 def process_person_entity(
@@ -492,7 +205,7 @@ def _try_person_sparql_fallback(entity_name: str) -> tuple[list[dict], str]:
     who exist on Wikidata as persons (Q5), not organizations.
 
     Tries the original name first, then strips business suffixes
-    (e.g. "Rivière & Son" → "Rivière", "Edward Moxon and Co." → "Edward Moxon").
+    (e.g. "Riviere & Son" -> "Riviere", "Edward Moxon and Co." -> "Edward Moxon").
 
     Returns (bindings, match_source) tuple. match_source is one of:
     "person_exact", "person_stripped", or "" if no match.
@@ -511,7 +224,7 @@ def _try_person_sparql_fallback(entity_name: str) -> tuple[list[dict], str]:
         )
         return bindings, "person_exact"
 
-    # Try with business suffixes stripped (e.g. "Edward Moxon and Co." → "Edward Moxon")
+    # Try with business suffixes stripped (e.g. "Edward Moxon and Co." -> "Edward Moxon")
     stripped_name = _extract_person_name(entity_name)
     if stripped_name and "," not in stripped_name:
         time.sleep(WIKIDATA_REQUEST_INTERVAL)
@@ -554,7 +267,7 @@ def process_org_entity(
     if not bindings:
         # Fallback: try person SPARQL — many Victorian publishers/binders
         # are named after their founders (e.g. "Bernard Quaritch",
-        # "Edward Moxon and Co." → "Edward Moxon").
+        # "Edward Moxon and Co." -> "Edward Moxon").
         bindings, match_source = _try_person_sparql_fallback(entity.name)
         if not match_source:
             match_source = "org"  # keep default if no fallback match
@@ -569,8 +282,8 @@ def process_org_entity(
 
     # Intentionally use org-style scoring (name + image bonus) even for
     # person-fallback results. Full score_candidate() is worse here because
-    # publisher founded_year ≠ founder birth_year, and publisher book
-    # associations ≠ Wikidata notable works. SPARQL exact-label matching
+    # publisher founded_year != founder birth_year, and publisher book
+    # associations != Wikidata notable works. SPARQL exact-label matching
     # already constrains false positives sufficiently.
     # When fallback used stripped name, score against that name for accuracy.
     scoring_name = (
