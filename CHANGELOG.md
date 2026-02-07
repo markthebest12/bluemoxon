@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.2) - 2026-02-06
+
+- [`f8af541`](https://github.com/markthebest12/bluemoxon/commit/f8af54176c3e33861476db4cac3a04eaf6f8dc70) fix: require category when creating books (#1865) (#1881)
+
 ## [v3.5.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.1) - 2026-02-06
 
 - [`a8fea3d`](https://github.com/markthebest12/bluemoxon/commit/a8fea3d89e21adb9ced5863571572dd95d6bafca) fix: restore useModelLabels composable lost in merge conflict (#1883)
