@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.3) - 2026-02-06
+
+- [`4cfae31`](https://github.com/markthebest12/bluemoxon/commit/4cfae31231a7f23de9949dcb8827f1408e86caf8) fix: timeline label clipping and raw entity marker display (#1872, #1884)
+
 ## [v3.5.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.2) - 2026-02-06
 
 - [`f8af541`](https://github.com/markthebest12/bluemoxon/commit/f8af54176c3e33861476db4cac3a04eaf6f8dc70) fix: require category when creating books (#1865) (#1881)
