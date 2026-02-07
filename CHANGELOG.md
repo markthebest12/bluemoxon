@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.4](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.4) - 2026-02-06
+
+- [`7d22d96`](https://github.com/markthebest12/bluemoxon/commit/7d22d969eb02fe2960e5389163a57aeb1e6d5e28) fix: add person SPARQL fallback for org entity portrait matching (#1886)
+
 ## [v3.5.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.3) - 2026-02-06
 
 - [`4cfae31`](https://github.com/markthebest12/bluemoxon/commit/4cfae31231a7f23de9949dcb8827f1408e86caf8) fix: timeline label clipping and raw entity marker display (#1872, #1884)
