@@ -80,8 +80,8 @@ Main entity - represents a single book or set.
 | purchase_price | DECIMAL(10,2) | Acquisition cost |
 | purchase_date | DATE | When acquired |
 | purchase_source | VARCHAR(200) | Seller/source |
-| discount_pct | DECIMAL(5,2) | Discount from market |
-| roi_pct | DECIMAL(5,2) | Return on investment |
+| discount_pct | DECIMAL(6,2) | Discount from market |
+| roi_pct | DECIMAL(7,2) | Return on investment |
 | status | VARCHAR(20) | EVALUATING, IN_TRANSIT, ON_HAND, SOLD, REMOVED, CANCELED |
 | source_url | VARCHAR(500) | Original listing URL |
 | source_item_id | VARCHAR(100) | Source item identifier |
@@ -103,6 +103,8 @@ Main entity - represents a single book or set.
 | search_vector | TSVECTOR | Full-text search vector |
 | created_at | TIMESTAMP | Record creation |
 | updated_at | TIMESTAMP | Last update |
+
+> **Note:** Key columns shown. See `backend/app/models/book.py` for full schema.
 
 ### book_analyses
 
@@ -252,6 +254,46 @@ Lightweight evaluation reports for acquisition decisions.
 | analysis_narrative | TEXT | Full eval narrative |
 | generated_at | TIMESTAMP | When report was generated |
 | created_at | TIMESTAMP | Record creation |
+| updated_at | TIMESTAMP | Last update |
+
+> **Note:** Key columns shown. See `backend/app/models/eval_runbook.py` for full schema.
+
+### eval_price_history
+
+Tracks price changes for eval runbooks (price update audit trail).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| eval_runbook_id | INTEGER | FK to eval_runbooks (CASCADE delete) |
+| previous_price | DECIMAL(10,2) | Price before change |
+| new_price | DECIMAL(10,2) | Price after change |
+| discount_code | VARCHAR(100) | Discount code applied (if any) |
+| notes | TEXT | Change notes |
+| score_before | INTEGER | Recommendation score before price change |
+| score_after | INTEGER | Recommendation score after price change |
+| changed_at | TIMESTAMP | When the price change was recorded |
+
+### publisher_aliases
+
+Maps publisher name variants to canonical publisher records.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| alias_name | VARCHAR(200) | Name variant (unique, indexed) |
+| publisher_id | INTEGER | FK to publishers (CASCADE delete) |
+
+### carrier_circuit_state
+
+Circuit breaker state for carrier tracking APIs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| carrier_name | VARCHAR(50) | Carrier name (primary key) |
+| failure_count | INTEGER | Consecutive failure count (default 0) |
+| last_failure_at | TIMESTAMP | When last failure occurred |
+| circuit_open_until | TIMESTAMP | When circuit breaker expires |
 | updated_at | TIMESTAMP | Last update |
 
 ### notifications

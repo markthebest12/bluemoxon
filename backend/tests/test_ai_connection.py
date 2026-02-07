@@ -383,7 +383,7 @@ class TestMigrationSQL:
         assert len(index_stmts) >= 2
 
     def test_migration_is_last(self):
-        """ai_connections migration is the last entry (latest head)."""
+        """Latest migration is the last entry (current head)."""
         from app.db.migration_sql import MIGRATIONS
 
-        assert MIGRATIONS[-1]["id"] == "2843f260f764"
+        assert MIGRATIONS[-1]["id"] == "7a3a9a604ccf"

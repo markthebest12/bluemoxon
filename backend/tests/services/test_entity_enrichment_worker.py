@@ -83,6 +83,28 @@ class TestPortraitSyncTriggeredAfterEnrichment:
 
         mock_portrait.assert_called_once_with(db, "binder", 5)
 
+    @patch("app.services.entity_enrichment_worker._trigger_portrait_sync")
+    @patch("app.services.entity_enrichment_worker._apply_enrichment")
+    @patch("app.services.entity_enrichment_worker._parse_enrichment_response")
+    @patch("app.services.entity_enrichment_worker._call_bedrock_for_enrichment")
+    def test_portrait_sync_runs_even_when_no_fields_updated(
+        self, mock_bedrock, mock_parse, mock_apply, mock_portrait, db
+    ):
+        """Portrait sync is called even when _apply_enrichment updates no fields."""
+        mock_bedrock.return_value = '{"birth_year": null, "death_year": null, "era": null}'
+        mock_parse.return_value = {"birth_year": None, "death_year": None, "era": None}
+        mock_apply.return_value = []
+
+        message = {
+            "entity_type": "author",
+            "entity_id": 7,
+            "entity_name": "Unknown Author",
+        }
+
+        handle_entity_enrichment_message(message, db)
+
+        mock_portrait.assert_called_once_with(db, "author", 7)
+
 
 class TestPortraitSyncFailureDoesNotFailEnrichment:
     """Portrait sync failures must never cause enrichment to appear failed."""

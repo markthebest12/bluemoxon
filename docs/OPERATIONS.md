@@ -164,7 +164,6 @@ AWS_PROFILE=bmx-staging aws lambda get-function-configuration --function-name bl
 | `bluemoxon-analysis-worker` | Async Napoleon analysis | 600s |
 | `bluemoxon-eval-runbook-worker` | Async eval runbook generation | 600s |
 | `bluemoxon-profile-worker` | Entity profile generation (BMX 3.0) | 600s |
-| `bluemoxon-enrichment-worker` | Entity metadata enrichment (BMX 3.0, not yet deployed as standalone Lambda) | 300s |
 | `bluemoxon-image-processor` | AI background removal (container) | 300s |
 | `bluemoxon-retry-queue-failed` | Retry failed image processing jobs | 60s |
 | `bluemoxon-scraper` | eBay Playwright scraping | 120s |

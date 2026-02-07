@@ -14,6 +14,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.config import get_settings
 from app.enums import OWNED_STATUSES
+from app.models import ENTITY_MODEL_MAP as _MODEL_MAP
 from app.models.ai_connection import AIConnection
 from app.models.author import Author
 from app.models.binder import Binder
@@ -45,13 +46,6 @@ from app.services.social_circles_cache import get_or_build_graph
 
 logger = logging.getLogger(__name__)
 
-
-# Map entity type strings to SQLAlchemy model classes.
-_MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
-    "author": Author,
-    "publisher": Publisher,
-    "binder": Binder,
-}
 
 # Map entity type strings to their Book FK columns.
 _ENTITY_FK_MAP: dict[str, InstrumentedAttribute] = {

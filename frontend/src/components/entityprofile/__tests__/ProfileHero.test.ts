@@ -358,4 +358,22 @@ describe("ProfileHero — Portrait", () => {
     const portrait = wrapper.find("[data-testid='profile-portrait']");
     expect(portrait.classes()).toContain("profile-hero__portrait");
   });
+
+  it("falls back to placeholder when image_url fails to load", async () => {
+    const authorWithBrokenUrl: ProfileEntity = {
+      ...mockAuthor,
+      image_url: "https://cdn.example.com/entities/author/31/portrait.jpg",
+    };
+    const wrapper = mount(ProfileHero, {
+      props: { entity: authorWithBrokenUrl, profile: mockProfile },
+      global: globalStubs,
+    });
+    const portrait = wrapper.find("[data-testid='profile-portrait']");
+    expect(portrait.attributes("src")).toBe(
+      "https://cdn.example.com/entities/author/31/portrait.jpg"
+    );
+
+    await portrait.trigger("error");
+    expect(portrait.attributes("src")).toContain("entity-placeholders");
+  });
 });

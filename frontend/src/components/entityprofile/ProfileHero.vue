@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { ProfileEntity, ProfileData, ProfileConnection } from "@/types/entityProfile";
 import { formatTier, getPlaceholderImage } from "@/utils/socialCircles/formatters";
 import { getToneStyle } from "@/composables/entityprofile/getToneStyle";
@@ -21,9 +21,19 @@ const dateDisplay = computed(() => {
   return null;
 });
 
-const portraitSrc = computed(
-  () => props.entity.image_url || getPlaceholderImage(props.entity.type, props.entity.id)
+const portraitError = ref(false);
+watch(
+  () => props.entity.id,
+  () => {
+    portraitError.value = false;
+  }
 );
+const portraitSrc = computed(() => {
+  if (portraitError.value || !props.entity.image_url) {
+    return getPlaceholderImage(props.entity.type, props.entity.id);
+  }
+  return props.entity.image_url;
+});
 
 const heroStories = computed(() => {
   if (!props.profile?.personal_stories) return [];
@@ -38,6 +48,7 @@ const heroStories = computed(() => {
       :alt="entity.name + ' portrait'"
       class="profile-hero__portrait"
       data-testid="profile-portrait"
+      @error="portraitError = true"
     />
     <div class="profile-hero__info">
       <h1 class="profile-hero__name">{{ entity.name }}</h1>
