@@ -5,6 +5,11 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.6](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.6) - 2026-02-06
+
+- [`722b24a`](https://github.com/markthebest12/bluemoxon/commit/722b24ad05014940cb48db045db93f6cc701b399) docs: comprehensive documentation sweep for BMX 3.0 (#1862) (#1894)
+- [`4b7f955`](https://github.com/markthebest12/bluemoxon/commit/4b7f9557ee6c28412d31ecda5fb8bf9fc9ed859f) fix: timeline label clipping and expand historical events (#1890) (#1892)
+
 ## [v3.5.5](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.5) - 2026-02-06
 
 - [`6b341d8`](https://github.com/markthebest12/bluemoxon/commit/6b341d824a348f35264a51841aa5f945cbcc5c15) fix: remove dead site/screenshots symlink blocking deploy (#1891)

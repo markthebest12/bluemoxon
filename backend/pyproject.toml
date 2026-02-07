@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bluemoxon-backend"
-version = "3.5.5"
+version = "3.5.6"
 description = "BlueMoxon API - Victorian Book Collection Management"
 authors = ["Mark"]
 package-mode = false
