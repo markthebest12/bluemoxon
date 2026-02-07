@@ -386,4 +386,4 @@ class TestMigrationSQL:
         """Latest migration is the last entry (current head)."""
         from app.db.migration_sql import MIGRATIONS
 
-        assert MIGRATIONS[-1]["id"] == "7a3a9a604ccf"
+        assert MIGRATIONS[-1]["id"] == "b3c8d2e1f4a7"
