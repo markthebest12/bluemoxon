@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.6.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.3) - 2026-02-07
+
+- [`d8b475f`](https://github.com/markthebest12/bluemoxon/commit/d8b475f02a8e0c4f33fe1ffb0e328d4dbe48f361) fix: backfill founded_year for 8 binders (#1914)
+
 ## [v3.6.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.2) - 2026-02-07
 
 - [`d1af8a7`](https://github.com/markthebest12/bluemoxon/commit/d1af8a75fbeeeab169a37960f83b036fc6907586) fix: guard ai_connections data migration against non-array JSON (#1910)
