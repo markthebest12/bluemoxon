@@ -20,6 +20,7 @@ from app.models.author import Author
 from app.models.binder import Binder
 from app.models.publisher import Publisher
 from app.services.bedrock import bedrock_retry, get_bedrock_client, get_model_id
+from app.services.portrait_sync import process_org_entity, process_person_entity
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -302,6 +303,47 @@ def _apply_enrichment(
     return updated_fields
 
 
+def _trigger_portrait_sync(db: Session, entity_type: str, entity_id: int) -> None:
+    """Trigger portrait sync for a single entity after enrichment.
+
+    Fetches the entity from the DB and calls the appropriate portrait sync
+    function (person for authors, org for publishers/binders).
+
+    Portrait sync failures are logged as warnings but never propagated —
+    enrichment success must not depend on portrait availability.
+
+    Args:
+        db: Database session
+        entity_type: "author", "publisher", or "binder"
+        entity_id: Entity primary key
+    """
+    logger.info("Starting portrait sync for %s %s", entity_type, entity_id)
+
+    try:
+        model_class = _MODEL_MAP[entity_type]
+        entity = db.query(model_class).filter(model_class.id == entity_id).first()
+
+        if not entity:
+            logger.warning("Portrait sync skipped — %s %s not found", entity_type, entity_id)
+            return
+
+        if entity_type == "author":
+            result = process_person_entity(db, entity, entity_type, threshold=0.7, dry_run=False)
+        else:
+            # publisher and binder use org entity processing
+            result = process_org_entity(db, entity, entity_type, threshold=0.7, dry_run=False)
+
+        logger.info(
+            "Portrait sync complete for %s %s: %s",
+            entity_type,
+            entity_id,
+            result.get("status"),
+        )
+
+    except Exception as e:
+        logger.warning("Portrait sync failed for %s %s: %s", entity_type, entity_id, str(e))
+
+
 def handle_entity_enrichment_message(message: dict, db: Session) -> None:
     """Process a single entity enrichment message.
 
@@ -331,6 +373,11 @@ def handle_entity_enrichment_message(message: dict, db: Session) -> None:
         )
 
         _apply_enrichment(db, entity_type, entity_id, enrichment_data)
+
+        # After successful enrichment, trigger portrait sync.
+        # This is wrapped in its own error handling inside _trigger_portrait_sync
+        # so portrait failures never cause enrichment to appear failed.
+        _trigger_portrait_sync(db, entity_type, entity_id)
 
     except ClientError as e:
         logger.error(
