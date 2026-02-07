@@ -1,5 +1,7 @@
 """SQLAlchemy models."""
 
+from types import MappingProxyType
+
 from app.models.ai_connection import AIConnection
 from app.models.analysis import BookAnalysis
 from app.models.analysis_job import AnalysisJob
@@ -22,6 +24,15 @@ from app.models.publisher import Publisher
 from app.models.publisher_alias import PublisherAlias
 from app.models.user import User
 
+# Entity type to model class mapping, shared across services (immutable)
+ENTITY_MODEL_MAP: MappingProxyType[str, type[Author | Publisher | Binder]] = MappingProxyType(
+    {
+        "author": Author,
+        "publisher": Publisher,
+        "binder": Binder,
+    }
+)
+
 __all__ = [
     "AIConnection",
     "AnalysisJob",
@@ -30,6 +41,7 @@ __all__ = [
     "Base",
     "CarrierCircuit",
     "CleanupJob",
+    "ENTITY_MODEL_MAP",
     "EntityProfile",
     "Notification",
     "Publisher",

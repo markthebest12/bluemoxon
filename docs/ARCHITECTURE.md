@@ -571,6 +571,7 @@ erDiagram
         string full_name
         string image_url
         int founded_year
+        int closed_year
     }
 
     IMAGES {

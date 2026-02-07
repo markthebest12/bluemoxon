@@ -13,11 +13,9 @@ from sqlalchemy.orm import Session
 from app.auth import require_admin, require_editor, require_viewer
 from app.config import get_settings
 from app.db import get_db
-from app.models.author import Author
-from app.models.binder import Binder
+from app.models import ENTITY_MODEL_MAP
 from app.models.entity_profile import EntityProfile
 from app.models.profile_generation_job import JobStatus, ProfileGenerationJob
-from app.models.publisher import Publisher
 from app.schemas.entity_profile import EntityProfileResponse, EntityType
 from app.services.aws_clients import get_s3_client
 from app.services.entity_profile import (
@@ -281,12 +279,8 @@ def regenerate_profile(
     )
 
 
-# Map entity type strings to model classes for portrait upload.
-_PORTRAIT_MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
-    "author": Author,
-    "publisher": Publisher,
-    "binder": Binder,
-}
+# Use shared entity-type-to-model mapping for portrait upload.
+_PORTRAIT_MODEL_MAP = ENTITY_MODEL_MAP
 
 # Portrait image settings.
 PORTRAIT_SIZE = (400, 400)

@@ -16,23 +16,15 @@ from typing import TYPE_CHECKING, Any
 from botocore.exceptions import ClientError
 
 from app.db import SessionLocal
-from app.models.author import Author
-from app.models.binder import Binder
-from app.models.publisher import Publisher
+from app.models import ENTITY_MODEL_MAP
 from app.services.bedrock import bedrock_retry, get_bedrock_client, get_model_id
 from app.services.portrait_sync import process_org_entity, process_person_entity
+from app.services.wikidata_client import WikidataThrottledError
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
-
-# Map entity types to model classes
-_MODEL_MAP: dict[str, type[Author | Publisher | Binder]] = {
-    "author": Author,
-    "publisher": Publisher,
-    "binder": Binder,
-}
 
 # Fields eligible for enrichment per entity type (only NULL fields are updated)
 _ENRICHMENT_FIELDS: dict[str, list[str]] = {
@@ -213,7 +205,7 @@ def _apply_enrichment(
     Returns:
         List of field names that were updated
     """
-    model_class = _MODEL_MAP[entity_type]
+    model_class = ENTITY_MODEL_MAP[entity_type]
     entity = db.query(model_class).filter(model_class.id == entity_id).first()
 
     if not entity:
@@ -320,7 +312,7 @@ def _trigger_portrait_sync(db: Session, entity_type: str, entity_id: int) -> Non
     logger.info("Starting portrait sync for %s %s", entity_type, entity_id)
 
     try:
-        model_class = _MODEL_MAP[entity_type]
+        model_class = ENTITY_MODEL_MAP[entity_type]
         entity = db.query(model_class).filter(model_class.id == entity_id).first()
 
         if not entity:
@@ -340,6 +332,12 @@ def _trigger_portrait_sync(db: Session, entity_type: str, entity_id: int) -> Non
             result.get("status"),
         )
 
+    except WikidataThrottledError:
+        logger.info(
+            "Portrait sync throttled by Wikidata for %s:%s, skipped (use /admin/portrait-sync to retry)",
+            entity_type,
+            entity_id,
+        )
     except Exception as e:
         logger.warning("Portrait sync failed for %s %s: %s", entity_type, entity_id, str(e))
 
@@ -355,7 +353,7 @@ def handle_entity_enrichment_message(message: dict, db: Session) -> None:
     entity_id = message["entity_id"]
     entity_name = message["entity_name"]
 
-    if entity_type not in _MODEL_MAP:
+    if entity_type not in ENTITY_MODEL_MAP:
         logger.error("Unknown entity type: %s", entity_type)
         return
 

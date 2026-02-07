@@ -16,13 +16,11 @@ import time
 
 from sqlalchemy.orm import Session
 
-from app.models.author import Author
-from app.models.binder import Binder
+from app.models import ENTITY_MODEL_MAP
 from app.models.book import Book
-from app.models.publisher import Publisher
 from app.services.wikidata_client import (
     WIKIDATA_REQUEST_INTERVAL,
-    WikidataThrottledError,  # noqa: F401 — re-exported for consumers
+    WikidataThrottledError,  # noqa: F401 — referenced in docstrings as raised exception
     build_sparql_query_org,
     build_sparql_query_person,
     group_sparql_results,
@@ -56,13 +54,6 @@ _BUSINESS_SUFFIXES_RE = re.compile(
     r",?\s*(?:&|and)\s+(?:Sons?|Co\.?|Company|Bros\.?|Brothers)\.?\s*$",
     re.IGNORECASE,
 )
-
-# Entity type to model mapping
-ENTITY_MODELS = {
-    "author": Author,
-    "publisher": Publisher,
-    "binder": Binder,
-}
 
 
 def make_result(
@@ -360,7 +351,7 @@ def run_portrait_sync(
 
     # Collect entities to process, count skipped
     for etype in entity_types:
-        model = ENTITY_MODELS[etype]
+        model = ENTITY_MODEL_MAP[etype]
         query = db.query(model)
 
         if entity_ids:
