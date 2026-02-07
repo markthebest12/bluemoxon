@@ -13,9 +13,9 @@ from app.models.publisher import Publisher
 class TestQueryWikidata:
     """Tests for Wikidata SPARQL query function."""
 
-    @patch("app.services.portrait_sync.httpx")
+    @patch("app.services.wikidata_client.httpx")
     def test_returns_bindings_on_success(self, mock_httpx):
-        from app.services.portrait_sync import query_wikidata
+        from app.services.wikidata_client import query_wikidata
 
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -27,11 +27,11 @@ class TestQueryWikidata:
         assert len(result) == 1
         assert result[0]["item"]["value"] == "http://wd/Q123"
 
-    @patch("app.services.portrait_sync.httpx")
+    @patch("app.services.wikidata_client.httpx")
     def test_returns_empty_on_http_error(self, mock_httpx):
         import httpx
 
-        from app.services.portrait_sync import query_wikidata
+        from app.services.wikidata_client import query_wikidata
 
         mock_httpx.get.side_effect = httpx.HTTPError("timeout")
         mock_httpx.HTTPError = httpx.HTTPError
@@ -44,7 +44,7 @@ class TestGroupSparqlResults:
     """Tests for grouping SPARQL bindings by item URI."""
 
     def test_groups_multiple_rows_per_item(self):
-        from app.services.portrait_sync import group_sparql_results
+        from app.services.wikidata_client import group_sparql_results
 
         bindings = [
             {
@@ -66,7 +66,7 @@ class TestGroupSparqlResults:
         assert item["works"] == ["Oliver Twist"]
 
     def test_skips_empty_item_uri(self):
-        from app.services.portrait_sync import group_sparql_results
+        from app.services.wikidata_client import group_sparql_results
 
         bindings = [{"item": {"value": ""}}]
         assert group_sparql_results(bindings) == {}
@@ -78,7 +78,7 @@ class TestProcessPortrait:
     def test_processes_valid_image(self):
         from PIL import Image
 
-        from app.services.portrait_sync import process_portrait
+        from app.utils.image_processing import process_portrait
 
         # Create a 800x600 RGB test image
         img = Image.new("RGB", (800, 600), color="red")
@@ -100,7 +100,7 @@ class TestProcessPortrait:
     def test_converts_rgba_to_rgb(self):
         from PIL import Image
 
-        from app.services.portrait_sync import process_portrait
+        from app.utils.image_processing import process_portrait
 
         img = Image.new("RGBA", (200, 200), color=(255, 0, 0, 128))
         import io
@@ -112,7 +112,7 @@ class TestProcessPortrait:
         assert result is not None
 
     def test_returns_none_on_invalid_bytes(self):
-        from app.services.portrait_sync import process_portrait
+        from app.utils.image_processing import process_portrait
 
         assert process_portrait(b"not an image") is None
 
@@ -120,9 +120,9 @@ class TestProcessPortrait:
 class TestDownloadPortrait:
     """Tests for portrait download."""
 
-    @patch("app.services.portrait_sync.httpx")
+    @patch("app.utils.image_processing.httpx")
     def test_returns_bytes_on_success(self, mock_httpx):
-        from app.services.portrait_sync import download_portrait
+        from app.utils.image_processing import download_portrait
 
         mock_resp = MagicMock()
         mock_resp.content = b"fake-image-bytes"
@@ -131,11 +131,11 @@ class TestDownloadPortrait:
         result = download_portrait("http://commons.wikimedia.org/wiki/Special:FilePath/Test.jpg")
         assert result == b"fake-image-bytes"
 
-    @patch("app.services.portrait_sync.httpx")
+    @patch("app.utils.image_processing.httpx")
     def test_returns_none_on_failure(self, mock_httpx):
         import httpx
 
-        from app.services.portrait_sync import download_portrait
+        from app.utils.image_processing import download_portrait
 
         mock_httpx.get.side_effect = httpx.HTTPError("500")
         mock_httpx.HTTPError = httpx.HTTPError
@@ -147,10 +147,10 @@ class TestDownloadPortrait:
 class TestUploadToS3:
     """Tests for S3 upload."""
 
-    @patch("app.services.portrait_sync.get_s3_client")
-    @patch("app.services.portrait_sync.get_settings")
+    @patch("app.utils.image_processing.get_s3_client")
+    @patch("app.utils.image_processing.get_settings")
     def test_uploads_with_correct_key(self, mock_settings, mock_s3):
-        from app.services.portrait_sync import upload_to_s3
+        from app.utils.image_processing import upload_to_s3
 
         mock_settings.return_value.images_bucket = "test-bucket"
         mock_client = MagicMock()
@@ -312,9 +312,9 @@ class TestRunPortraitSync:
         assert result["results"][0]["status"] == "no_portrait"
 
     @patch("app.services.portrait_sync.time.sleep")
-    @patch("app.services.portrait_sync.build_cdn_url")
-    @patch("app.services.portrait_sync.upload_to_s3")
-    @patch("app.services.portrait_sync.download_portrait")
+    @patch("app.utils.image_processing.build_cdn_url")
+    @patch("app.utils.image_processing.upload_to_s3")
+    @patch("app.utils.image_processing.download_portrait")
     @patch("app.services.portrait_sync.query_wikidata")
     def test_full_upload_flow(
         self, mock_query, mock_download, mock_upload, mock_cdn, mock_sleep, db: Session
@@ -370,7 +370,7 @@ class TestRunPortraitSync:
         assert author.image_url == "https://cdn.example.com/entities/author/1/portrait.jpg"
 
     @patch("app.services.portrait_sync.time.sleep")
-    @patch("app.services.portrait_sync.download_portrait")
+    @patch("app.utils.image_processing.download_portrait")
     @patch("app.services.portrait_sync.query_wikidata")
     def test_download_failure(self, mock_query, mock_download, mock_sleep, db: Session):
         """Download failure should produce download_failed status."""
@@ -462,33 +462,33 @@ class TestHelperFunctions:
     """Tests for pure helper functions."""
 
     def test_escape_sparql_string(self):
-        from app.services.portrait_sync import _escape_sparql_string
+        from app.services.wikidata_client import _escape_sparql_string
 
         assert _escape_sparql_string('Hello "World"') == 'Hello \\"World\\"'
         assert _escape_sparql_string("Line\nBreak") == "Line\\nBreak"
 
     def test_parse_year_from_datetime(self):
-        from app.services.portrait_sync import parse_year_from_datetime
+        from app.services.wikidata_client import parse_year_from_datetime
 
         assert parse_year_from_datetime("1812-02-07T00:00:00Z") == 1812
         assert parse_year_from_datetime(None) is None
         assert parse_year_from_datetime("invalid") is None
 
     def test_extract_filename_from_commons_url(self):
-        from app.services.portrait_sync import extract_filename_from_commons_url
+        from app.services.wikidata_client import extract_filename_from_commons_url
 
         url = "http://commons.wikimedia.org/wiki/Special:FilePath/Dickens.jpg"
         assert extract_filename_from_commons_url(url) == "Dickens.jpg"
 
     def test_build_sparql_query_person(self):
-        from app.services.portrait_sync import build_sparql_query_person
+        from app.services.wikidata_client import build_sparql_query_person
 
         sparql = build_sparql_query_person("Charles Dickens")
         assert '"Charles Dickens"@en' in sparql
         assert "wdt:P31 wd:Q5" in sparql
 
     def test_build_sparql_query_org(self):
-        from app.services.portrait_sync import build_sparql_query_org
+        from app.services.wikidata_client import build_sparql_query_org
 
         sparql = build_sparql_query_org("Macmillan")
         assert '"Macmillan"@en' in sparql

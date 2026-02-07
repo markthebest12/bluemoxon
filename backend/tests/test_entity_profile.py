@@ -533,6 +533,9 @@ class TestRegenerateEndpoint:
         """Regenerate returns 202 and sends SQS message."""
         author = Author(name="Test Author")
         db.add(author)
+        db.flush()
+        book = Book(title="Test Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
         db.commit()
 
         response = editor_client.post(f"/api/v1/entity/author/{author.id}/profile/regenerate")
@@ -556,6 +559,9 @@ class TestRegenerateEndpoint:
         author = Author(name="Cached Author")
         db.add(author)
         db.flush()
+
+        book = Book(title="Cached Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
 
         profile = EntityProfile(
             entity_type="author",
@@ -638,6 +644,9 @@ class TestRegenerateEndpoint:
 
         author = Author(name="Error Author")
         db.add(author)
+        db.flush()
+        book = Book(title="Error Book", author_id=author.id, status="ON_HAND")
+        db.add(book)
         db.commit()
 
         mock_send.side_effect = RuntimeError("SQS connection failed")
@@ -2214,7 +2223,9 @@ class TestScandalConnectionsAppear:
         db.flush()
 
         # Both entities need qualifying books for the DB fallback to include them (#1866)
-        book1 = Book(title="The Importance of Being Earnest", author_id=author1.id, status="ON_HAND")
+        book1 = Book(
+            title="The Importance of Being Earnest", author_id=author1.id, status="ON_HAND"
+        )
         book2 = Book(title="Bosie's Poems", author_id=author2.id, status="ON_HAND")
         db.add_all([book1, book2])
 

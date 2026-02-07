@@ -23,8 +23,8 @@ import anthropic
 import requests
 from geopy.geocoders import Nominatim
 
-from scripts.wikidata_portraits import (
-    get_cdn_url,
+from app.utils.image_processing import (
+    build_cdn_url,
     process_portrait,
     upload_to_s3,
 )
@@ -249,8 +249,8 @@ def process_nls_fallback(
 
     # Step 6: Upload to S3
     try:
-        s3_key = upload_to_s3(processed, entity_type, entity.id, settings)
-        cdn_url = get_cdn_url(s3_key, settings)
+        s3_key = upload_to_s3(processed, entity_type, entity.id)
+        cdn_url = build_cdn_url(s3_key)
 
         # Update entity image_url
         if hasattr(entity, "image_url"):

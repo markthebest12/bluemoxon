@@ -1,6 +1,6 @@
 """Tests for SPARQL string escaping."""
 
-from app.services.portrait_sync import (
+from app.services.wikidata_client import (
     _escape_sparql_string,
     build_sparql_query_org,
     build_sparql_query_person,

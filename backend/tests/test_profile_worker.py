@@ -20,9 +20,7 @@ class TestProfileWorker:
     @patch("app.services.profile_worker.get_or_build_graph")
     @patch("app.services.profile_worker.generate_and_cache_profile")
     @patch("app.services.profile_worker._update_job_progress")
-    def test_success_increments_succeeded(
-        self, mock_update, mock_gen, mock_graph, mock_books, db
-    ):
+    def test_success_increments_succeeded(self, mock_update, mock_gen, mock_graph, mock_books, db):
         """Successful generation increments succeeded count."""
         mock_books.return_value = [MagicMock()]  # Has qualifying books
         mock_graph.return_value = MagicMock()
@@ -43,9 +41,7 @@ class TestProfileWorker:
     @patch("app.services.profile_worker.get_or_build_graph")
     @patch("app.services.profile_worker.generate_and_cache_profile")
     @patch("app.services.profile_worker._update_job_progress")
-    def test_failure_increments_failed(
-        self, mock_update, mock_gen, mock_graph, mock_books, db
-    ):
+    def test_failure_increments_failed(self, mock_update, mock_gen, mock_graph, mock_books, db):
         """Failed generation increments failed count."""
         mock_books.return_value = [MagicMock()]  # Has qualifying books
         mock_graph.return_value = MagicMock()
