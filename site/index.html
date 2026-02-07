@@ -16,10 +16,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-    <!-- Mermaid -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -108,64 +105,24 @@
             color: var(--accent-blue-light);
         }
 
-        nav .nav-links a.nav-highlight {
-            color: var(--accent-blue-light);
+        .btn-login {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            text-decoration: none;
             font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            white-space: nowrap;
         }
 
-        /* Hero Section */
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 6rem 2rem 4rem;
-            background: linear-gradient(180deg, var(--gradient-start) 0%, var(--bg-primary) 100%);
-            position: relative;
-            overflow: hidden;
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
         }
 
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-        }
-
-        .hero-content {
-            position: relative;
-            z-index: 1;
-            max-width: 900px;
-        }
-
-        .hero h1 {
-            font-size: 4rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, #fff 0%, var(--accent-blue-light) 50%, var(--accent-purple) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero .tagline {
-            font-size: 1.5rem;
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
-            font-weight: 300;
-        }
-
-        .hero .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
+        /* Buttons */
         .btn {
             padding: 0.875rem 2rem;
             border-radius: 8px;
@@ -223,143 +180,170 @@
             margin: 0 auto;
         }
 
-        /* Name Origin Section */
-        .name-origin {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            padding: 3rem;
-            margin-bottom: 4rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .name-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3rem;
-        }
-
-        .name-card {
-            padding: 2rem;
-            background: var(--bg-card);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .name-card h3 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
+        /* Announcement Hero */
+        .announcement-hero {
+            position: relative;
+            min-height: 90vh;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-        }
-
-        .name-card h3 .highlight-blue {
-            color: var(--accent-blue-light);
-        }
-
-        .name-card h3 .highlight-amber {
-            color: var(--accent-amber);
-        }
-
-        .name-card p {
-            color: var(--text-secondary);
-            line-height: 1.8;
-        }
-
-        .name-card .quote {
-            font-style: italic;
-            border-left: 3px solid var(--accent-blue);
-            padding-left: 1rem;
-            margin-top: 1rem;
-            color: var(--text-muted);
-        }
-
-        /* Announcement Banner */
-        .announcement-banner {
-            background: linear-gradient(135deg, #1a2744 0%, #0f172a 50%, #1a1f3d 100%);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 16px;
-            padding: 3rem;
-            margin-bottom: 4rem;
-            position: relative;
+            justify-content: center;
+            padding: 6rem 2rem 4rem;
             overflow: hidden;
         }
 
-        .announcement-banner::before {
-            content: '';
+        .announcement-bg {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-green));
+            inset: 0;
+            z-index: 0;
+        }
+
+        .announcement-bg .network-svg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .announcement-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 900px;
         }
 
         .announcement-badge {
             display: inline-block;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue-light);
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
             font-weight: 600;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(59, 130, 246, 0.3);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 1rem;
         }
 
-        .announcement-banner h3 {
-            font-size: 1.75rem;
-            margin-bottom: 1rem;
-            color: var(--text-primary);
+        .announcement-content h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, var(--accent-blue-light) 50%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .announcement-banner p {
+        .announcement-tagline {
+            font-size: 1.5rem;
             color: var(--text-secondary);
-            line-height: 1.8;
-            max-width: 800px;
+            margin-bottom: 3rem;
+            font-weight: 300;
+            font-style: italic;
         }
 
         .announcement-features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 1.5rem;
+            text-align: left;
             margin-top: 2rem;
         }
 
         .announcement-feature {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
+            background: rgba(26, 35, 50, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
         }
-
-        .announcement-feature .feature-icon {
-            flex-shrink: 0;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-        }
-
-        .feature-icon.blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue-light); }
-        .feature-icon.purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
-        .feature-icon.green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
-        .feature-icon.amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
 
         .announcement-feature h4 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
+            color: var(--accent-blue-light);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
         }
 
         .announcement-feature p {
-            font-size: 0.8rem;
-            color: var(--text-muted);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
             line-height: 1.5;
+        }
+
+        /* Browning Section */
+        .browning-section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .browning-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2.5rem;
+        }
+
+        .browning-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .browning-card p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        .browning-card .quote {
+            font-style: italic;
+            color: var(--text-muted);
+            border-left: 3px solid var(--accent-blue);
+            padding-left: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .also-includes {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 2rem;
         }
 
         /* Screenshots Gallery */
@@ -425,7 +409,21 @@
             opacity: 1;
         }
 
-        /* Lightbox styles */
+        .screenshot-card .content {
+            padding: 1.5rem;
+        }
+
+        .screenshot-card h4 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .screenshot-card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Lightbox */
         .lightbox {
             display: none;
             position: fixed;
@@ -498,267 +496,56 @@
             font-size: 0.8rem;
         }
 
-        /* Mobile lightbox - full screen experience */
-        @media (max-width: 768px) {
-            .lightbox {
-                padding: 0;
-                background: rgba(0, 0, 0, 0.98);
-            }
-
-            .lightbox img {
-                max-width: 100vw;
-                max-height: 75vh;
-                border-radius: 0;
-                width: 100vw;
-                height: auto;
-            }
-
-            .lightbox-close {
-                top: 0.5rem;
-                right: 0.5rem;
-                background: rgba(0, 0, 0, 0.5);
-            }
-
-            .lightbox-caption {
-                bottom: 1rem;
-                font-size: 0.9rem;
-                padding: 0.5rem 1rem;
-                max-width: 95%;
-            }
-
-            .lightbox-hint {
-                display: none;
-            }
-        }
-
-        .screenshot-card .placeholder {
-            width: 100%;
-            height: 220px;
-            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .screenshot-card .content {
-            padding: 1.5rem;
-        }
-
-        .screenshot-card h4 {
-            font-size: 1.125rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .screenshot-card p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* Terminal Output */
-        .terminal {
-            background: var(--bg-code);
-            border-radius: 12px;
-            overflow: hidden;
+        /* Name Origin / About Section */
+        .name-origin {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 3rem;
+            margin-bottom: 4rem;
             border: 1px solid var(--border-color);
-            margin: 2rem 0;
         }
 
-        .terminal-header {
-            background: #1a1f2e;
-            padding: 0.75rem 1rem;
+        .name-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+        }
+
+        .name-card {
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .name-card h3 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            border-bottom: 1px solid var(--border-color);
+            gap: 0.75rem;
         }
 
-        .terminal-header .dots {
-            display: flex;
-            gap: 6px;
-        }
-
-        .terminal-header .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .terminal-header .dot.red { background: #ff5f56; }
-        .terminal-header .dot.yellow { background: #ffbd2e; }
-        .terminal-header .dot.green { background: #27ca40; }
-
-        .terminal-header .title {
-            flex: 1;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .terminal-body {
-            padding: 1.5rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            line-height: 1.7;
-            overflow-x: auto;
-            white-space: pre-wrap;
-        }
-
-        .terminal-body .prompt {
-            color: var(--accent-green);
-        }
-
-        .terminal-body .command {
-            color: var(--text-primary);
-        }
-
-        .terminal-body .success {
-            color: var(--accent-green);
-        }
-
-        .terminal-body .info {
+        .name-card h3 .highlight-blue {
             color: var(--accent-blue-light);
         }
 
-        .terminal-body .warning {
+        .name-card h3 .highlight-amber {
             color: var(--accent-amber);
         }
 
-        .terminal-body .error {
-            color: var(--accent-red);
+        .name-card p {
+            color: var(--text-secondary);
+            line-height: 1.8;
         }
 
-        .terminal-body .muted {
+        .name-card .quote {
+            font-style: italic;
+            border-left: 3px solid var(--accent-blue);
+            padding-left: 1rem;
+            margin-top: 1rem;
             color: var(--text-muted);
         }
-
-        /* Architecture Diagrams */
-        .diagram-container {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 2rem;
-            margin: 2rem 0;
-            border: 1px solid var(--border-color);
-            overflow-x: auto;
-        }
-
-        .diagram-container h4 {
-            margin-bottom: 1.5rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .mermaid {
-            display: flex;
-            justify-content: center;
-        }
-
-        /* Tech Stack Grid */
-        .tech-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .tech-card {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 1.5rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .tech-card h4 {
-            color: var(--accent-blue-light);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-        }
-
-        .tech-card ul {
-            list-style: none;
-        }
-
-        .tech-card li {
-            padding: 0.5rem 0;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .tech-card li::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background: var(--accent-blue);
-            border-radius: 50%;
-        }
-
-        .tech-card li strong {
-            color: var(--text-primary);
-        }
-
-        /* API Endpoints Table */
-        .api-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 2rem;
-        }
-
-        .api-table th,
-        .api-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .api-table th {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .api-table td {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-        }
-
-        .api-table .method {
-            padding: 0.25rem 0.75rem;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 0.75rem;
-        }
-
-        .api-table .method.get { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
-        .api-table .method.post { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue-light); }
-        .api-table .method.put { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
-        .api-table .method.patch { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
-        .api-table .method.delete { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
-
-        /* JSON Display */
-        .json-display {
-            background: var(--bg-code);
-            border-radius: 8px;
-            padding: 1.5rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            overflow-x: auto;
-            border: 1px solid var(--border-color);
-        }
-
-        .json-display .key { color: #7dd3fc; }
-        .json-display .string { color: #a5d6a7; }
-        .json-display .number { color: #f9a825; }
-        .json-display .boolean { color: #ce93d8; }
 
         /* Stats Bar */
         .stats-bar {
@@ -793,20 +580,29 @@
 
         /* Footer */
         footer {
-            background: var(--bg-secondary);
-            border-top: 1px solid var(--border-color);
-            padding: 3rem 2rem;
             text-align: center;
-        }
-
-        footer p {
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border-color);
             color: var(--text-muted);
-            font-size: 0.9rem;
         }
 
-        footer a {
-            color: var(--accent-blue-light);
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
             text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-blue-light);
         }
 
         /* Hamburger button */
@@ -887,28 +683,37 @@
                 font-size: 1rem;
             }
 
-            .hero {
-                padding: 5rem 1rem 3rem;
+            .btn-login {
+                display: none;
+            }
+
+            .announcement-hero {
                 min-height: auto;
+                padding: 5rem 1rem 3rem;
             }
 
-            .hero h1 {
-                font-size: 2rem;
+            .announcement-content h1 {
+                font-size: 2.5rem;
             }
 
-            .hero .tagline {
+            .announcement-tagline {
                 font-size: 1.1rem;
             }
 
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
+            .announcement-features {
+                grid-template-columns: 1fr;
             }
 
-            .btn {
-                width: 100%;
-                max-width: 280px;
-                justify-content: center;
+            .browning-section {
+                padding: 2rem 1rem;
+            }
+
+            .browning-card {
+                padding: 1.5rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
             }
 
             section {
@@ -954,7 +759,6 @@
                 font-size: 0.8rem;
             }
 
-            /* Screenshots grid - single column on mobile */
             .screenshots-grid {
                 grid-template-columns: 1fr !important;
                 gap: 1.5rem;
@@ -976,62 +780,55 @@
                 font-size: 0.85rem;
             }
 
-            /* Tech grid */
-            .tech-grid {
-                grid-template-columns: 1fr;
+            .btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
             }
 
-            /* Terminal blocks */
-            .terminal-body {
-                padding: 1rem;
-                font-size: 0.75rem;
-                overflow-x: auto;
-            }
-
-            .terminal-header .title {
-                font-size: 0.7rem;
-            }
-
-            /* Diagrams */
-            .diagram-container {
-                padding: 1rem;
-                overflow-x: auto;
-            }
-
-            .diagram-container h4 {
-                font-size: 0.9rem;
-            }
-
-            /* API Table - horizontal scroll */
-            .api-table {
-                display: block;
-                overflow-x: auto;
-                white-space: nowrap;
-            }
-
-            .api-table th,
-            .api-table td {
-                padding: 0.75rem;
-                font-size: 0.8rem;
-            }
-
-            /* Footer */
             footer {
                 padding: 2rem 1rem;
             }
 
-            footer p {
-                font-size: 0.8rem;
+            /* Lightbox mobile */
+            .lightbox {
+                padding: 0;
+                background: rgba(0, 0, 0, 0.98);
+            }
+
+            .lightbox img {
+                max-width: 100vw;
+                max-height: 75vh;
+                border-radius: 0;
+                width: 100vw;
+                height: auto;
+            }
+
+            .lightbox-close {
+                top: 0.5rem;
+                right: 0.5rem;
+                background: rgba(0, 0, 0, 0.5);
+            }
+
+            .lightbox-caption {
+                bottom: 1rem;
+                font-size: 0.9rem;
+                padding: 0.5rem 1rem;
+                max-width: 95%;
+            }
+
+            .lightbox-hint {
+                display: none;
             }
         }
 
         /* Extra small screens */
         @media (max-width: 480px) {
-            .hero h1 {
-                font-size: 1.75rem;
+            .announcement-content h1 {
+                font-size: 2rem;
             }
 
-            .hero .tagline {
+            .announcement-tagline {
                 font-size: 1rem;
             }
 
@@ -1050,10 +847,6 @@
             .stat-item .value {
                 font-size: 1.5rem;
             }
-
-            .terminal-body {
-                font-size: 0.65rem;
-            }
         }
     </style>
 </head>
@@ -1061,149 +854,228 @@
     <!-- Navigation -->
     <nav>
         <div class="nav-content">
-            <div class="logo">
+            <a href="/" class="logo">
                 <img src="/images/bluemoxon-logo.png" alt="BlueMoxon" height="40">
-            </div>
+            </a>
             <button class="hamburger" aria-label="Toggle menu" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
                 <span></span>
             </button>
             <ul class="nav-links">
-                <li><a href="#bmx3" class="nav-highlight">BMX 3.0</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="features.html">Features</a></li>
+                <li><a href="#whats-new">What's New</a></li>
+                <li><a href="#features">Features</a></li>
                 <li><a href="#screenshots">Screenshots</a></li>
-                <li><a href="admin-guide.html">Admin Guide</a></li>
-                <li><a href="releases.html">Releases</a></li>
-                <li><a href="#architecture">Architecture</a></li>
-                <li><a href="#api">API</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="/tech.html">How It's Built</a></li>
             </ul>
+            <a href="https://app.bluemoxon.com" class="btn-login" target="_blank">Login</a>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-content">
-            <h1>BlueMoxon</h1>
-            <p class="tagline">A modern platform for managing rare and valuable book collections</p>
-            <div class="cta-buttons">
-                <a href="https://app.bluemoxon.com" class="btn btn-primary" target="_blank">
-                    View Live Site
-                </a>
+    <!-- BMX 3.0 Announcement Hero -->
+    <section id="whats-new" class="announcement-hero">
+        <!-- Animated SVG background -->
+        <div class="announcement-bg">
+            <img src="/images/network-hero.svg" alt="" class="network-svg" aria-hidden="true">
+        </div>
+
+        <!-- Overlay content -->
+        <div class="announcement-content">
+            <span class="announcement-badge">New in 3.0</span>
+            <h1>Social Circles</h1>
+            <p class="announcement-tagline">Your collection isn't just books — it's a map of Victorian intellectual London</p>
+
+            <div class="announcement-features">
+                <div class="announcement-feature">
+                    <h4>Network Graph</h4>
+                    <p>Interactive visualization of who knew whom across your collection</p>
+                </div>
+                <div class="announcement-feature">
+                    <h4>AI Connections</h4>
+                    <p>Five relationship types discovered automatically: family, friendship, influence, collaboration, scandal</p>
+                </div>
+                <div class="announcement-feature">
+                    <h4>Entity Profiles</h4>
+                    <p>Biographical stories and portraits for every author, publisher, and binder</p>
+                </div>
+                <div class="announcement-feature">
+                    <h4>Timeline</h4>
+                    <p>Explore your collection across eras with 28 curated historical events</p>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- BMX 3.0 Announcement -->
-    <section id="bmx3" style="padding-top: 2rem;">
+    <!-- Browning Problem -->
+    <section class="browning-section">
+        <div class="browning-card">
+            <h3>The Browning Problem, Solved</h3>
+            <p>Elizabeth Barrett Browning and Robert Browning have six books in the collection but share zero publishers. Without AI, they look unrelated. Social Circles sees what data alone misses — the most famous literary couple in Victorian England, connected through family, friendship, and shared social circles.</p>
+            <p>Data-only approaches miss the majority of Victorian literary relationships — figures connected through salons, correspondence networks, and shared intellectual circles rather than commercial ties. With BMX 3.0, enrichment is automatic — when new entities are added, AI discovery and portrait sync trigger immediately.</p>
+            <p class="quote">"Everyone knew everyone. Same publishers, same binderies, same social circles. Now you can see it."</p>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features">
         <div class="section-header">
-            <h2>Introducing BMX 3.0</h2>
-            <p>Social Circles: Your collection is a map of Victorian intellectual London</p>
+            <h2>What BlueMoxon Does</h2>
+            <p>End-to-end collection management for serious book collectors</p>
         </div>
 
-        <div class="announcement-banner">
-            <span class="announcement-badge">New in 3.0</span>
-            <h3>Victorian Social Circles</h3>
-            <p>
-                Your collection isn't just books &mdash; it's a map of Victorian intellectual London.
-                An interactive network graph showing who knew whom, who published whom, and who influenced
-                whom across your collection. Powered by Cytoscape.js with AI-discovered personal connections
-                via AWS Bedrock, revealing the relationships that shaped Victorian literature.
-            </p>
-            <p>
-                Explore the timeline with 28 curated historical events spanning 1710&ndash;1914, from the
-                founding of the Gentleman's Magazine to the outbreak of the Great War. Every entity in your
-                collection gets an AI-generated biographical profile with personal stories, connection
-                narratives, and portraits automatically synced from Wikidata and Wikimedia Commons.
-            </p>
-
-            <div class="announcement-features">
-                <div class="announcement-feature">
-                    <div class="feature-icon blue">&#x1f310;</div>
-                    <div>
-                        <h4>Network Graph</h4>
-                        <p>Interactive Cytoscape.js visualization with era filtering and timeline scrubber</p>
-                    </div>
-                </div>
-                <div class="announcement-feature">
-                    <div class="feature-icon purple">&#x1f9e0;</div>
-                    <div>
-                        <h4>AI Entity Profiles</h4>
-                        <p>Biographical summaries, personal stories, and connection narratives for every entity</p>
-                    </div>
-                </div>
-                <div class="announcement-feature">
-                    <div class="feature-icon green">&#x1f517;</div>
-                    <div>
-                        <h4>AI-Discovered Connections</h4>
-                        <p>Family, friendship, influence, collaboration, and scandal edges discovered by Claude</p>
-                    </div>
-                </div>
-                <div class="announcement-feature">
-                    <div class="feature-icon amber">&#x2699;</div>
-                    <div>
-                        <h4>Model Registry</h4>
-                        <p>Admin-configurable AI model selection per workflow (Opus, Sonnet, Haiku)</p>
-                    </div>
-                </div>
-                <div class="announcement-feature">
-                    <div class="feature-icon blue">&#x1f5bc;</div>
-                    <div>
-                        <h4>Portrait Sync</h4>
-                        <p>Automated Wikidata portrait matching for authors, publishers, and binders. Entity photos discovered and synced from Wikimedia Commons.</p>
-                    </div>
-                </div>
-                <div class="announcement-feature">
-                    <div class="feature-icon green">&#x23f3;</div>
-                    <div>
-                        <h4>Interactive Timeline</h4>
-                        <p>Animated timeline slider with 28 curated historical events. Point and range modes for filtering the network by era.</p>
-                    </div>
-                </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>Social Circles</h3>
+                <p>See the web of relationships behind your books. An interactive network graph reveals who knew whom, who published whom, and who influenced whom — connections invisible in a spreadsheet.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Entity Profiles</h3>
+                <p>Every author, publisher, and binder gets a biographical story with portraits. Learn about the people behind your collection with AI-generated narratives and historical context.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Acquisition Pipeline</h3>
+                <p>Track every book from discovery to your shelf. Paste an eBay listing to import details instantly. Monitor shipments, record purchase prices, and know exactly what's in transit.</p>
+            </div>
+            <div class="feature-card">
+                <h3>AI Valuations</h3>
+                <p>Professional-grade condition assessments and market analysis. The Napoleon Framework analyzes your book's images, metadata, and comparable sales to estimate fair market value.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Investment Scoring</h3>
+                <p>Every book gets an Investment Grade and Strategic Fit score. Know which acquisitions are your best investments based on binding quality, discount, and collection alignment.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Collection Dashboard</h3>
+                <p>Statistics, spotlight showcases, and interactive charts. Click any segment to drill into your collection by era, author, condition, or binding type.</p>
             </div>
         </div>
 
-        <div class="name-origin" style="margin-bottom: 3rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>The Browning Problem, Solved</h3>
-                    <p>
-                        Elizabeth Barrett Browning and Robert Browning have six books in the collection but
-                        share <strong>zero publishers</strong>. Data-only analysis sees no relationship. AI-discovered
-                        connections solve this: the most famous literary couple in Victorian England is now visible
-                        as a <strong>family</strong> edge, with biographical context and confidence scoring.
-                    </p>
-                    <p>
-                        Data-only approaches miss the majority of Victorian literary relationships &mdash; figures
-                        connected through shared social circles, salons, and correspondence networks rather than
-                        commercial relationships. With BMX 3.0, enrichment is automatic &mdash; when new entities
-                        are added, AI enrichment and portrait sync trigger immediately with no manual intervention.
-                    </p>
-                    <p class="quote">
-                        "Everyone knew everyone. Same publishers, same binderies, same social circles. Now you can see it."
-                    </p>
+        <p class="also-includes">Also includes: Dark mode · Mobile friendly · CSV export · Insurance reports · Reference library · Entity management</p>
+
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="features.html" class="btn btn-secondary">See All Features →</a>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section id="screenshots">
+        <div class="section-header">
+            <h2>See It In Action</h2>
+            <p>A visual tour of BlueMoxon</p>
+        </div>
+
+        <div class="screenshots-grid">
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/social-circles.png" alt="Social Circles Network Graph">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
                 </div>
-                <div class="name-card">
-                    <h3>Five Connection Types</h3>
-                    <p>
-                        AI discovers personal connections between entities and classifies them:
-                        <strong>family</strong> (the Brownings, the Rossettis),
-                        <strong>friendship</strong> (Dickens and Collins),
-                        <strong>influence</strong> (Ruskin on Morris),
-                        <strong>collaboration</strong> (shared works),
-                        and <strong>scandal</strong> (the soap opera layer). Each type gets distinct
-                        color-coded edges in the network graph. Connections include strength indicators
-                        &mdash; solid lines for strong evidence, dashed for moderate, and dotted for
-                        speculative &mdash; so you can read confidence at a glance.
-                    </p>
-                    <p>
-                        Hover over any node to highlight its direct connections and fade the rest of the
-                        graph, making it easy to explore individual networks within the larger social map.
-                    </p>
-                    <p class="quote">
-                        "Green for publishers, blue for friendships, purple for binders, rose for scandal."
-                    </p>
+                <div class="content">
+                    <h4>Social Circles</h4>
+                    <p>Interactive network graph showing connections between authors, publishers, and binders.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/entity-profile.png" alt="Entity Profile">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Entity Profile</h4>
+                    <p>AI-generated biographical stories with portraits for every person in your collection.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/book-detail.png" alt="Book Detail">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Book Detail</h4>
+                    <p>Complete metadata, valuations, provenance history, and social connections for each book.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/dashboard.png" alt="Dashboard">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Dashboard</h4>
+                    <p>Collection statistics, spotlight showcases, and interactive analytics at a glance.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/acquisitions.png" alt="Acquisitions">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Acquisitions</h4>
+                    <p>Track books from discovery to delivery with the Kanban pipeline board.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/collection.png" alt="Collection">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Collection</h4>
+                    <p>Browse, search, and filter your entire library with advanced sorting.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/analysis.png" alt="AI Analysis">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>AI Analysis</h4>
+                    <p>Professional-grade Napoleon Framework valuations with condition assessment and market data.</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <div class="img-wrapper" onclick="openLightbox(this)">
+                    <img src="/screenshots/dark-mode-dashboard.png" alt="Dark Mode">
+                    <div class="zoom-hint">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="content">
+                    <h4>Dark Mode</h4>
+                    <p>Victorian dark theme with deep burgundy backgrounds and aged parchment accents.</p>
                 </div>
             </div>
         </div>
@@ -1260,941 +1132,6 @@
         </div>
     </section>
 
-    <!-- Screenshots Section -->
-    <section id="screenshots">
-        <div class="section-header">
-            <h2>Platform Screenshots</h2>
-            <p>A visual tour of the BlueMoxon collection management system</p>
-        </div>
-
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <a href="features.html" class="btn btn-secondary">
-                View All Features →
-            </a>
-        </div>
-
-        <div class="screenshots-grid">
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/dashboard.png" alt="Dashboard">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Dashboard</h4>
-                    <p>Collection statistics, analytics charts, and quick access to all features at a glance.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/collection-spotlight.png" alt="Collection Spotlight">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Collection Spotlight</h4>
-                    <p>Rotating showcase of top-value books with rich metadata, FMV, and premium binding badges.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/dashboard-charts.png" alt="Interactive Dashboard Charts">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Interactive Charts</h4>
-                    <p>Hover for tooltips with book counts and sample titles. Click any segment to filter your collection.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/collection.png" alt="Collection Browser">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Collection Browser</h4>
-                    <p>Filterable grid view with search, sort, and advanced filtering by author, publisher, and binding type.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/book-detail.png" alt="Book Detail">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Book Detail</h4>
-                    <p>Complete metadata, valuation tracking, provenance history, and image gallery with lightbox.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/analysis.png" alt="Analysis View">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Analysis Documents</h4>
-                    <p>Rich markdown analysis with full formatting, rendered beautifully alongside book details.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/editor.png" alt="Analysis Editor">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Analysis Editor</h4>
-                    <p>Markdown editor with live preview for creating and updating book valuations and assessments.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/reports.png" alt="Reports">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Insurance Reports</h4>
-                    <p>Generate insurance valuation reports with collection summaries, volume counts, and estimate ranges.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/swagger-endpoints.png" alt="Swagger UI">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>API Documentation</h4>
-                    <p>Interactive Swagger UI with try-it-now functionality for all 57 REST endpoints.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/image-gallery.png" alt="Image Gallery">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Image Gallery</h4>
-                    <p>CDN-delivered images with swipe gestures, thumbnails, and full-screen lightbox viewing.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/acquisitions.png" alt="Acquisitions Pipeline">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Acquisitions Pipeline</h4>
-                    <p>Track books from eBay watchlist through delivery with Kanban board, scoring, and tracking integration.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/config-tiers.png" alt="Entity Tiers Configuration">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Entity Tier System</h4>
-                    <p>Configure Author, Publisher, and Binder tiers for automated Investment Grade scoring.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/config-scoring.png" alt="Scoring Configuration">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Scoring Configuration</h4>
-                    <p>Tune Quality Score and Strategic Fit point values, thresholds, and offer discount tiers.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/dark-mode-dashboard.png" alt="Victorian Dark Mode Dashboard">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Victorian Dark Mode</h4>
-                    <p>Deep burgundy and aged parchment theme inspired by antique bookbinding aesthetics.</p>
-                </div>
-            </div>
-            <div class="screenshot-card">
-                <div class="img-wrapper" onclick="openLightbox(this)">
-                    <img src="https://bluemoxon.com/screenshots/dark-mode-acquisitions.png" alt="Dark Mode Acquisitions">
-                    <div class="zoom-hint">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="content">
-                    <h4>Acquisitions in Dark Mode</h4>
-                    <p>Kanban board with shipment tracking status badges, rendered in the Victorian dark theme.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- What BlueMoxon Does Section -->
-    <section id="what-it-does">
-        <div class="section-header">
-            <h2>End-to-End Book Collection Management</h2>
-            <p>From discovery to delivery to valuation - one integrated platform</p>
-        </div>
-
-        <div class="name-origin" style="margin-bottom: 3rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>Acquisition Pipeline</h3>
-                    <p>
-                        <strong>Watchlist → Purchase → Delivery → On Hand</strong> - track every book through the complete
-                        acquisition lifecycle. Paste an eBay URL to instantly import listing details. Record purchase prices,
-                        order numbers, and estimated delivery dates. Know exactly what's in transit and what's arrived.
-                    </p>
-                    <p class="quote">
-                        "No more spreadsheets - a purpose-built system for collectors who are serious about their acquisitions."
-                    </p>
-                </div>
-                <div class="name-card">
-                    <h3>AI-Powered Valuations</h3>
-                    <p>
-                        Generate professional-grade valuations using the <strong>Napoleon Framework</strong>. Claude analyzes
-                        book images, metadata, and comparable sales to produce detailed condition assessments, market analysis,
-                        and fair market value estimates. Perfect for insurance documentation and informed buying decisions.
-                    </p>
-                    <p class="quote">
-                        "Every high-value acquisition gets a thorough analysis - binding quality, condition notes, comparable sales."
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="name-origin" style="margin-bottom: 2rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>Investment Scoring</h3>
-                    <p>
-                        Each book receives an <strong>Investment Grade (0-100)</strong> and <strong>Strategic Fit (0-7)</strong>
-                        score based on binding quality, acquisition discount, collection alignment, and more. Scores are
-                        captured at acquisition time for historical tracking. Know which pieces are your best investments.
-                    </p>
-                    <p class="quote">
-                        "Data-driven collecting - understand the value proposition of every acquisition."
-                    </p>
-                </div>
-                <div class="name-card">
-                    <h3>Reference Library</h3>
-                    <p>
-                        Build your <strong>target author list</strong> with priority scores for guided acquisitions.
-                        Track publisher tiers (Moxon, Pickering, Dent) and authenticated binderies (Zaehnsdorf, Rivière,
-                        Sangorski & Sutcliffe). The system knows your collection focus and scores accordingly.
-                    </p>
-                    <p class="quote">
-                        "Define your collecting strategy, let the system help you execute it."
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div style="text-align: center; margin-top: 2rem;">
-            <a href="features.html" class="btn btn-primary">
-                See All Features →
-            </a>
-            <a href="admin-guide.html" class="btn btn-secondary" style="margin-left: 1rem;">
-                Admin Guide →
-            </a>
-        </div>
-    </section>
-
-    <!-- New Features (2026) -->
-    <section id="new-features">
-        <div class="section-header">
-            <h2>Latest Features</h2>
-            <p>Recent additions to the BlueMoxon platform</p>
-        </div>
-
-        <div class="name-origin" style="margin-bottom: 3rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>Social Circles Network</h3>
-                    <p>
-                        <strong>BMX 3.0 flagship feature.</strong> An interactive Cytoscape.js network graph showing
-                        connections between authors, publishers, and binders. Filter by era, zoom into clusters,
-                        scrub through a timeline, and click any node to see a detailed AI-generated biography with
-                        personal stories and connection narratives.
-                    </p>
-                    <p class="quote">
-                        "Your collection is not just books - it is a map of Victorian intellectual London."
-                    </p>
-                </div>
-                <div class="name-card">
-                    <h3>Entity Profiles &amp; AI Bios</h3>
-                    <p>
-                        Every author, publisher, and binder gets an <strong>AI-generated biographical profile</strong>
-                        with personal stories, key life events, and connection narratives explaining how entities
-                        relate to each other. Portraits are uploaded as 400x400 JPEG images served via CloudFront CDN.
-                        Profiles are generated asynchronously via SQS with batch job tracking.
-                    </p>
-                    <p class="quote">
-                        "From Dickens to Zaehnsdorf, every entity tells a story."
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="name-origin" style="margin-bottom: 3rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>Victorian Dark Mode</h3>
-                    <p>
-                        A carefully crafted <strong>dark theme</strong> with deep burgundy backgrounds, aged parchment text,
-                        and antique gold accents. Inspired by Victorian bookbinding aesthetics. Respects system preferences
-                        and persists your choice.
-                    </p>
-                    <p class="quote">
-                        "A theme befitting a collection of antiquarian books - elegant, timeless, and easy on the eyes."
-                    </p>
-                </div>
-                <div class="name-card">
-                    <h3>Entity Management</h3>
-                    <p>
-                        Full <strong>CRUD interface</strong> for Authors, Publishers, and Binders. Merge duplicate entries
-                        with the reassignment feature. Mark entities as "preferred" for scoring bonuses. Manage your
-                        reference library with precision.
-                    </p>
-                    <p class="quote">
-                        "Build your collection around the publishers and binderies that matter to you."
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="name-origin" style="margin-bottom: 2rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>Shipment Tracking</h3>
-                    <p>
-                        Track your acquisitions from purchase to delivery. <strong>Auto-detects carriers</strong> from
-                        tracking numbers (USPS, UPS, FedEx, Royal Mail, DHL). One-click refresh to fetch latest status.
-                        See delivery estimates right in the Kanban board.
-                    </p>
-                    <p class="quote">
-                        "Know exactly when your next treasure will arrive."
-                    </p>
-                </div>
-                <div class="name-card">
-                    <h3>Async AI Analysis</h3>
-                    <p>
-                        Napoleon valuations now run <strong>asynchronously via SQS</strong>. Start an analysis and continue
-                        working - poll for completion or get notified when ready. No more blocking the UI during long
-                        Opus analyses.
-                    </p>
-                    <p class="quote">
-                        "Queue up analyses for your entire collection and let the AI work in the background."
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="name-origin" style="margin-bottom: 2rem;">
-            <div class="name-grid">
-                <div class="name-card">
-                    <h3>Collection Spotlight</h3>
-                    <p>
-                        The dashboard now showcases your <strong>top-value books</strong> in a rotating spotlight. Each card
-                        displays rich metadata: author, publication year, publisher, and estimated FMV. Premium bindings
-                        (morocco, calf, vellum) and authenticated binderies get special badges. Books shuffle randomly
-                        on each page load.
-                    </p>
-                    <p class="quote">
-                        "Your finest acquisitions, front and center - a different selection every visit."
-                    </p>
-                </div>
-                <div class="name-card">
-                    <h3>Interactive Dashboard Charts</h3>
-                    <p>
-                        Charts are now <strong>clickable and informative</strong>. Hover over any segment to see book counts,
-                        percentages, and sample titles. Click to filter the collection view by that category, era, author,
-                        or condition. Tooltips show up to 5 representative titles so you know exactly what's in each slice.
-                    </p>
-                    <p class="quote">
-                        "From overview to detail in one click - explore your collection visually."
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Architecture Section -->
-    <section id="architecture">
-        <div class="section-header">
-            <h2>System Architecture</h2>
-            <p>Serverless, scalable, and cost-optimized for a personal collection</p>
-        </div>
-
-        <div class="diagram-container">
-            <h4>Infrastructure Overview</h4>
-            <div class="mermaid">
-graph TB
-    subgraph Client["Client Layer"]
-        Browser[Browser]
-    end
-    subgraph CDN["CDN Layer"]
-        CF[CloudFront<br/>Global Edge]
-    end
-    subgraph App["Application Layer"]
-        APIGW[API Gateway]
-        Lambda[Lambda<br/>Python 3.x]
-    end
-    subgraph Data["Data Layer"]
-        Aurora[(Aurora PostgreSQL<br/>Serverless v2)]
-        ElastiCache[(ElastiCache Redis<br/>Serverless)]
-        S3_Img[S3 Images]
-        S3_Web[S3 Static Site]
-        Secrets[Secrets Manager]
-    end
-    subgraph Auth["Auth Layer"]
-        Cognito[Cognito<br/>User Pool]
-    end
-    Browser -->|HTTPS| CF
-    CF -->|Static| S3_Web
-    CF -->|Images| S3_Img
-    CF -->|API| APIGW
-    APIGW -->|Invoke| Lambda
-    Lambda -->|Query| Aurora
-    Lambda -->|Cache| ElastiCache
-    Lambda -->|Read/Write| S3_Img
-    Lambda -->|Secrets| Secrets
-    APIGW -->|Validate JWT| Cognito
-    Browser -->|Authenticate| Cognito
-    style CF fill:#9C27B0,color:#fff
-    style Lambda fill:#FF9800,color:#fff
-    style Aurora fill:#2196F3,color:#fff
-    style ElastiCache fill:#DC382D,color:#fff
-    style Cognito fill:#4CAF50,color:#fff
-            </div>
-        </div>
-
-        <!-- AI Valuation Flow -->
-        <div class="diagram-container">
-            <h4>AI-Powered Valuation Flow (AWS Bedrock + Claude Opus/Sonnet/Haiku)</h4>
-            <div class="mermaid">
-flowchart TB
-    subgraph Input["Acquisition Input"]
-        eBay[eBay Listing URL]
-        Manual[Manual Entry]
-    end
-    subgraph Import["Data Import"]
-        Parse[Parse Listing<br/>Title, Price, Images]
-        Archive[Wayback Archive<br/>Snapshot Storage]
-    end
-    subgraph AI["AWS Bedrock AI Layer"]
-        Bedrock[AWS Bedrock<br/>Claude Sonnet 4]
-        Napoleon[Napoleon Framework<br/>Valuation Prompt]
-    end
-    subgraph Analysis["Valuation Output"]
-        Condition[Condition Assessment<br/>Binding, Pages, Foxing]
-        Market[Market Analysis<br/>Comparable Sales]
-        FMV[Fair Market Value<br/>Low/Mid/High Range]
-    end
-    subgraph Scoring["Investment Scoring"]
-        Grade[Investment Grade<br/>0-100 Score]
-        Fit[Strategic Fit<br/>0-7 Collection Match]
-    end
-    subgraph Storage["Data Layer"]
-        DB[(Aurora PostgreSQL)]
-        S3[S3 Images]
-    end
-    eBay --> Parse
-    Manual --> Parse
-    Parse --> Archive
-    Parse --> Bedrock
-    Napoleon --> Bedrock
-    Bedrock --> Condition
-    Bedrock --> Market
-    Condition --> FMV
-    Market --> FMV
-    FMV --> Grade
-    Grade --> Fit
-    Fit --> DB
-    Parse --> S3
-    Archive --> S3
-    style Bedrock fill:#FF9800,color:#fff
-    style Napoleon fill:#8b5cf6,color:#fff
-    style Grade fill:#10b981,color:#fff
-    style Fit fill:#3b82f6,color:#fff
-    style DB fill:#2196F3,color:#fff
-            </div>
-        </div>
-
-        <!-- Tech Stack -->
-        <div class="tech-grid">
-            <div class="tech-card">
-                <h4>Frontend</h4>
-                <ul>
-                    <li><strong>Vue 3</strong> - Composition API</li>
-                    <li><strong>TypeScript</strong> - Type safety</li>
-                    <li><strong>Pinia</strong> - State management</li>
-                    <li><strong>Tailwind CSS</strong> - Utility-first styling</li>
-                    <li><strong>Vite</strong> - Build tooling</li>
-                    <li><strong>Container Queries</strong> - Component-level responsive</li>
-                </ul>
-            </div>
-            <div class="tech-card">
-                <h4>Backend</h4>
-                <ul>
-                    <li><strong>FastAPI</strong> - Async REST API</li>
-                    <li><strong>Python 3.x</strong> - Runtime</li>
-                    <li><strong>SQLAlchemy 2.0</strong> - Async ORM</li>
-                    <li><strong>Pydantic v2</strong> - Validation</li>
-                    <li><strong>Alembic</strong> - Migrations</li>
-                    <li><strong>SQS Async</strong> - Queue-based AI with retry</li>
-                    <li><strong>API Keys</strong> - CLI/automation access</li>
-                    <li><strong>Model Selection</strong> - Sonnet/Opus config</li>
-                </ul>
-            </div>
-            <div class="tech-card">
-                <h4>Infrastructure</h4>
-                <ul>
-                    <li><strong>AWS Lambda</strong> - Serverless compute</li>
-                    <li><strong>Aurora Serverless v2</strong> - Auto-scaling DB</li>
-                    <li><strong>ElastiCache Redis</strong> - Dashboard caching</li>
-                    <li><strong>CloudFront</strong> - Global CDN</li>
-                    <li><strong>Cognito</strong> - Authentication</li>
-                    <li><strong>Terraform</strong> - Infrastructure as code</li>
-                </ul>
-            </div>
-            <div class="tech-card">
-                <h4>Security</h4>
-                <ul>
-                    <li><strong>SAST</strong> - Bandit + Semgrep</li>
-                    <li><strong>Dependency Scan</strong> - pip-audit</li>
-                    <li><strong>Secret Scan</strong> - Gitleaks</li>
-                    <li><strong>JWT Auth</strong> - Cognito tokens</li>
-                    <li><strong>TLS 1.3</strong> - Encryption in transit</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Performance Optimizations -->
-        <div class="diagram-container" style="margin-top: 3rem;">
-            <h4>Performance Optimizations</h4>
-            <div class="tech-grid" style="margin-top: 1rem;">
-                <div class="tech-card">
-                    <h4>Redis Caching</h4>
-                    <ul>
-                        <li><strong>ElastiCache Serverless</strong> - Auto-scaling Redis</li>
-                        <li><strong>Dashboard Stats</strong> - Cached for instant loads</li>
-                        <li><strong>Reference Data</strong> - Authors, publishers, binders</li>
-                        <li><strong>Smart Invalidation</strong> - Updates on data changes</li>
-                    </ul>
-                </div>
-                <div class="tech-card">
-                    <h4>Cold Start UX</h4>
-                    <ul>
-                        <li><strong>API Retry Logic</strong> - Automatic retry on timeout</li>
-                        <li><strong>Reference Pre-caching</strong> - Load entities on startup</li>
-                        <li><strong>Graceful Degradation</strong> - Show cached data first</li>
-                        <li><strong>Loading States</strong> - Skeleton UI during fetch</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CI/CD Pipeline Section -->
-    <section id="pipeline">
-        <div class="section-header">
-            <h2>CI/CD Pipeline</h2>
-            <p>Automated testing, security scanning, and deployment on every push</p>
-        </div>
-
-        <!-- Live Pipeline Output -->
-        <div class="terminal">
-            <div class="terminal-header">
-                <div class="dots">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                </div>
-                <span class="title">gh run view - Deploy Workflow</span>
-            </div>
-            <div class="terminal-body">
-<span class="success">&#10003;</span> <span class="info">main</span> Deploy <span class="muted">&#183; 19950842156</span>
-<span class="muted">Triggered via push about 1 hour ago</span>
-
-<span class="info">JOBS</span>
-<span class="success">&#10003;</span> CI Checks / Backend Lint <span class="muted">in 29s</span>
-<span class="success">&#10003;</span> CI Checks / Backend Tests <span class="muted">in 1m10s</span>
-<span class="success">&#10003;</span> CI Checks / Backend Type Check <span class="muted">in 36s</span>
-<span class="success">&#10003;</span> CI Checks / SAST Security Scan <span class="muted">in 1m24s</span>
-<span class="success">&#10003;</span> CI Checks / Secret & Vulnerability Scan <span class="muted">in 32s</span>
-<span class="success">&#10003;</span> CI Checks / Frontend Build <span class="muted">in 42s</span>
-<span class="success">&#10003;</span> CI Checks / Frontend Lint <span class="muted">in 28s</span>
-<span class="success">&#10003;</span> CI Checks / Backend Validation <span class="muted">in 24s</span>
-<span class="success">&#10003;</span> CI Checks / Frontend Tests <span class="muted">in 28s</span>
-<span class="success">&#10003;</span> CI Checks / Dependency Security Scan <span class="muted">in 38s</span>
-<span class="success">&#10003;</span> CI Checks / Frontend Type Check <span class="muted">in 31s</span>
-<span class="success">&#10003;</span> CI Checks / CI Complete <span class="muted">in 4s</span>
-<span class="success">&#10003;</span> Build Frontend <span class="muted">in 40s</span>
-<span class="success">&#10003;</span> Build Lambda Package <span class="muted">in 51s</span>
-<span class="success">&#10003;</span> Deploy to Production <span class="muted">in 55s</span>
-<span class="success">&#10003;</span> Smoke Tests <span class="muted">in 43s</span>
-<span class="success">&#10003;</span> Create Release Tag <span class="muted">in 6s</span>
-
-<span class="info">ARTIFACTS</span>
-<span class="muted">gitleaks-results.sarif</span>
-<span class="muted">semgrep-report</span>
-<span class="muted">bandit-report</span>
-<span class="muted">frontend-dist</span>
-<span class="muted">lambda-package</span>
-            </div>
-        </div>
-
-        <!-- Staging-First Workflow Diagram -->
-        <div class="diagram-container">
-            <h4>Staging-First Deployment Strategy</h4>
-            <div class="mermaid">
-flowchart LR
-    subgraph Dev["Development"]
-        Feature[Feature Branch]
-    end
-    subgraph PR1["PR to Staging"]
-        CI1[CI Checks<br/>12 parallel jobs]
-    end
-    subgraph Staging["Staging Environment"]
-        Deploy1[Deploy to Staging]
-        Test1[Smoke Tests]
-        Validate[Manual Validation]
-    end
-    subgraph PR2["PR to Production"]
-        CI2[CI Checks]
-    end
-    subgraph Prod["Production"]
-        Deploy2[Deploy to Prod]
-        Test2[Smoke Tests]
-        Tag[Release Tag<br/>v2025.12.10-abc123]
-    end
-    Feature -->|PR| CI1
-    CI1 -->|Merge| Deploy1
-    Deploy1 --> Test1
-    Test1 --> Validate
-    Validate -->|PR main| CI2
-    CI2 -->|Merge| Deploy2
-    Deploy2 --> Test2
-    Test2 --> Tag
-    style Feature fill:#4CAF50,color:#fff
-    style CI1 fill:#3b82f6,color:#fff
-    style Staging fill:#f59e0b,color:#000
-    style Prod fill:#9C27B0,color:#fff
-    style Tag fill:#10b981,color:#fff
-            </div>
-        </div>
-
-        <!-- Pipeline Diagram -->
-        <div class="diagram-container">
-            <h4>CI/CD Pipeline Detail</h4>
-            <div class="mermaid">
-flowchart LR
-    subgraph Trigger
-        Push[Push to branch]
-    end
-    subgraph CI["CI Checks (Parallel)"]
-        Lint[Lint<br/>Ruff + ESLint]
-        Test[Tests<br/>pytest + vitest]
-        Type[Type Check<br/>mypy + vue-tsc]
-        SAST[SAST<br/>Bandit + Semgrep]
-        Deps[Dependency Scan<br/>pip-audit + npm]
-        Secrets[Secret Scan<br/>Trivy + Gitleaks]
-    end
-    subgraph Build
-        Lambda[Lambda Package<br/>Python 3.12]
-        Vue[Frontend Dist<br/>Vite build]
-    end
-    subgraph Deploy
-        S3[S3 Sync]
-        Fn[Update Lambda]
-        CF[Invalidate CDN]
-    end
-    subgraph Verify
-        Smoke[Smoke Tests]
-        Tag[Release Tag]
-    end
-    Push --> Lint
-    Push --> Test
-    Push --> Type
-    Push --> SAST
-    Push --> Deps
-    Push --> Secrets
-    Lint --> Lambda
-    Test --> Lambda
-    Type --> Lambda
-    SAST --> Lambda
-    Deps --> Lambda
-    Secrets --> Lambda
-    Lint --> Vue
-    Test --> Vue
-    Type --> Vue
-    Lambda --> Fn
-    Vue --> S3
-    Fn --> CF
-    S3 --> CF
-    CF --> Smoke
-    Smoke --> Tag
-    style Push fill:#4CAF50,color:#fff
-    style SAST fill:#f44336,color:#fff
-    style Secrets fill:#f44336,color:#fff
-    style Tag fill:#9C27B0,color:#fff
-            </div>
-        </div>
-
-        <!-- Health Checks -->
-        <div class="terminal">
-            <div class="terminal-header">
-                <div class="dots">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                </div>
-                <span class="title">curl api.bluemoxon.com/api/v1/health/deep | jq</span>
-            </div>
-            <div class="terminal-body">
-<pre class="json-display">{
-  <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-  <span class="key">"timestamp"</span>: <span class="string">"2026-01-02T15:30:00.000000+00:00"</span>,
-  <span class="key">"version"</span>: <span class="string">"2026.01.02-9033e57"</span>,
-  <span class="key">"environment"</span>: <span class="string">"production"</span>,
-  <span class="key">"total_latency_ms"</span>: <span class="number">145.2</span>,
-  <span class="key">"checks"</span>: {
-    <span class="key">"database"</span>: {
-      <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-      <span class="key">"latency_ms"</span>: <span class="number">45.8</span>,
-      <span class="key">"book_count"</span>: <span class="number">152</span>
-    },
-    <span class="key">"s3"</span>: {
-      <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-      <span class="key">"bucket"</span>: <span class="string">"bluemoxon-images"</span>,
-      <span class="key">"latency_ms"</span>: <span class="number">52.3</span>,
-      <span class="key">"has_objects"</span>: <span class="boolean">true</span>
-    },
-    <span class="key">"cognito"</span>: {
-      <span class="key">"status"</span>: <span class="string">"healthy"</span>,
-      <span class="key">"latency_ms"</span>: <span class="number">47.1</span>
-    }
-  }
-}</pre>
-            </div>
-        </div>
-    </section>
-
-    <!-- API Section -->
-    <section id="api">
-        <div class="section-header">
-            <h2>REST API</h2>
-            <p>60+ endpoints for complete collection management</p>
-        </div>
-
-        <h4 style="color: var(--accent-blue-light); margin-bottom: 1rem;">Books & Collection</h4>
-        <table class="api-table">
-            <thead>
-                <tr>
-                    <th>Method</th>
-                    <th>Endpoint</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><span class="method get">GET</span></td>
-                    <td>/api/v1/books</td>
-                    <td>List all books with pagination and filtering</td>
-                </tr>
-                <tr>
-                    <td><span class="method get">GET</span></td>
-                    <td>/api/v1/books/{id}</td>
-                    <td>Get complete book details with images and analysis</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/books</td>
-                    <td>Create a new book record</td>
-                </tr>
-                <tr>
-                    <td><span class="method put">PUT</span></td>
-                    <td>/api/v1/books/{id}</td>
-                    <td>Update book metadata</td>
-                </tr>
-                <tr>
-                    <td><span class="method patch">PATCH</span></td>
-                    <td>/api/v1/books/{id}/status</td>
-                    <td>Update delivery status (IN_TRANSIT, ON_HAND)</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/books/{id}/images</td>
-                    <td>Upload book images to CDN</td>
-                </tr>
-                <tr>
-                    <td><span class="method put">PUT</span></td>
-                    <td>/api/v1/books/{id}/analysis/raw</td>
-                    <td>Update markdown analysis document</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h4 style="color: var(--accent-purple); margin: 2rem 0 1rem;">Acquisitions & Scoring</h4>
-        <table class="api-table">
-            <thead>
-                <tr>
-                    <th>Method</th>
-                    <th>Endpoint</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><span class="method get">GET</span></td>
-                    <td>/api/v1/acquisitions</td>
-                    <td>List acquisitions with status filter (watchlist, in_transit, on_hand)</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/acquisitions</td>
-                    <td>Create new acquisition with automatic scoring</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/acquisitions/parse-order</td>
-                    <td>Parse eBay order text to extract listing details</td>
-                </tr>
-                <tr>
-                    <td><span class="method patch">PATCH</span></td>
-                    <td>/api/v1/acquisitions/{id}</td>
-                    <td>Update acquisition status or details</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/acquisitions/{id}/convert</td>
-                    <td>Convert acquisition to collection book entry</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/acquisitions/{id}/archive</td>
-                    <td>Save listing to Wayback Machine</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h4 style="color: var(--accent-amber); margin: 2rem 0 1rem;">AI Valuations (AWS Bedrock)</h4>
-        <table class="api-table">
-            <thead>
-                <tr>
-                    <th>Method</th>
-                    <th>Endpoint</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/books/{id}/valuation</td>
-                    <td>Generate AI valuation using Napoleon Framework (Claude Sonnet 4)</td>
-                </tr>
-                <tr>
-                    <td><span class="method post">POST</span></td>
-                    <td>/api/v1/acquisitions/{id}/score</td>
-                    <td>Calculate Investment Grade and Strategic Fit scores</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h4 style="color: var(--accent-green); margin: 2rem 0 1rem;">Health & Export</h4>
-        <table class="api-table">
-            <thead>
-                <tr>
-                    <th>Method</th>
-                    <th>Endpoint</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><span class="method get">GET</span></td>
-                    <td>/api/v1/export/csv</td>
-                    <td>Export collection as CSV</td>
-                </tr>
-                <tr>
-                    <td><span class="method get">GET</span></td>
-                    <td>/api/v1/health/deep</td>
-                    <td>Deep health check with all dependencies</td>
-                </tr>
-                <tr>
-                    <td><span class="method get">GET</span></td>
-                    <td>/api/v1/health/version</td>
-                    <td>Get deployed version and build info</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div style="text-align: center; margin-top: 2rem;">
-            <a href="https://api.bluemoxon.com/docs" class="btn btn-primary" target="_blank">
-                View API Docs (Swagger)
-            </a>
-        </div>
-    </section>
-
     <!-- Lightbox Modal -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
         <button class="lightbox-close" onclick="closeLightbox(event)" aria-label="Close">
@@ -2209,27 +1146,14 @@ flowchart LR
 
     <!-- Footer -->
     <footer>
-        <p>
-            Built with Vue 3, FastAPI, Aurora PostgreSQL, and Terraform<br>
-            <a href="https://www.bluemoxon.com">www.bluemoxon.com</a>
-        </p>
+        <div class="footer-links">
+            <a href="/features.html">Features</a>
+            <a href="/admin-guide.html">Admin Guide</a>
+            <a href="/releases.html">Releases</a>
+            <a href="/tech.html">How It's Built</a>
+        </div>
+        <p>&copy; 2026 BlueMoxon</p>
     </footer>
-
-    <script>
-        mermaid.initialize({
-            startOnLoad: true,
-            theme: 'dark',
-            themeVariables: {
-                darkMode: true,
-                primaryColor: '#3b82f6',
-                primaryTextColor: '#f1f5f9',
-                primaryBorderColor: '#1e293b',
-                lineColor: '#64748b',
-                secondaryColor: '#1e293b',
-                tertiaryColor: '#111827'
-            }
-        });
-    </script>
 
     <!-- Hamburger menu toggle -->
     <script>
