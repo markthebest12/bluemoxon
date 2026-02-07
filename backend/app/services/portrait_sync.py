@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 # Wikidata SPARQL endpoint
 WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
 
+
+class WikidataThrottledError(Exception):
+    """Raised when Wikidata returns 429 or 503 — do not retry immediately."""
+
+
 # Wikimedia Commons file URL template (400px wide)
 COMMONS_FILE_URL = "https://commons.wikimedia.org/wiki/Special:FilePath/{filename}?width=400"
 
@@ -49,17 +54,19 @@ USER_AGENT = "BlueMoxonBot/1.0 (https://bluemoxon.com; contact@bluemoxon.com)"
 
 # Max entities per request to fit within API Gateway 30s timeout.
 # Each entity needs ~2s (1.5s rate limit + HTTP round-trip), but
-# publishers/binders may fire up to 3 queries (org + person fallback).
-# For publisher-heavy batches, use smaller batches or entity_ids.
-MAX_ENTITIES_PER_REQUEST = 10
+# publishers/binders may fire up to 3 queries (org + person fallback),
+# each with 1.5s rate-limit sleep. Worst case per entity: ~7.5s.
+# 5 entities × 7.5s = 37.5s — tight but within timeout with headroom
+# for fast-path entities that hit on first query.
+MAX_ENTITIES_PER_REQUEST = 5
 
 # Max entity IDs that can be passed in a single request
 MAX_ENTITY_IDS = 50
 
 # Regex to strip common business suffixes for person-name extraction.
-# Matches patterns like "& Son", "& Sons", "& Co.", "and Co."
+# Matches patterns like "& Son", "& Sons", "& Co.", "& Bros.", "and Company"
 _BUSINESS_SUFFIXES_RE = re.compile(
-    r",?\s*(?:&|and)\s+(?:Sons?|Co\.?|Company)\.?\s*$",
+    r",?\s*(?:&|and)\s+(?:Sons?|Co\.?|Company|Bros\.?|Brothers)\.?\s*$",
     re.IGNORECASE,
 )
 
@@ -196,9 +203,14 @@ def query_wikidata(sparql: str) -> list[dict]:
             headers=headers,
             timeout=30,
         )
+        if resp.status_code in (429, 503):
+            logger.warning("Wikidata throttled (HTTP %s)", resp.status_code)
+            raise WikidataThrottledError(f"Wikidata HTTP {resp.status_code}")
         resp.raise_for_status()
         data = resp.json()
         return data.get("results", {}).get("bindings", [])
+    except WikidataThrottledError:
+        raise
     except httpx.HTTPError:
         logger.exception("Wikidata SPARQL query failed")
         return []
@@ -473,7 +485,7 @@ def process_person_entity(
     return _download_process_upload(db, entity, entity_type, best_candidate, result)
 
 
-def _try_person_sparql_fallback(entity_name: str) -> list[dict]:
+def _try_person_sparql_fallback(entity_name: str) -> tuple[list[dict], str]:
     """Try person SPARQL queries as fallback for org entities.
 
     Many Victorian publishers/binders are named after their founders
@@ -482,7 +494,9 @@ def _try_person_sparql_fallback(entity_name: str) -> list[dict]:
     Tries the original name first, then strips business suffixes
     (e.g. "Rivière & Son" → "Rivière", "Edward Moxon and Co." → "Edward Moxon").
 
-    Returns SPARQL bindings list (may be empty).
+    Returns (bindings, match_source) tuple. match_source is one of:
+    "person_exact", "person_stripped", or "" if no match.
+    Raises WikidataThrottledError if Wikidata is rate-limiting.
     """
     # Rate-limit: caller already fired an org query, respect Wikidata interval
     time.sleep(WIKIDATA_REQUEST_INTERVAL)
@@ -495,11 +509,11 @@ def _try_person_sparql_fallback(entity_name: str) -> list[dict]:
             "Org SPARQL empty for '%s', found person match via exact name",
             entity_name,
         )
-        return bindings
+        return bindings, "person_exact"
 
     # Try with business suffixes stripped (e.g. "Edward Moxon and Co." → "Edward Moxon")
     stripped_name = _extract_person_name(entity_name)
-    if stripped_name:
+    if stripped_name and "," not in stripped_name:
         time.sleep(WIKIDATA_REQUEST_INTERVAL)
         person_sparql = build_sparql_query_person(stripped_name)
         bindings = query_wikidata(person_sparql)
@@ -509,9 +523,9 @@ def _try_person_sparql_fallback(entity_name: str) -> list[dict]:
                 entity_name,
                 stripped_name,
             )
-            return bindings
+            return bindings, "person_stripped"
 
-    return []
+    return [], ""
 
 
 def process_org_entity(
@@ -532,6 +546,7 @@ def process_org_entity(
         Result dict with status, score, and optional upload details.
     """
     result = make_result(entity_type, entity.id, entity.name, "no_results")
+    match_source = "org"
 
     sparql = build_sparql_query_org(entity.name)
     bindings = query_wikidata(sparql)
@@ -540,7 +555,9 @@ def process_org_entity(
         # Fallback: try person SPARQL — many Victorian publishers/binders
         # are named after their founders (e.g. "Bernard Quaritch",
         # "Edward Moxon and Co." → "Edward Moxon").
-        bindings = _try_person_sparql_fallback(entity.name)
+        bindings, match_source = _try_person_sparql_fallback(entity.name)
+        if not match_source:
+            match_source = "org"  # keep default if no fallback match
 
     if not bindings:
         return result
@@ -555,8 +572,12 @@ def process_org_entity(
     # publisher founded_year ≠ founder birth_year, and publisher book
     # associations ≠ Wikidata notable works. SPARQL exact-label matching
     # already constrains false positives sufficiently.
+    # When fallback used stripped name, score against that name for accuracy.
+    scoring_name = (
+        _extract_person_name(entity.name) if match_source == "person_stripped" else entity.name
+    )
     for _uri, candidate in grouped.items():
-        ns = name_similarity(entity.name, candidate["label"])
+        ns = name_similarity(scoring_name or entity.name, candidate["label"])
         score = ns * 0.8 + (0.2 if candidate.get("image_url") else 0.0)
 
         if score > best_score:
@@ -564,6 +585,7 @@ def process_org_entity(
             best_candidate = candidate
 
     result["score"] = round(best_score, 4)
+    result["match_source"] = match_source
 
     if best_score < threshold or best_candidate is None:
         result["status"] = "below_threshold"

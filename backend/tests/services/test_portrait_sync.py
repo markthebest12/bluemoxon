@@ -574,51 +574,49 @@ class TestBinderUsesOrgQuery:
         # Verify the org query was used (not person query)
         sparql_arg = mock_query.call_args[0][0]
         assert "Q2085381" in sparql_arg or "Q7275" in sparql_arg
+        # Org success means no fallback — should only call query_wikidata once
+        assert mock_query.call_count == 1
 
 
 class TestExtractPersonName:
     """Tests for _extract_person_name helper."""
 
-    def test_strips_and_son(self):
+    @staticmethod
+    def _fn(name: str) -> str | None:
         from app.services.portrait_sync import _extract_person_name
 
-        assert _extract_person_name("Rivière & Son") == "Rivière"
+        return _extract_person_name(name)
+
+    def test_strips_and_son(self):
+        assert self._fn("Rivière & Son") == "Rivière"
 
     def test_strips_and_sons(self):
-        from app.services.portrait_sync import _extract_person_name
-
-        assert _extract_person_name("Rivière & Sons") == "Rivière"
+        assert self._fn("Rivière & Sons") == "Rivière"
 
     def test_strips_and_co(self):
-        from app.services.portrait_sync import _extract_person_name
-
-        assert _extract_person_name("Edward Moxon and Co.") == "Edward Moxon"
+        assert self._fn("Edward Moxon and Co.") == "Edward Moxon"
 
     def test_strips_ampersand_co(self):
-        from app.services.portrait_sync import _extract_person_name
-
-        assert _extract_person_name("Smith & Co.") == "Smith"
+        assert self._fn("Smith & Co.") == "Smith"
 
     def test_strips_comma_ampersand_co(self):
-        from app.services.portrait_sync import _extract_person_name
+        assert self._fn("Longmans, Green & Co.") == "Longmans, Green"
 
-        assert _extract_person_name("Longmans, Green & Co.") == "Longmans, Green"
+    def test_strips_and_bros(self):
+        assert self._fn("Harper & Bros.") == "Harper"
+
+    def test_strips_and_brothers(self):
+        assert self._fn("Harper and Brothers") == "Harper"
 
     def test_no_suffix_returns_none(self):
-        from app.services.portrait_sync import _extract_person_name
-
-        assert _extract_person_name("Bernard Quaritch") is None
+        assert self._fn("Bernard Quaritch") is None
 
     def test_empty_string_returns_none(self):
-        from app.services.portrait_sync import _extract_person_name
-
-        assert _extract_person_name("") is None
+        assert self._fn("") is None
 
     def test_suffix_only_returns_none(self):
-        from app.services.portrait_sync import _extract_person_name
-
         # "& Son" alone leaves empty string after stripping
-        assert _extract_person_name("& Son") is None
+        assert self._fn("& Son") is None
 
 
 class TestPersonSparqlFallback:
@@ -651,7 +649,11 @@ class TestPersonSparqlFallback:
 
         assert result["status"] == "dry_run_match"
         assert result["wikidata_label"] == "Bernard Quaritch"
+        assert result["match_source"] == "person_exact"
         assert mock_query.call_count == 2
+        # Second call should be a person query (Q5 = human)
+        person_sparql = mock_query.call_args_list[1][0][0]
+        assert "Q5" in person_sparql
 
     @patch("app.services.portrait_sync.time.sleep")
     @patch("app.services.portrait_sync.query_wikidata")
@@ -680,7 +682,14 @@ class TestPersonSparqlFallback:
 
         assert result["status"] == "dry_run_match"
         assert result["wikidata_label"] == "Edward Moxon"
+        assert result["match_source"] == "person_stripped"
         assert mock_query.call_count == 3
+        # Second call: person query with original name "Edward Moxon and Co."
+        assert "Edward Moxon and Co." in mock_query.call_args_list[1][0][0]
+        # Third call: person query with stripped name "Edward Moxon"
+        third_sparql = mock_query.call_args_list[2][0][0]
+        assert "Edward Moxon" in third_sparql
+        assert "and Co." not in third_sparql
 
     @patch("app.services.portrait_sync.time.sleep")
     @patch("app.services.portrait_sync.query_wikidata")
@@ -698,6 +707,9 @@ class TestPersonSparqlFallback:
         result = process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
 
         assert result["status"] == "no_results"
+        # Comma in stripped name ("Longmans, Green") should skip stripped query
+        # So only org + person-exact = 2 calls
+        assert mock_query.call_count == 2
 
     @patch("app.services.portrait_sync.time.sleep")
     @patch("app.services.portrait_sync.query_wikidata")
@@ -716,3 +728,30 @@ class TestPersonSparqlFallback:
 
         # Should have slept for rate limiting (at least once for the fallback)
         assert mock_sleep.call_count >= 1
+
+    @patch("app.services.portrait_sync.time.sleep")
+    @patch("app.services.portrait_sync.query_wikidata")
+    def test_org_success_skips_fallback(self, mock_query, mock_sleep, db: Session):
+        """When org SPARQL succeeds, should NOT try person fallback."""
+        from app.services.portrait_sync import process_org_entity
+
+        publisher = Publisher(name="Macmillan Publishers")
+        db.add(publisher)
+        db.flush()
+
+        org_bindings = [
+            {
+                "item": {"value": "http://wd/Q1234"},
+                "itemLabel": {"value": "Macmillan Publishers"},
+                "image": {
+                    "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Macmillan.jpg"
+                },
+            }
+        ]
+        mock_query.return_value = org_bindings
+
+        result = process_org_entity(db, publisher, "publisher", 0.7, dry_run=True)
+
+        assert result["status"] == "dry_run_match"
+        assert result["match_source"] == "org"
+        assert mock_query.call_count == 1
