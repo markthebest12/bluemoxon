@@ -31,10 +31,10 @@ jobs:
       - name: Install linters
         run: npm install -g htmlhint
 
-      - name: Resolve symlinks for validation
+      - name: Copy site for validation
         run: |
           mkdir -p /tmp/site-validate
-          cp -rL site/* /tmp/site-validate/
+          cp -r site/* /tmp/site-validate/
 
       - name: Lint HTML files
         run: |
@@ -108,11 +108,11 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-west-2
 
-      - name: Resolve symlinks and sync to S3
+      - name: Copy site and sync to S3
         run: |
-          # Copy site/ to a temp dir, resolving symlinks
+          # Copy site/ to a temp dir for deployment
           mkdir -p /tmp/site-deploy
-          cp -rL site/* /tmp/site-deploy/
+          cp -r site/* /tmp/site-deploy/
 
           # Sync to S3
           aws s3 sync /tmp/site-deploy/ s3://bluemoxon-landing/ \
