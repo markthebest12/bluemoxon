@@ -1035,6 +1035,7 @@ onUnmounted(() => {
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
   background-color: var(--color-victorian-paper-white, #fdfcfa);
+  overflow: visible;
 }
 
 /* Responsive adjustments */

@@ -98,6 +98,65 @@ describe("parseEntityMarkers", () => {
     expect(result[2]).toEqual({ type: "text", content: " at a salon." });
   });
 
+  it("strips unwrapped entity:TYPE:Name references", () => {
+    const result = parseEntityMarkers(
+      "Thomas Hardy and entity:author:Rudyard Kipling were connected."
+    );
+    expect(result).toEqual([
+      { type: "text", content: "Thomas Hardy and " },
+      { type: "text", content: "Rudyard Kipling" },
+      { type: "text", content: " were connected." },
+    ]);
+  });
+
+  it("strips unwrapped references alongside wrapped markers", () => {
+    const result = parseEntityMarkers(
+      "{{entity:author:32|Robert Browning}} met entity:author:Rudyard Kipling."
+    );
+    expect(result[0]).toEqual({
+      type: "link",
+      entityType: "author",
+      entityId: 32,
+      displayName: "Robert Browning",
+    });
+    expect(result[1]).toEqual({ type: "text", content: " met " });
+    expect(result[2]).toEqual({ type: "text", content: "Rudyard Kipling" });
+    expect(result[3]).toEqual({ type: "text", content: "." });
+  });
+
+  it("leaves plain text without entity: prefix untouched", () => {
+    const result = parseEntityMarkers("Rudyard Kipling was a famous author.");
+    expect(result).toEqual([{ type: "text", content: "Rudyard Kipling was a famous author." }]);
+  });
+
+  it("handles unwrapped reference with accented name", () => {
+    const result = parseEntityMarkers("Bound by entity:binder:Rivière in leather.");
+    expect(result).toEqual([
+      { type: "text", content: "Bound by " },
+      { type: "text", content: "Rivière" },
+      { type: "text", content: " in leather." },
+    ]);
+  });
+
+  it("handles unwrapped reference with curly apostrophe", () => {
+    // U+2019 RIGHT SINGLE QUOTATION MARK — common in book metadata
+    const result = parseEntityMarkers("Met entity:author:O\u2019Brien at a salon.");
+    expect(result).toEqual([
+      { type: "text", content: "Met " },
+      { type: "text", content: "O\u2019Brien" },
+      { type: "text", content: " at a salon." },
+    ]);
+  });
+
+  it("handles unwrapped reference with joiner particle", () => {
+    const result = parseEntityMarkers("Published by entity:publisher:Pierre du Pont in Paris.");
+    expect(result).toEqual([
+      { type: "text", content: "Published by " },
+      { type: "text", content: "Pierre du Pont" },
+      { type: "text", content: " in Paris." },
+    ]);
+  });
+
   it("handles mixed valid and malformed markers", () => {
     const text =
       "{{entity:author:32|Robert Browning}} knew {{Elizabeth Barrett Browning}} and published with {{publisher:7|Smith, Elder & Co.}}.";

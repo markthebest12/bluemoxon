@@ -25,6 +25,13 @@ const MARKER_RE = /\{\{(?:entity:)?(\w+):(\d+)\|([^}]+)\}\}/g;
 /** Matches any remaining {{...}} patterns after the primary pass. */
 const LEFTOVER_RE = /\{\{([^}]+)\}\}/g;
 
+/** Matches unwrapped entity references: entity:TYPE:Name (no braces, no ID).
+ *  Companion regex: backend/app/services/ai_profile_generator.py _UNWRAPPED_ENTITY_RE
+ *  (Python uses \w for Unicode letters; JS uses \p{L} explicitly).
+ *  Includes straight apostrophe, curly apostrophe (U+2019), and hyphen. */
+const UNWRAPPED_RE =
+  /entity:\w+:([A-Z][\p{L}\w''\u2019-]*(?:\s+(?:(?:and|of|the|de|du|da|di|le|la|von|van)\s+)?[A-Z][\p{L}\w''\u2019-]*)*)\b/gu;
+
 /**
  * Extract a display name from the inner content of a leftover {{...}} marker.
  * If the content contains `|`, return the text after the last `|`.
@@ -75,6 +82,45 @@ function stripRemainingMarkers(segments: Segment[]): Segment[] {
 }
 
 /**
+ * Third-pass helper: strip unwrapped `entity:TYPE:Name` patterns
+ * that the AI sometimes produces without braces.
+ */
+function stripUnwrappedMarkers(segments: Segment[]): Segment[] {
+  const result: Segment[] = [];
+
+  for (const segment of segments) {
+    if (segment.type !== "text") {
+      result.push(segment);
+      continue;
+    }
+
+    const text = segment.content;
+    let lastIndex = 0;
+    let hasMatch = false;
+
+    for (const match of text.matchAll(UNWRAPPED_RE)) {
+      hasMatch = true;
+      const matchStart = match.index!;
+
+      if (matchStart > lastIndex) {
+        result.push({ type: "text", content: text.slice(lastIndex, matchStart) });
+      }
+
+      result.push({ type: "text", content: match[1] });
+      lastIndex = matchStart + match[0].length;
+    }
+
+    if (!hasMatch) {
+      result.push(segment);
+    } else if (lastIndex < text.length) {
+      result.push({ type: "text", content: text.slice(lastIndex) });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Parse text containing entity markers into an array of segments.
  *
  * Plain text becomes TextSegment, well-formed markers become LinkSegment.
@@ -114,5 +160,8 @@ export function parseEntityMarkers(text: string): Segment[] {
   }
 
   // Second pass: strip any leftover {{...}} patterns from text segments
-  return stripRemainingMarkers(segments);
+  const afterBraces = stripRemainingMarkers(segments);
+
+  // Third pass: strip unwrapped entity:TYPE:Name patterns from text segments
+  return stripUnwrappedMarkers(afterBraces);
 }
