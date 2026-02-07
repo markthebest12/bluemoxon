@@ -846,6 +846,30 @@ MIGRATION_7A3A9A604CCF_SQL = [
       AND image_url LIKE '%/entities/binder/%/portrait.jpg'""",
 ]
 
+# Migration SQL for b3c8d2e1f4a7_backfill_entity_founded_years
+# Backfill founded_year for binders missing this data. Years sourced from
+# DNB, Wikipedia, and firm histories. Uses COALESCE to avoid overwriting
+# any values set via other means.
+MIGRATION_B3C8D2E1F4A7_SQL = [
+    # Binders — years sourced from DNB, Wikipedia, firm histories
+    # Riviere & Son: Robert Riviere started bindery in Bath 1829
+    "UPDATE binders SET founded_year = 1829 WHERE id = 15 AND founded_year IS NULL",
+    # Zaehnsdorf: Joseph Zaehnsdorf opened shop in London 1842
+    "UPDATE binders SET founded_year = 1842 WHERE id = 2 AND founded_year IS NULL",
+    # Sangorski & Sutcliffe: formally established 1 October 1901
+    "UPDATE binders SET founded_year = 1901 WHERE id = 9 AND founded_year IS NULL",
+    # Bayntun: George Bayntun started in Bath 1894
+    "UPDATE binders SET founded_year = 1894 WHERE id = 4 AND founded_year IS NULL",
+    # Bedford: Francis Bedford went independent 1851
+    "UPDATE binders SET founded_year = 1851 WHERE id = 86 AND founded_year IS NULL",
+    # Doves Bindery: Cobden-Sanderson established at Hammersmith 1893
+    "UPDATE binders SET founded_year = 1893 WHERE id = 70 AND founded_year IS NULL",
+    # Hayday: James Hayday rented premises at Little Queen St 1833
+    "UPDATE binders SET founded_year = 1833 WHERE id = 60 AND founded_year IS NULL",
+    # Leighton: Archibald Leighton founded firm c.1764
+    "UPDATE binders SET founded_year = 1764 WHERE id = 27 AND founded_year IS NULL",
+]
+
 MIGRATIONS: list[MigrationDef] = [
     {
         "id": "e44df6ab5669",
@@ -1132,5 +1156,10 @@ MIGRATIONS: list[MigrationDef] = [
         "id": "7a3a9a604ccf",
         "name": "null_broken_portrait_image_urls",
         "sql_statements": MIGRATION_7A3A9A604CCF_SQL,
+    },
+    {
+        "id": "b3c8d2e1f4a7",
+        "name": "backfill_entity_founded_years",
+        "sql_statements": MIGRATION_B3C8D2E1F4A7_SQL,
     },
 ]
