@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.5.5](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.5) - 2026-02-06
+
+- [`6b341d8`](https://github.com/markthebest12/bluemoxon/commit/6b341d824a348f35264a51841aa5f945cbcc5c15) fix: remove dead site/screenshots symlink blocking deploy (#1891)
+
 ## [v3.5.4](https://github.com/markthebest12/bluemoxon/releases/tag/v3.5.4) - 2026-02-06
 
 - [`7d22d96`](https://github.com/markthebest12/bluemoxon/commit/7d22d969eb02fe2960e5389163a57aeb1e6d5e28) fix: add person SPARQL fallback for org entity portrait matching (#1886)
