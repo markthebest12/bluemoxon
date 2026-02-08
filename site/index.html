@@ -17,144 +17,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared.css">
 
     <style>
-        :root {
-            --bg-primary: #0a0f1a;
-            --bg-secondary: #111827;
-            --bg-card: #1a2332;
-            --bg-code: #0d1117;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --accent-blue: #3b82f6;
-            --accent-blue-light: #60a5fa;
-            --accent-purple: #8b5cf6;
-            --accent-green: #10b981;
-            --accent-amber: #f59e0b;
-            --accent-red: #ef4444;
-            --border-color: #1e293b;
-            --gradient-start: #1e3a5f;
-            --gradient-end: #0a0f1a;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
-        }
-
-        /* Navigation */
-        nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(10, 15, 26, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--border-color);
-            z-index: 1000;
-            padding: 0.75rem 2rem;
-        }
-
-        nav .nav-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        nav .logo {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-        }
-
-        nav .logo img {
-            height: 48px;
-            width: auto;
-        }
-
-        nav .nav-links {
-            display: flex;
-            gap: 2rem;
-            list-style: none;
-        }
-
-        nav .nav-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
-
-        nav .nav-links a:hover {
-            color: var(--accent-blue-light);
-        }
-
-        .btn-login {
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-            color: white;
-            padding: 0.5rem 1.25rem;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-
-        .btn-login:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 0.875rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-secondary {
-            background: var(--bg-card);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--accent-blue);
-            background: var(--bg-secondary);
-        }
-
         /* Sections */
         section {
             padding: 6rem 2rem;
@@ -584,115 +449,8 @@
             margin-top: 2rem;
         }
 
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 3rem 2rem;
-            border-top: 1px solid var(--border-color);
-            color: var(--text-muted);
-        }
-
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .footer-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.2s;
-        }
-
-        .footer-links a:hover {
-            color: var(--accent-blue-light);
-        }
-
-        /* Hamburger button */
-        .hamburger {
-            display: none;
-            flex-direction: column;
-            justify-content: space-around;
-            width: 28px;
-            height: 24px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            z-index: 1001;
-        }
-
-        .hamburger span {
-            width: 100%;
-            height: 3px;
-            background: var(--text-primary);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-
-        .hamburger.active span:nth-child(1) {
-            transform: rotate(45deg) translate(6px, 6px);
-        }
-
-        .hamburger.active span:nth-child(2) {
-            opacity: 0;
-        }
-
-        .hamburger.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(6px, -6px);
-        }
-
         /* Responsive */
         @media (max-width: 768px) {
-            nav {
-                padding: 0.5rem 1rem;
-            }
-
-            nav .logo img {
-                height: 44px;
-            }
-
-            .hamburger {
-                display: flex;
-            }
-
-            nav .nav-links {
-                display: none;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: rgba(10, 15, 26, 0.98);
-                flex-direction: column;
-                padding: 1rem;
-                gap: 0;
-                border-bottom: 1px solid var(--border-color);
-            }
-
-            nav .nav-links.active {
-                display: flex;
-            }
-
-            nav .nav-links li {
-                padding: 0.75rem 0;
-                border-bottom: 1px solid var(--border-color);
-            }
-
-            nav .nav-links li:last-child {
-                border-bottom: none;
-            }
-
-            nav .nav-links a {
-                font-size: 1rem;
-            }
-
-            .btn-login {
-                display: none;
-            }
-
             .announcement-hero {
                 min-height: auto;
                 padding: 5rem 1rem 3rem;
@@ -790,10 +548,6 @@
                 width: 100%;
                 max-width: 280px;
                 justify-content: center;
-            }
-
-            footer {
-                padding: 2rem 1rem;
             }
 
             /* Lightbox mobile */
@@ -1163,27 +917,7 @@
         <p>&copy; 2026 BlueMoxon</p>
     </footer>
 
-    <!-- Hamburger menu toggle -->
-    <script>
-        function toggleMenu() {
-            const hamburger = document.querySelector('.hamburger');
-            const navLinks = document.querySelector('.nav-links');
-            hamburger.classList.toggle('active');
-            navLinks.classList.toggle('active');
-        }
-
-        // Close menu when clicking a link
-        document.querySelectorAll('.nav-links a').forEach(link => {
-            link.addEventListener('click', () => {
-                const hamburger = document.querySelector('.hamburger');
-                const navLinks = document.querySelector('.nav-links');
-                hamburger.classList.remove('active');
-                navLinks.classList.remove('active');
-            });
-        });
-    </script>
-
-    <!-- Lightbox functionality -->
+    <script src="/js/shared.js"></script>
     <script>
         function openLightbox(wrapper) {
             const img = wrapper.querySelector('img');
