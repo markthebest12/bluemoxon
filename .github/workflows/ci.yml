@@ -304,6 +304,7 @@ jobs:
 
       - name: Validate requirements.txt matches Poetry
         run: |
+          poetry self add poetry-plugin-export
           poetry export -f requirements.txt --without-hashes --only main > /tmp/expected-requirements.txt
           if ! diff -q requirements.txt /tmp/expected-requirements.txt > /dev/null; then
             echo "::error::requirements.txt is out of sync with pyproject.toml"
