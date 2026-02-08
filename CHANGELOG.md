@@ -5,6 +5,11 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.6.4](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.4) - 2026-02-07
+
+- [`6727598`](https://github.com/markthebest12/bluemoxon/commit/67275988686b65bf1d503bc07208808faf48dff9) fix: batch Social Circles UX improvements (#1905, #1906, #1907, #1908, #1889, #1909, #1915) (#1918)
+- [`535db09`](https://github.com/markthebest12/bluemoxon/commit/535db09ebcd6e1f0b0d689e97b230f462cb36dc1) fix: move Social Circles above Analysis on book detail page (#1904) (#1917)
+
 ## [v3.6.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.3) - 2026-02-07
 
 - [`d8b475f`](https://github.com/markthebest12/bluemoxon/commit/d8b475f02a8e0c4f33fe1ffb0e328d4dbe48f361) fix: backfill founded_year for 8 binders (#1914)
