@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.7.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.2) - 2026-02-07
+
+- [`97919d9`](https://github.com/markthebest12/bluemoxon/commit/97919d99b1ed493a18619794a928f73c5173d007) fix(e2e): update search tests after FilterPanel search removal (#1922)
+
 ## [v3.7.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.1) - 2026-02-07
 
 - [`7d60263`](https://github.com/markthebest12/bluemoxon/commit/7d60263ee1b4e57068f0b9a232b4201d13f1ea47) fix(ci): make deploy-site smoke test discover screenshots dynamically (#1921)
