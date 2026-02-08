@@ -38,8 +38,9 @@ defineEmits<{
 <style scoped>
 .show-more-controls {
   display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
 }
 
 .show-more-btn {

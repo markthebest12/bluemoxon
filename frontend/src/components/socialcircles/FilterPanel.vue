@@ -11,8 +11,6 @@
  * - Search input
  */
 
-import { ref, watch } from "vue";
-
 import FilterBadges from "@/components/socialcircles/FilterBadges.vue";
 import type { ApiNode, ConnectionType, Era } from "@/types/socialCircles";
 
@@ -103,28 +101,7 @@ function toggleTier1Only() {
   emit("update:filter", "tier1Only", !props.filterState.tier1Only);
 }
 
-// Local search state synced to props
-const localSearchQuery = ref(props.filterState.searchQuery);
-
-// Watch for external changes to search query
-watch(
-  () => props.filterState.searchQuery,
-  (newVal) => {
-    localSearchQuery.value = newVal;
-  }
-);
-
-// Debounced search emit
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-function handleSearchInput() {
-  if (searchTimeout) clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    emit("update:filter", "searchQuery", localSearchQuery.value);
-  }, 200);
-}
-
 function handleReset() {
-  localSearchQuery.value = "";
   emit("reset");
 }
 
@@ -156,19 +133,6 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
     </header>
 
     <div class="filter-panel__content">
-      <!-- Search -->
-      <section class="filter-panel__section">
-        <label class="filter-panel__label" for="search">Search</label>
-        <input
-          id="search"
-          v-model="localSearchQuery"
-          type="text"
-          class="filter-panel__input"
-          placeholder="Find person..."
-          @input="handleSearchInput"
-        />
-      </section>
-
       <!-- Node Types -->
       <section class="filter-panel__section">
         <h3 class="filter-panel__section-title">Node Types</h3>
@@ -339,26 +303,6 @@ const displayEras: Era[] = ["pre_romantic", "romantic", "victorian", "edwardian"
   text-transform: uppercase;
   color: var(--color-victorian-ink-muted, #5c5c58);
   margin-bottom: 0.5rem;
-}
-
-.filter-panel__label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.filter-panel__input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid var(--color-victorian-paper-aged, #e8e1d5);
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
-.filter-panel__input:focus {
-  outline: none;
-  border-color: var(--color-victorian-hunter-500, #3a6b5c);
 }
 
 .filter-panel__checkbox {

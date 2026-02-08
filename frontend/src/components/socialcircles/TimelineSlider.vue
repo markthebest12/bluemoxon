@@ -100,12 +100,14 @@ function handlePlay() {
       <div class="timeline-slider__mode">
         <button
           :class="['timeline-slider__mode-btn', { active: mode === 'point' }]"
+          title="Show entities active in a single year"
           @click="emit('mode-change', 'point')"
         >
           Point
         </button>
         <button
           :class="['timeline-slider__mode-btn', { active: mode === 'range' }]"
+          title="Show entities active across a date range"
           @click="emit('mode-change', 'range')"
         >
           Range
