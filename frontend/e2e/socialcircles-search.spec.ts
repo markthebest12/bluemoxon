@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
  * E1: Social Circles Search E2E Tests
  *
  * Tests the search functionality in the Social Circles feature:
- * - Search input visibility
+ * - Search input visibility (top bar SearchInput component)
  * - Typing shows results dropdown
  * - Selecting result centers graph on node
  * - Keyboard navigation (ArrowDown, Enter)
@@ -22,20 +22,21 @@ test.describe("Social Circles Search", () => {
     await expect(page.getByTestId("network-graph")).toBeVisible({ timeout: 15000 });
   });
 
-  test("search input is visible in filter panel", async ({ page }) => {
-    const searchInput = page.getByTestId("filter-panel").locator('input[type="text"]');
-    await expect(searchInput).toBeVisible();
-    await expect(searchInput).toHaveAttribute("placeholder", /find person|search/i);
+  test("search input is visible in top bar", async ({ page }) => {
+    const searchInputComponent = page.getByTestId("search-input");
+    await expect(searchInputComponent).toBeVisible();
+    const inputField = searchInputComponent.locator("input");
+    await expect(inputField).toBeVisible();
   });
 
-  test("typing in search filters the view", async ({ page }) => {
-    const searchInput = page.getByTestId("filter-panel").locator('input[type="text"]');
-    await expect(searchInput).toBeVisible();
+  test("typing in search shows results", async ({ page }) => {
+    const searchInputComponent = page.getByTestId("search-input");
+    const inputField = searchInputComponent.locator("input");
+    await inputField.fill("Tennyson");
 
-    await searchInput.fill("Tennyson");
-
-    // Wait for the value to be applied rather than using hardcoded timeout
-    await expect(searchInput).toHaveValue("Tennyson");
+    // Wait for dropdown to appear
+    const dropdown = searchInputComponent.getByTestId("search-dropdown");
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
   });
 
   test("search results dropdown appears when using SearchInput component", async ({ page }) => {
@@ -49,10 +50,7 @@ test.describe("Social Circles Search", () => {
       const dropdown = searchInputComponent.getByTestId("search-dropdown");
       await expect(dropdown).toBeVisible({ timeout: 5000 });
     } else {
-      // If SearchInput component is not in view, use the filter panel search
-      const filterSearch = page.getByTestId("filter-panel").locator('input[type="text"]');
-      await filterSearch.fill("Dickens");
-      await expect(filterSearch).toHaveValue("Dickens");
+      test.skip(true, "SearchInput component not rendered");
     }
   });
 
@@ -119,10 +117,7 @@ test.describe("Social Circles Search", () => {
       await expect(noResults).toBeVisible({ timeout: 3000 });
       await expect(noResults).toContainText(/no results/i);
     } else {
-      // Using filter panel search - verify it handles empty results gracefully
-      const filterSearch = page.getByTestId("filter-panel").locator('input[type="text"]');
-      await filterSearch.fill("xyznonexistentperson123");
-      await expect(filterSearch).toHaveValue("xyznonexistentperson123");
+      test.skip(true, "SearchInput component not rendered");
     }
   });
 
