@@ -212,12 +212,12 @@ function printPage() {
           @provenance-saved="handleProvenanceSaved"
         />
 
-        <AnalysisSection :book="booksStore.currentBook" :is-editor="authStore.isEditor" />
-
         <BookSocialCirclesSummary
           :book-id="booksStore.currentBook.id"
           :book-status="booksStore.currentBook.status"
         />
+
+        <AnalysisSection :book="booksStore.currentBook" :is-editor="authStore.isEditor" />
       </div>
 
       <!-- Sidebar -->
