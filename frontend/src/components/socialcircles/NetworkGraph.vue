@@ -215,6 +215,8 @@ onMounted(async () => {
 
   // Dynamic import creates a separate chunk, improving First Contentful Paint
   const cytoscape = (await import("cytoscape")).default;
+  const dagre = (await import("cytoscape-dagre")).default;
+  cytoscape.use(dagre);
 
   cy.value = cytoscape({
     container: containerRef.value,

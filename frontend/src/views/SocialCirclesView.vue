@@ -116,6 +116,7 @@ const {
   // Timeline
   timelineState,
   setYear,
+  setTimelineMode,
   togglePlayback,
 
   // Graph operations
@@ -168,6 +169,9 @@ const viewport = computed(() => ({
 // NetworkGraph ref for zoom controls and export
 const networkGraphRef = ref<InstanceType<typeof NetworkGraph> | null>(null);
 
+// Zoom level tracking for ZoomControls display (C7: #1915)
+const zoomLevel = ref(1);
+
 // Get node position from Cytoscape for floating card positioning
 function getNodePosition(nodeId: NodeId): Position | null {
   const cy = networkGraphRef.value?.getCytoscape();
@@ -207,6 +211,38 @@ const searchQuery = ref("");
 // types fast and clicks a result before the debounce fires. In that case this
 // ref holds the most recent typed text, which is arguably the user's intent.
 const preSelectSearchQuery = ref("");
+
+// Focus mode: when a node is searched, filter graph to show only that node + neighbors
+const focusedNodeId = ref<NodeId | null>(null);
+const focusedNodeName = ref("");
+
+function clearFocus() {
+  focusedNodeId.value = null;
+  focusedNodeName.value = "";
+  // Restore all hidden elements
+  const cy = networkGraphRef.value?.getCytoscape();
+  if (cy) {
+    // Cytoscape runtime API: show/hide exist but aren't in all type defs
+    (cy.elements() as unknown as { show(): void }).show();
+  }
+}
+
+function applyFocus(nodeId: NodeId) {
+  const cy = networkGraphRef.value?.getCytoscape();
+  if (!cy) return;
+
+  const cyNode = cy.getElementById(nodeId as string);
+  if (!cyNode.length) return;
+
+  const neighborhood = cyNode.neighborhood().add(cyNode);
+  // Cytoscape runtime API: show/hide exist but aren't in all type defs
+  (cy.elements() as unknown as { hide(): void }).hide();
+  (neighborhood as unknown as { show(): void }).show();
+
+  focusedNodeId.value = nodeId;
+  const node = nodeMap.value.get(nodeId);
+  focusedNodeName.value = node?.name ?? nodeId;
+}
 
 // Stats panel collapsed state
 const statsCollapsed = ref(false);
@@ -263,6 +299,10 @@ function handleSearchSelect(node: { id: string }) {
   }
 
   selectNode(node.id);
+
+  // Apply focus mode: show only this node + its direct neighbors
+  applyFocus(node.id as NodeId);
+
   const cy = networkGraphRef.value?.getCytoscape();
   if (cy) {
     const cyNode = cy.getElementById(node.id);
@@ -304,6 +344,8 @@ useNetworkKeyboard({
   onEscape: () => {
     if (showKeyboardShortcuts.value) {
       showKeyboardShortcuts.value = false;
+    } else if (focusedNodeId.value) {
+      clearFocus();
     } else {
       closePanel();
     }
@@ -563,6 +605,9 @@ function handleViewProfile(nodeId: NodeId) {
 
 // Handle viewport changes (pan/zoom) - close floating card since position becomes stale
 function handleViewportChange() {
+  // Update zoom level for ZoomControls display
+  zoomLevel.value = networkGraphRef.value?.getCytoscape()?.zoom() ?? 1;
+
   if (isPanelOpen.value) {
     closePanel();
   }
@@ -726,9 +771,18 @@ onUnmounted(() => {
             @layout-change="handleLayoutChange"
           />
 
+          <!-- Focus pill (shown when search filters graph to a node) -->
+          <div v-if="focusedNodeId" class="focus-pill">
+            <span class="focus-pill__label">Focused: {{ focusedNodeName }}</span>
+            <button class="focus-pill__clear" title="Clear focus (Esc)" @click="clearFocus">
+              &times;
+            </button>
+          </div>
+
           <!-- Zoom Controls (top-right of graph) - hide when detail panel open -->
           <div v-show="!showDetailPanel" class="zoom-controls-container">
             <ZoomControls
+              :zoom-level="zoomLevel"
               @zoom-in="handleZoomIn"
               @zoom-out="handleZoomOut"
               @fit="handleFitToView"
@@ -761,11 +815,7 @@ onUnmounted(() => {
             :mode="timelineState.mode"
             :is-playing="timelineState.isPlaying"
             @year-change="setYear"
-            @mode-change="
-              () => {
-                /* TODO: wire mode change */
-              }
-            "
+            @mode-change="setTimelineMode"
             @play="togglePlayback"
             @pause="togglePlayback"
           />
@@ -844,9 +894,18 @@ onUnmounted(() => {
             @layout-change="handleLayoutChange"
           />
 
+          <!-- Focus pill (mobile) -->
+          <div v-if="focusedNodeId" class="focus-pill">
+            <span class="focus-pill__label">Focused: {{ focusedNodeName }}</span>
+            <button class="focus-pill__clear" title="Clear focus (Esc)" @click="clearFocus">
+              &times;
+            </button>
+          </div>
+
           <!-- Zoom Controls -->
           <div v-show="!showDetailPanel && !isFiltersOpen" class="zoom-controls-container">
             <ZoomControls
+              :zoom-level="zoomLevel"
               @zoom-in="handleZoomIn"
               @zoom-out="handleZoomOut"
               @fit="handleFitToView"
@@ -882,6 +941,7 @@ onUnmounted(() => {
             :mode="timelineState.mode"
             :is-playing="timelineState.isPlaying"
             @year-change="setYear"
+            @mode-change="setTimelineMode"
             @play="togglePlayback"
             @pause="togglePlayback"
           />
@@ -1020,13 +1080,13 @@ onUnmounted(() => {
 
 .show-more-container {
   position: absolute;
-  bottom: 1rem;
+  bottom: calc(1rem + 130px);
   left: 1rem;
   z-index: 10;
 }
 
 .mobile-show-more {
-  bottom: 0.5rem;
+  bottom: calc(0.5rem + 130px);
   left: 0.5rem;
 }
 
@@ -1056,6 +1116,49 @@ onUnmounted(() => {
     border-right: none;
     border-bottom: 1px solid var(--color-victorian-paper-aged, #e8e4d9);
   }
+}
+
+/* Focus pill */
+.focus-pill {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--color-victorian-paper-white, #fdfcfa);
+  border: 1px solid var(--color-victorian-hunter-600, #2f5a4b);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 0.8125rem;
+  color: var(--color-victorian-hunter-700, #254a3d);
+}
+
+.focus-pill__label {
+  font-weight: 600;
+  font-family: Georgia, serif;
+}
+
+.focus-pill__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: var(--color-victorian-hunter-600, #2f5a4b);
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.focus-pill__clear:hover {
+  background: var(--color-victorian-hunter-700, #254a3d);
 }
 
 /* Toast notification */

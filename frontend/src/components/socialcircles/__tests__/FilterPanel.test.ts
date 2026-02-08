@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount, VueWrapper } from "@vue/test-utils";
 import FilterPanel from "../FilterPanel.vue";
 import type { FilterState, Era } from "@/types/socialCircles";
@@ -50,26 +50,6 @@ describe("FilterPanel", () => {
       const resetButton = wrapper.find(".filter-panel__reset");
       expect(resetButton.exists()).toBe(true);
       expect(resetButton.text()).toBe("Reset");
-    });
-
-    it("renders search input", () => {
-      wrapper = mount(FilterPanel, {
-        props: { filterState: createDefaultFilterState() },
-      });
-
-      const searchInput = wrapper.find('input#search[type="text"]');
-      expect(searchInput.exists()).toBe(true);
-      expect(searchInput.attributes("placeholder")).toBe("Find person...");
-    });
-
-    it("renders search label", () => {
-      wrapper = mount(FilterPanel, {
-        props: { filterState: createDefaultFilterState() },
-      });
-
-      const label = wrapper.find('label[for="search"]');
-      expect(label.exists()).toBe(true);
-      expect(label.text()).toBe("Search");
     });
   });
 
@@ -521,90 +501,6 @@ describe("FilterPanel", () => {
     });
   });
 
-  describe("search functionality", () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("reflects searchQuery in input value", () => {
-      wrapper = mount(FilterPanel, {
-        props: {
-          filterState: createDefaultFilterState({ searchQuery: "Dickens" }),
-        },
-      });
-
-      const searchInput = wrapper.find("input#search");
-      expect((searchInput.element as HTMLInputElement).value).toBe("Dickens");
-    });
-
-    it("emits update:filter with debounced search query", async () => {
-      wrapper = mount(FilterPanel, {
-        props: { filterState: createDefaultFilterState() },
-      });
-
-      const searchInput = wrapper.find("input#search");
-      await searchInput.setValue("Charles");
-      await searchInput.trigger("input");
-
-      // Should not emit immediately
-      expect(wrapper.emitted("update:filter")).toBeFalsy();
-
-      // Fast-forward debounce timer
-      vi.advanceTimersByTime(200);
-
-      expect(wrapper.emitted("update:filter")).toBeTruthy();
-      expect(wrapper.emitted("update:filter")![0]).toEqual(["searchQuery", "Charles"]);
-    });
-
-    it("debounces multiple rapid search inputs", async () => {
-      wrapper = mount(FilterPanel, {
-        props: { filterState: createDefaultFilterState() },
-      });
-
-      const searchInput = wrapper.find("input#search");
-
-      // Type characters rapidly
-      await searchInput.setValue("C");
-      await searchInput.trigger("input");
-      vi.advanceTimersByTime(50);
-
-      await searchInput.setValue("Ch");
-      await searchInput.trigger("input");
-      vi.advanceTimersByTime(50);
-
-      await searchInput.setValue("Cha");
-      await searchInput.trigger("input");
-      vi.advanceTimersByTime(50);
-
-      await searchInput.setValue("Char");
-      await searchInput.trigger("input");
-
-      // Wait for debounce
-      vi.advanceTimersByTime(200);
-
-      // Should only emit once with final value
-      expect(wrapper.emitted("update:filter")).toHaveLength(1);
-      expect(wrapper.emitted("update:filter")![0]).toEqual(["searchQuery", "Char"]);
-    });
-
-    it("updates local search when prop changes externally", async () => {
-      wrapper = mount(FilterPanel, {
-        props: { filterState: createDefaultFilterState({ searchQuery: "" }) },
-      });
-
-      await wrapper.setProps({
-        filterState: createDefaultFilterState({ searchQuery: "External" }),
-      });
-
-      const searchInput = wrapper.find("input#search");
-      expect((searchInput.element as HTMLInputElement).value).toBe("External");
-    });
-  });
-
   describe("reset functionality", () => {
     it("emits reset event when reset button clicked", async () => {
       wrapper = mount(FilterPanel, {
@@ -616,17 +512,6 @@ describe("FilterPanel", () => {
       expect(wrapper.emitted("reset")).toBeTruthy();
       expect(wrapper.emitted("reset")).toHaveLength(1);
     });
-
-    it("clears local search query when reset clicked", async () => {
-      wrapper = mount(FilterPanel, {
-        props: { filterState: createDefaultFilterState({ searchQuery: "Dickens" }) },
-      });
-
-      await wrapper.find(".filter-panel__reset").trigger("click");
-
-      const searchInput = wrapper.find("input#search");
-      expect((searchInput.element as HTMLInputElement).value).toBe("");
-    });
   });
 
   describe("structure and layout", () => {
@@ -636,8 +521,8 @@ describe("FilterPanel", () => {
       });
 
       const sections = wrapper.findAll(".filter-panel__section");
-      // Search, Node Types, Connections, Era, Tier
-      expect(sections.length).toBe(5);
+      // Node Types, Connections, Era, Tier
+      expect(sections.length).toBe(4);
     });
 
     it("has correct number of section titles", () => {

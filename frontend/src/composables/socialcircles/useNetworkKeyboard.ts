@@ -29,6 +29,9 @@ export function useNetworkKeyboard(handlers: KeyboardHandlers) {
       return;
     }
 
+    // Skip when modifier keys are held (let browser handle Cmd+/Cmd-)
+    if (event.metaKey || event.ctrlKey) return;
+
     const key = event.key;
     const shortcuts = KEYBOARD_SHORTCUTS;
 

@@ -240,6 +240,10 @@ export function useSocialCircles() {
     timeline.togglePlayback();
   }
 
+  function setTimelineMode(mode: "point" | "range") {
+    timeline.setMode(mode);
+  }
+
   function setPlaybackSpeed(speed: 0.5 | 1 | 2 | 5) {
     timeline.setPlaybackSpeed(speed);
   }
@@ -533,6 +537,7 @@ export function useSocialCircles() {
     timelineState,
     setYear,
     setRange,
+    setTimelineMode,
     togglePlayback,
     setPlaybackSpeed,
 
