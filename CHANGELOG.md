@@ -5,6 +5,12 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.7.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.0) - 2026-02-07
+
+- [`aa5b31c`](https://github.com/markthebest12/bluemoxon/commit/aa5b31cfb3f0e13d4cab2e5b24266b20389ddf1f) feat(site): BMX 3.0 website redesign — Social Circles announcement (#1913)
+- [`aa5b31c`](https://github.com/markthebest12/bluemoxon/commit/aa5b31cfb3f0e13d4cab2e5b24266b20389ddf1f) feat(site): BMX 3.0 website redesign — Social Circles announcement (#1913)
+- [`aa5b31c`](https://github.com/markthebest12/bluemoxon/commit/aa5b31cfb3f0e13d4cab2e5b24266b20389ddf1f) feat(site): BMX 3.0 website redesign — Social Circles announcement (#1913)
+
 ## [v3.6.5](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.5) - 2026-02-07
 
 - [`0f7a4ff`](https://github.com/markthebest12/bluemoxon/commit/0f7a4ff65f0a9697b83973d31cd5c8fdd6771ba7) fix: CI + pre-commit guard for requirements.txt sync (#1911) (#1916)
