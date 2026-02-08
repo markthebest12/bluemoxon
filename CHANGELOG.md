@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.6.5](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.5) - 2026-02-07
+
+- [`0f7a4ff`](https://github.com/markthebest12/bluemoxon/commit/0f7a4ff65f0a9697b83973d31cd5c8fdd6771ba7) fix: CI + pre-commit guard for requirements.txt sync (#1911) (#1916)
+
 ## [v3.6.4](https://github.com/markthebest12/bluemoxon/releases/tag/v3.6.4) - 2026-02-07
 
 - [`6727598`](https://github.com/markthebest12/bluemoxon/commit/67275988686b65bf1d503bc07208808faf48dff9) fix: batch Social Circles UX improvements (#1905, #1906, #1907, #1908, #1889, #1909, #1915) (#1918)
