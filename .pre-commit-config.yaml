@@ -36,6 +36,13 @@ repos:
         files: ^frontend/src/.*\.(vue|ts|css)$
         pass_filenames: false
 
+      - id: poetry-export-check
+        name: Check requirements.txt matches Poetry
+        entry: bash -c 'cd backend && poetry export -f requirements.txt --without-hashes --only main | diff -q requirements.txt - > /dev/null || { echo "requirements.txt out of sync -- run cd backend && poetry export -f requirements.txt --without-hashes --only main > requirements.txt"; exit 1; }'
+        language: system
+        files: ^backend/(pyproject\.toml|poetry\.lock)$
+        pass_filenames: false
+
   # General
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

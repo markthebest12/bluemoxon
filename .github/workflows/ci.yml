@@ -302,6 +302,17 @@ jobs:
           echo "This prevents missing migrations after deployment (4th occurrence prevention)"
           python scripts/validate_migration_sync.py
 
+      - name: Validate requirements.txt matches Poetry
+        run: |
+          cd backend
+          poetry export -f requirements.txt --without-hashes --only main > /tmp/expected-requirements.txt
+          if ! diff -q requirements.txt /tmp/expected-requirements.txt > /dev/null; then
+            echo "::error::requirements.txt is out of sync with pyproject.toml"
+            diff requirements.txt /tmp/expected-requirements.txt || true
+            echo "Fix: cd backend && poetry export -f requirements.txt --without-hashes --only main > requirements.txt"
+            exit 1
+          fi
+
   # ============================================
   # Frontend Jobs
   # ============================================
