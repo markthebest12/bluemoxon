@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.7.3](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.3) - 2026-02-07
+
+- [`e6204b2`](https://github.com/markthebest12/bluemoxon/commit/e6204b22622b65f8229e53b2ad2268547ee6341f) fix(site): retake dashboard screenshots with varied spotlight books (#1923)
+
 ## [v3.7.2](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.2) - 2026-02-07
 
 - [`97919d9`](https://github.com/markthebest12/bluemoxon/commit/97919d99b1ed493a18619794a928f73c5173d007) fix(e2e): update search tests after FilterPanel search removal (#1922)
