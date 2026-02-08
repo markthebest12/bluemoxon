@@ -5,6 +5,10 @@ This changelog is automatically maintained by [Uplift](https://upliftci.dev/).
 
 ## Unreleased
 
+## [v3.7.1](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.1) - 2026-02-07
+
+- [`7d60263`](https://github.com/markthebest12/bluemoxon/commit/7d60263ee1b4e57068f0b9a232b4201d13f1ea47) fix(ci): make deploy-site smoke test discover screenshots dynamically (#1921)
+
 ## [v3.7.0](https://github.com/markthebest12/bluemoxon/releases/tag/v3.7.0) - 2026-02-07
 
 - [`aa5b31c`](https://github.com/markthebest12/bluemoxon/commit/aa5b31cfb3f0e13d4cab2e5b24266b20389ddf1f) feat(site): BMX 3.0 website redesign — Social Circles announcement (#1913)
