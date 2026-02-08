@@ -163,26 +163,20 @@ jobs:
       - name: Test screenshots are accessible
         run: |
           echo "Testing screenshot accessibility..."
-          screenshots=(
-            "login.png"
-            "dashboard.png"
-            "collection.png"
-            "book-detail.png"
-            "reports.png"
-            "analysis.png"
-          )
-
-          for screenshot in "${screenshots[@]}"; do
-            url="https://bluemoxon.com/screenshots/$screenshot"
+          failed=0
+          for screenshot in site/screenshots/*.png; do
+            filename=$(basename "$screenshot")
+            url="https://bluemoxon.com/screenshots/$filename"
             content_type=$(curl -sI "$url" | grep -i "content-type" | head -1)
 
             if echo "$content_type" | grep -qi "image"; then
-              echo "✓ $screenshot returns image content-type"
+              echo "✓ $filename returns image content-type"
             else
-              echo "✗ $screenshot failed - got: $content_type"
-              exit 1
+              echo "✗ $filename failed - got: $content_type"
+              failed=1
             fi
           done
+          [ "$failed" -eq 0 ] || exit 1
           echo "All screenshots accessible"
 
       - name: Test admin guide loads
