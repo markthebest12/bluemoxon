@@ -86,6 +86,7 @@ nav .nav-links a:hover,
 nav .nav-links a.active,
 nav .nav-links a.nav-highlight {
     color: var(--accent-blue-light);
+    font-weight: 600;
 }
 
 /* Login Button */
@@ -250,5 +251,17 @@ footer {
 
     footer {
         padding: 2rem 1rem;
+    }
+
+    footer p {
+        font-size: 0.8rem;
+    }
+
+    .footer-links {
+        gap: 1rem;
+    }
+
+    .footer-links a {
+        font-size: 0.8rem;
     }
 }

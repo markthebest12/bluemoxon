@@ -179,6 +179,20 @@ jobs:
           [ "$failed" -eq 0 ] || exit 1
           echo "All screenshots accessible"
 
+      - name: Test shared assets are accessible
+        run: |
+          echo "Testing shared CSS/JS assets..."
+          for asset in css/shared.css js/shared.js; do
+            url="https://bluemoxon.com/$asset"
+            status=$(curl -sI "$url" | head -1 | awk '{print $2}')
+            if [[ "$status" != "200" ]]; then
+              echo "✗ $asset returned status $status"
+              exit 1
+            fi
+            echo "✓ $asset returns 200"
+          done
+          echo "All shared assets accessible"
+
       - name: Test admin guide loads
         run: |
           echo "Testing admin guide..."
